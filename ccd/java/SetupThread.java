@@ -1,132 +1,115 @@
 // SetupThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.3 1999-09-08 10:52:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.4 1999-09-10 15:55:11 cjm Exp $
 import java.io.*;
 import java.lang.*;
+
+import ngat.ccd.*;
 
 /**
  * This class extends thread to support the setup of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway..
  * @author Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 class SetupThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: SetupThread.java,v 0.3 1999-09-08 10:52:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: SetupThread.java,v 0.4 1999-09-10 15:55:11 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
-	 * @see CCDLibrary
 	 */
 	private CCDLibrary libccd 		= null;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int setup_flags 		= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int timing_load_type 		= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int timing_application_number 	= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private String timing_filename 		= null;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int utility_load_type 		= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int utility_application_number 	= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private String utility_filename 	= null;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private double target_temperature 	= 0.0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int gain 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private boolean gain_speed 		= true;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private boolean idle 			= false;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int ncols 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int nrows 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int nsbin 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int npbin 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private int deinterlace_type 		= 0;
 	/**
 	 * Private copy of the Return value of 
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD.
 	 */
 	private boolean returnValue 		= false;
 
 	/**
 	 * Constructor of the thread. Copys all the parameters, ready to pass them into
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a> when the thread is run.
-	 * @see CCDLibrary#CCDSetupSetupCCD
+	 * CCDSetupSetupCCD when the thread is run.
 	 */
 	public SetupThread(CCDLibrary libccd,int setup_flags,
 		int timing_load_type,int timing_application_number,String timing_filename,
@@ -161,12 +144,11 @@ class SetupThread extends Thread
 
 	/**
 	 * Run method of the thread. Calls
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a> with the parameters passed into the
+	 * CCDSetupSetupCCD with the parameters passed into the
 	 * constructor. This causes the CCD to be setup for an exposure. The success or failure of the
 	 * operation is stored in <a href="#returnValue">returnValue</a>, which can be retieved using the 
 	 * <a href="#getReturnValue">getReturnValue</a> method. Setup can be aborted using the
 	 * <a href="#abort">abort</a> method.
-	 * @see CCDLibrary#CCDSetupSetupCCD
 	 * @see #getReturnValue
 	 * @see #abort
 	 */
@@ -180,12 +162,10 @@ class SetupThread extends Thread
 
 	/**
 	 * This method will terminate a partly completed Setup. It calls 
-	 * <a href="CCDLibrary.html#CCDSetupAbort">CCDSetupAbort</a> which at the libccd level tells
-	 * <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a> to stop what it is doing. This causes
+	 * CCDSetupAbort which at the libccd level tells
+	 * CCDSetupSetupCCD to stop what it is doing. This causes
 	 * the <a href="#run">run</a> method to finish halting the thread, the <a href="#returnValue">returnValue</a>
 	 * will be false.
-	 * @see CCDLibrary#CCDSetupAbort
-	 * @see CCDLibrary#CCDSetupSetupCCD
 	 * @see #getReturnValue
 	 * @see #run
 	 */
@@ -196,10 +176,9 @@ class SetupThread extends Thread
 	}
 
 	/**
-	 * This returns the return value generated by <a href="CCDLibrary.html#CCDSetupSetupCCD">CCDSetupSetupCCD</a>\
+	 * This returns the return value generated by CCDSetupSetupCCD
 	 * in the <a href="#run">run</a> method. If the thread hasn't been run yet it returns false. If the setup was
 	 * successfully completed it returns true, otherwise it returns false.
-	 * @see CCDLibrary#CCDSetupSetupCCD
 	 * @see #run
 	 */
 	public boolean getReturnValue()
@@ -210,6 +189,9 @@ class SetupThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.3  1999/09/08 10:52:40  cjm
+// Trying to fix file permissions of these files.
+//
 // Revision 0.2  1999/02/23 11:08:00  dev
 // backup/transfer to ltccd1.
 //

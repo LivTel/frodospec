@@ -1,11 +1,14 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.7 1999-09-08 10:52:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.8 1999-09-10 15:55:30 cjm Exp $
 import java.lang.*;
 import java.io.*;
+
+import ngat.ccd.*;
+
 /**
  * This is the main test program.
  * @author Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 class Test
 {
@@ -113,7 +116,6 @@ class Test
 
 	/**
 	 * Routine to get the temperature from the ccd.
-	 * @see CCDLibrary#CCDTemperatureGet
 	 */
 	public void getTemperature()
 	{
@@ -359,4 +361,7 @@ class Test
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.7  1999/09/08 10:52:40  cjm
+// Trying to fix file permissions of these files.
+//
 //
