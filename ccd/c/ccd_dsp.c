@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.35 2001-02-16 09:55:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.36 2001-03-12 15:15:41 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.35 $
+ * @version $Revision: 0.36 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.35 2001-02-16 09:55:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.36 2001-03-12 15:15:41 cjm Exp $";
 
 /* defines */
 /**
@@ -322,6 +322,11 @@ int CCD_DSP_Initialise(void)
 #else
 	fprintf(stdout,"CCD_DSP_Initialise:Using Unix Timers (gettimeofday).\n");
 #endif
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
+	fprintf(stdout,"CCD_DSP_Initialise:Reject util board communications during exposure.\n");
+#else
+	fprintf(stdout,"CCD_DSP_Initialise:Allow util board communications during exposure.\n");
+#endif
 #ifdef CCD_DSP_BYTE_SWAP
 	fprintf(stdout,"CCD_DSP_Initialise:Image data is byte swapped by the application.\n");
 #else
@@ -451,6 +456,7 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #endif
 /* At the moment, we can only read memory on the utility board when we are not exposing,
 ** otherwise the SDSU boards lock up... */
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
 		(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE))
 	{
@@ -462,6 +468,7 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 			"reading from the utility board.",DSP_Data.Exposure_Status);
 		return FALSE;
 	}
+#endif
 	if(!DSP_Send_Rdm(board_id,mem_space,address))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -509,6 +516,7 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 /* At the moment, we can only TDL on the utility board when we are not exposing,
 ** otherwise the SDSU boards lock up... */
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
@@ -522,6 +530,7 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 			"testing the utility board.",DSP_Data.Exposure_Status);
 		return FALSE;
 	}
+#endif
 	if(!DSP_Send_Tdl(board_id,data))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -589,6 +598,7 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 /* At the moment, we can only write memory on the utility board when we are not exposing,
 ** otherwise the SDSU boards lock up... */
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
@@ -602,6 +612,7 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 			"writing to the utility board.",DSP_Data.Exposure_Status);
 		return FALSE;
 	}
+#endif
 	if(!DSP_Send_Wrm(board_id,mem_space,address,data))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -1382,6 +1393,7 @@ int CCD_DSP_Command_Read_Temperature(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 /* At the moment, we can only read the temperature when we are not exposing,
 ** otherwise the SDSU boards lock up... */
 	if(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE)
@@ -1394,6 +1406,7 @@ int CCD_DSP_Command_Read_Temperature(void)
 			DSP_Data.Exposure_Status);
 		return FALSE;
 	}
+#endif
 	if(!DSP_Send_Read_Temperature())
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -1433,7 +1446,8 @@ int CCD_DSP_Command_Set_Temperature(int adu)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-/* At the moment, we can only read the temperature when we are not exposing,
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
+/* At the moment, we can only set the temperature when we are not exposing,
 ** otherwise the SDSU boards lock up... */
 	if(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE)
 	{
@@ -1445,6 +1459,7 @@ int CCD_DSP_Command_Set_Temperature(int adu)
 			DSP_Data.Exposure_Status);
 		return FALSE;
 	}
+#endif
 	if(!DSP_Send_Set_Temperature(adu))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -4396,6 +4411,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.35  2001/02/16 09:55:19  cjm
+** Added more detail to error messages.
+**
 ** Revision 0.34  2001/02/09 18:30:40  cjm
 ** Changed Filter wheel code - to just simply send command, there is now no
 ** second DON message returned from the controller.
