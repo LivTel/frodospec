@@ -1,5 +1,5 @@
 // SetupThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.7 2000-06-12 14:12:43 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.8 2001-01-31 16:57:56 cjm Exp $
 import java.io.*;
 import java.lang.*;
 
@@ -9,14 +9,14 @@ import ngat.ccd.*;
  * This class extends thread to support the setup of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway..
  * @author Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 class SetupThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: SetupThread.java,v 0.7 2000-06-12 14:12:43 cjm Exp $");
+	public final static String RCSID = new String("$Id: SetupThread.java,v 0.8 2001-01-31 16:57:56 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
@@ -115,16 +115,10 @@ class SetupThread extends Thread
 		this.libccd = libccd;
 		this.timing_load_type = timing_load_type;
 		this.timing_application_number = timing_application_number;
-		if(this.timing_filename != null)
-			this.timing_filename = new String(timing_filename);
-		else
-			this.timing_filename = null;
+		this.timing_filename = timing_filename;
 		this.utility_load_type = utility_load_type;
 		this.utility_application_number = utility_application_number;
-		if(this.utility_filename != null)
-			this.utility_filename = new String(utility_filename);
-		else
-			this.utility_filename = null;
+		this.utility_filename = utility_filename;
 		this.target_temperature = target_temperature;
 		this.gain = gain;
 		this.gain_speed = gain_speed;
@@ -197,6 +191,10 @@ class SetupThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.7  2000/06/12 14:12:43  cjm
+// Made changes to CCDSetupStartup and CCDSetupDimension calls
+// because of changed API.
+//
 // Revision 0.6  2000/02/03 16:59:22  cjm
 // Changed for new ngat.ccd.CCLibrary interface to setup methods.
 //
