@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.2 2000-01-27 15:38:47 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.3 2000-02-02 15:50:01 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.2 2000-01-27 15:38:47 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.3 2000-02-02 15:50:01 cjm Exp $";
 
 /* defines */
 /**
@@ -100,6 +100,7 @@ static int DSP_Send_Csh(void);
 static int DSP_Send_Osh(void);
 static int DSP_Send_Pex(void);
 static int DSP_Send_Pon(void);
+static int DSP_Send_Pof(void);
 static int DSP_Send_Read_Temperature(void);
 static int DSP_Send_Set_Temperature(int adu);
 static int DSP_Send_Rex(void);
@@ -596,6 +597,22 @@ int CCD_DSP_Command_PON(void)
 {
 	DSP_Error_Number = 0;
 	if(!DSP_Send_Pon())
+		return FALSE;
+	/* get reply - DON should be returned */
+	return(DSP_Get_Reply(CCD_DSP_DON));
+}
+
+/**
+ * This routine executes the Power OFF (POF) command on a SDSU Controller board.
+ * This turns the analog power off safely, using the power control board.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Pof
+ * @see #DSP_Get_Reply
+ */
+int CCD_DSP_Command_POF(void)
+{
+	DSP_Error_Number = 0;
+	if(!DSP_Send_Pof())
 		return FALSE;
 	/* get reply - DON should be returned */
 	return(DSP_Get_Reply(CCD_DSP_DON));
@@ -1380,6 +1397,17 @@ static int DSP_Send_Pex(void)
 static int DSP_Send_Pon(void)
 {
 	return DSP_Send_Command(CCD_PCI_HCVR_POWER_ON,NULL,0);
+}
+
+/**
+ * Internal DSP command to turn the analog power supplies off using the power control board.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #DSP_Send_Command
+ * @see ccd_pci.html#CCD_PCI_HCVR_POWER_OFF
+ */
+static int DSP_Send_Pof(void)
+{
+	return DSP_Send_Command(CCD_PCI_HCVR_POWER_OFF,NULL,0);
 }
 
 /**
@@ -2215,6 +2243,10 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/01/27 15:38:47  cjm
+** Fixed Clear_Reply_Memory so that it no longer checks that retval = -1.
+** This appears not to be the case.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **

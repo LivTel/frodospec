@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.1 2000-01-25 15:03:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.2 2000-02-02 15:49:38 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -168,6 +168,7 @@ extern int CCD_DSP_Command_CSH(void);
 extern int CCD_DSP_Command_OSH(void);
 extern int CCD_DSP_Command_PEX(void);
 extern int CCD_DSP_Command_PON(void);
+extern int CCD_DSP_Command_POF(void);
 extern int CCD_DSP_Command_REX(void);
 extern int CCD_DSP_Command_Read_Temperature(void);
 extern int CCD_DSP_Command_Set_Temperature(int adu);
