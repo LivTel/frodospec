@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.44 2003-03-26 15:44:48 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.45 2003-06-06 12:36:01 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.44 $
+ * @version $Revision: 0.45 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.44 2003-03-26 15:44:48 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.45 2003-06-06 12:36:01 cjm Exp $";
 
 /* defines */
 /**
@@ -133,6 +133,8 @@ static int DSP_Send_Ret(int *reply_value);
 static int DSP_Send_Fwa(int *reply_value);
 static int DSP_Send_Fwm(int wheel,int direction,int posn_count,int *reply_value);
 static int DSP_Send_Fwr(int wheel,int *reply_value);
+static int DSP_Send_Von(int *reply_value);
+static int DSP_Send_Vof(int *reply_value);
 
 static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,int *argument_list,int argument_count,
 	int *reply_value);
@@ -1846,6 +1848,88 @@ int CCD_DSP_Command_FWR(int wheel)
 }
 
 /**
+ * This routine executes the Vacuum gauge ON (VON) command on the SDSU utility board.
+ * This turns the power on to the vacuum gauge.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Von
+ * @see #DSP_Check_Reply
+ */
+int CCD_DSP_Command_VON(void)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#if LOGGING > 4
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VON() started.");
+#endif
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Von(&retval))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	/* check reply - DON should be returned */
+	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
+		return FALSE;
+#if LOGGING > 4
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VON() returned %#x.",retval);
+#endif
+	return retval;
+}
+
+/**
+ * This routine executes the Vacuum gauge OFf (VOF) command on the SDSU utility board.
+ * This turns the vacuum gauge circuitry off.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Vof
+ * @see #DSP_Check_Reply
+ */
+int CCD_DSP_Command_VOF(void)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#if LOGGING > 4
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VOF() started.");
+#endif
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Vof(&retval))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	/* check reply - DON should be returned */
+	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
+		return FALSE;
+#if LOGGING > 4
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VOF() returned %#x.",retval);
+#endif
+	return retval;
+}
+
+/**
  * This routine returns the current stste of the Abort flag.
  * The Abort flag is defined in DSP_Data and is set to true when
  * the user wants to stop execution mid-commend.
@@ -2571,6 +2655,30 @@ static int DSP_Send_Fwr(int wheel,int *reply_value)
 }
 
 /**
+ * Internal DSP command to turn the vacuum gauge power supply on using a relay attached to DOUT5 on the utility board.
+ * @param reply_value The address of an integer to store the value returned from the SDSU board.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #DSP_Send_Manual_Command
+ * @see ccd_dsp.html#CCD_DSP_VON
+ */
+static int DSP_Send_Von(int *reply_value)
+{
+	return DSP_Send_Manual_Command(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_VON,NULL,0,reply_value);
+}
+
+/**
+ * Internal DSP command to turn the vacuum gauge power supply off using a relay attached to DOUT5 on the utility board.
+ * @param reply_value The address of an integer to store the value returned from the SDSU board.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #DSP_Send_Manual_Command
+ * @see ccd_dsp.html#CCD_DSP_VOF
+ */
+static int DSP_Send_Vof(int *reply_value)
+{
+	return DSP_Send_Manual_Command(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_VOF,NULL,0,reply_value);
+}
+
+/**
  * Internal DSP command that sends a manual command the SDSU CCD Controller. A manual command is a 24 bit
  * 3 letter command (e.g. SGN) that a sent via the PCI interface to one of the controller boards. 
  * <ul>
@@ -2807,6 +2915,9 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.44  2003/03/26 15:44:48  cjm
+** Added SSS and SSP implementations.
+**
 ** Revision 0.43  2002/12/16 16:49:36  cjm
 ** Fixed status problems.
 ** Removed Error routines resetting error number to zero.

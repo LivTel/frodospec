@@ -1,5 +1,5 @@
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.23 2003-03-26 15:50:00 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.24 2003-06-06 12:38:45 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -295,6 +295,18 @@ enum CCD_DSP_AMPLIFIER
  * </ul>
  */
 #define CCD_DSP_FWR		(0x465752)	/* FWR */
+/**
+ * Utility board command that means Vacuum gauge ON. This turns on a digital output connected to a relay that
+ * turns on power to the vacuum gauge circuitry. 
+ * It has no arguments.
+ */
+#define CCD_DSP_VON		(0x564f4e)	/* VON */
+/**
+ * Utility board command that means Vacuum gauge OFf. This turns off a digital output connected to a relay that
+ * turns power off to the vacuum gauge circuitry. 
+ * It has no arguments.
+ */
+#define CCD_DSP_VOF		(0x564f46)	/* VOF */
 
 /**
  * This hash definition represents one of the bits present in the controller status word, which is on
@@ -365,6 +377,8 @@ extern int CCD_DSP_Command_RET(void);
 extern int CCD_DSP_Command_FWA(void);
 extern int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count);
 extern int CCD_DSP_Command_FWR(int wheel);
+extern int CCD_DSP_Command_VON(void);
+extern int CCD_DSP_Command_VOF(void);
 extern int CCD_DSP_Get_Abort(void);
 extern int CCD_DSP_Set_Abort(int value);
 extern enum CCD_DSP_FILTER_WHEEL_STATUS CCD_DSP_Get_Filter_Wheel_Status(void);
