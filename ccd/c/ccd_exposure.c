@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.6 2000-04-13 13:17:36 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.7 2000-05-10 14:37:52 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.6 2000-04-13 13:17:36 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.7 2000-05-10 14:37:52 cjm Exp $";
 
 /* external variables */
 
@@ -182,7 +182,7 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_t
 /* Read out the ccd. */
 	if(readout_ccd)
 	{
-		if(!CCD_DSP_Command_RDC(ncols,nrows,nrows*ncols*CCD_GLOBAL_BYTES_PER_PIXEL,deinterlace_type,filename))
+		if(!CCD_DSP_Command_RDC(ncols,nrows,deinterlace_type,filename))
 		{
 			CCD_DSP_Set_Abort(FALSE);
 			Exposure_Error_Number = 27;
@@ -209,7 +209,6 @@ int CCD_Exposure_Bias(char *filename)
 	int nrows;
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	int return_value;	/* value returned from function calls */
-	int numbytes;
 
 	Exposure_Error_Number = 0;
 /* reset abort flag */
@@ -225,7 +224,6 @@ int CCD_Exposure_Bias(char *filename)
 	ncols = CCD_Setup_Get_NCols();
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
-	numbytes = nrows * ncols * CCD_GLOBAL_BYTES_PER_PIXEL;
 
 	/* clear the ccd */
 	if(!CCD_DSP_Command_CLR())
@@ -243,7 +241,7 @@ int CCD_Exposure_Bias(char *filename)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Aborted.");
 		return FALSE;
 	} 
-	return_value = CCD_DSP_Command_RDC(ncols,nrows,numbytes,deinterlace_type,filename);
+	return_value = CCD_DSP_Command_RDC(ncols,nrows,deinterlace_type,filename);
 	if(return_value == FALSE)
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -459,7 +457,6 @@ int CCD_Exposure_Read_Out_CCD(char *filename)
 	int nrows;
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	int ret_val;
-	int numbytes;
 
 	Exposure_Error_Number = 0;
 /* reset abort flag */
@@ -475,8 +472,7 @@ int CCD_Exposure_Read_Out_CCD(char *filename)
 	ncols = CCD_Setup_Get_NCols();
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
-	numbytes = nrows * ncols * CCD_GLOBAL_BYTES_PER_PIXEL;
- 	ret_val = CCD_DSP_Command_RDC(ncols,nrows,numbytes,deinterlace_type,filename);
+ 	ret_val = CCD_DSP_Command_RDC(ncols,nrows,deinterlace_type,filename);
 	if(ret_val == FALSE)
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -594,6 +590,9 @@ static int Exposure_Shutter_Control(int value)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.6  2000/04/13 13:17:36  cjm
+** Added current time to error routines.
+**
 ** Revision 0.5  2000/03/13 12:30:17  cjm
 ** Removed duplicate CCD_DSP_Set_Abort(FALSE) in CCD_Exposure_Bias.
 **
