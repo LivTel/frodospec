@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.5 1999-06-07 16:57:44 dev Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.6 1999-06-24 12:38:57 dev Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -14,35 +14,35 @@ DOCS = $(SRCS:%.java=$(DOCSDIR)/%.html)
 top: $(OBJS) $(DOCS)
 
 CCDLibrary.class: CCDLibrary.java
-	javac CCDLibrary.java
-	javah -jni CCDLibrary
-	mv CCDLibrary.h $(INCDIR)
+	$(JAVAC) $(JAVAC_OPTIONS) CCDLibrary.java
+	$(JAVAH) -jni CCDLibrary
+	$(MV) CCDLibrary.h $(INCDIR)
 
 CCDLibraryFormatException.class: CCDLibraryFormatException.java
-	javac CCDLibraryFormatException.java
+	$(JAVAC) $(JAVAC_OPTIONS) CCDLibraryFormatException.java
 
 CCDLibraryDouble.class: CCDLibraryDouble.java
-	javac CCDLibraryDouble.java
+	$(JAVAC) $(JAVAC_OPTIONS) CCDLibraryDouble.java
 
 Test.class: Test.java CCDLibrary.class ExposureThread.class AbortThread.class SetupThread.class ReadOutThread.class
-	javac Test.java
+	$(JAVAC) $(JAVAC_OPTIONS) Test.java
 
 ExposureThread.class: ExposureThread.java CCDLibrary.class
-	javac ExposureThread.java
+	$(JAVAC) $(JAVAC_OPTIONS) ExposureThread.java
 
 AbortThread.class: AbortThread.java CCDLibrary.class
-	javac AbortThread.java
+	$(JAVAC) $(JAVAC_OPTIONS) AbortThread.java
 
 SetupThread.class: SetupThread.java CCDLibrary.class
-	javac SetupThread.java
+	$(JAVAC) $(JAVAC_OPTIONS) SetupThread.java
 
 ReadOutThread.class: ReadOutThread.java CCDLibrary.class
-	javac ReadOutThread.java
+	$(JAVAC) $(JAVAC_OPTIONS) ReadOutThread.java
 
 $(DOCSDIR)/CCDLibrary.html $(DOCSDIR)/CCDLibraryDouble.html $(DOCSDIR)/SetupThread.html \
 $(DOCSDIR)/ExposureThread.html $(DOCSDIR)/ReadOutThread.html: CCDLibrary.java CCDLibraryDouble.java \
 SetupThread.java ExposureThread.java ReadOutThread.java
-	javadoc -d $(DOCSDIR) $(DOCFLAGS) *.java
+	$(JAVADOC) -d $(DOCSDIR) $(DOCFLAGS) *.java
 
 clean:
 	$(RM) $(RM_OPTIONS) $(OBJS) $(TIDY_OPTIONS)
