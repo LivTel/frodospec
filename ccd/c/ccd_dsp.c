@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.15 2000-04-13 13:19:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.16 2000-05-10 11:06:49 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.15 $
+ * @version $Revision: 0.16 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.15 2000-04-13 13:19:52 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.16 2000-05-10 11:06:49 cjm Exp $";
 
 /* defines */
 /**
@@ -2724,7 +2724,6 @@ static int DSP_Image_Transfer(int ncols,int nrows,int numbytes,
 		if(expdata != NULL)
 			free(expdata);
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
-		perror("DSP_Image_Transfer: Error on read, no data transfered");
 		DSP_Error_Number = 44;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Failed to get reply data.");
 		return FALSE;
@@ -3115,6 +3114,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.15  2000/04/13 13:19:52  cjm
+** Added current time to error string.
+**
 ** Revision 0.14  2000/03/21 16:37:14  cjm
 ** Added mutex compilation print.
 **
