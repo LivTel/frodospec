@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.16 2001-01-31 16:35:18 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.17 2001-02-05 17:04:48 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.16 $
+ * @version $Revision: 0.17 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.16 2001-01-31 16:35:18 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.17 2001-02-05 17:04:48 cjm Exp $";
 
 /* #defines */
 /**
@@ -62,6 +62,7 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.16 2001-01-31 16:35:18 cjm Exp $";
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.</dd>
  * <dt>Gain</dt> <dd>The gain setting used to configure the CCD electronics.</dd>
  * <dt>Amplifier</dt> <dd>The amplifier setting used to configure the CCD electronics.</dd>
+ * <dt>Idle</dt> <dd>A boolean, set as to whether we set the CCD electronics to Idle clock or not.</dd>
  * <dt>Window_Flags</dt> <dd>The window flags for this setup. Determines which of the four possible windows
  * 	are in use for this setup.</dd>
  * <dt>Window_List</dt> <dd>A list of window positions on the CCD. Theere are a maximum of CCD_SETUP_WINDOW_COUNT
@@ -88,6 +89,7 @@ struct Setup_Struct
 	enum CCD_DSP_DEINTERLACE_TYPE DeInterlace_Type;
 	enum CCD_DSP_GAIN Gain;
 	enum CCD_DSP_AMPLIFIER Amplifier;
+	int Idle;
 	int Window_Flags;
 	struct CCD_Setup_Window_Struct Window_List[CCD_SETUP_WINDOW_COUNT];
 	int Power_Complete;
@@ -127,6 +129,7 @@ static int Setup_Idle(int idle);
 static int Setup_Binning(int nsbin,int npbin);
 static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
 static int Setup_Dimensions(void);
+static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct window_list[]);
 
 /* external functions */
 /**
@@ -145,6 +148,7 @@ void CCD_Setup_Initialise(void)
 	Setup_Data.DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
 	Setup_Data.Gain = CCD_DSP_GAIN_ONE;
 	Setup_Data.Amplifier = CCD_DSP_AMPLIFIER_LEFT;
+	Setup_Data.Idle = FALSE;
 	Setup_Data.Window_Flags = 0;
 	for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
 	{
@@ -365,21 +369,6 @@ int CCD_Setup_Shutdown(void)
 		return FALSE;
 	}
 /* reset completion flags  */
-	Setup_Data.NCols = 0;
-	Setup_Data.NRows = 0;
-	Setup_Data.NSBin = 0;
-	Setup_Data.NPBin = 0;
-	Setup_Data.DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
-	Setup_Data.Gain = CCD_DSP_GAIN_ONE;
-	Setup_Data.Amplifier = CCD_DSP_AMPLIFIER_LEFT;
-	Setup_Data.Window_Flags = 0;
-	for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
-	{
-		Setup_Data.Window_List[i].X_Start = -1;
-		Setup_Data.Window_List[i].Y_Start = -1;
-		Setup_Data.Window_List[i].X_End = -1;
-		Setup_Data.Window_List[i].Y_End = -1;
-	}
 	Setup_Data.Power_Complete = FALSE;
 	Setup_Data.PCI_Complete = FALSE;
 	Setup_Data.Timing_Complete = FALSE;
@@ -411,7 +400,13 @@ int CCD_Setup_Shutdown(void)
  * @param window_list A list of CCD_Setup_Window_Structs defining the position of the windows. The list should
  * 	<b>always</b> contain <b>four</b> entries, one for each possible window. The window_flags parameter
  * 	determines which items in the list are used.
+ * @return The routine returns TRUE on success and FALSE if an error occured.
  * @see #CCD_Setup_Startup
+ * @see #Setup_Data
+ * @see #Setup_Binning
+ * @see #Setup_DeInterlace
+ * @see #Setup_Dimensions
+ * @see #Setup_Window_List
  * @see #CCD_Setup_Abort
  * @see #CCD_Setup_Window_Struct
  * @see ccd_dsp.html#CCD_DSP_AMPLIFIER
@@ -477,20 +472,11 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	else /*acknowlege dimensions complete*/ 
 		Setup_Data.Dimension_Complete = TRUE;
 /* setup windowing data */
-/* diddly 
-** check windowing arguments - must be non-overlapping in both dimensions - 
-** only check window dimensions with the window_flags bit set */
-	if(window_flags&CCD_SETUP_WINDOW_ONE)
-		Setup_Data.Window_List[0] = window_list[0];
-	if(window_flags&CCD_SETUP_WINDOW_TWO)
-		Setup_Data.Window_List[1] = window_list[1];
-	if(window_flags&CCD_SETUP_WINDOW_THREE)
-		Setup_Data.Window_List[2] = window_list[2];
-	if(window_flags&CCD_SETUP_WINDOW_FOUR)
-		Setup_Data.Window_List[3] = window_list[3];
-
-	Setup_Data.Window_Flags = window_flags;
-/* diddly write paramaters to window table on timing board */
+	if(!Setup_Window_List(window_flags,window_list))
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		return FALSE;
+	}
 /* reset in progress information */
 	Setup_Data.Setup_In_Progress = FALSE;
 	CCD_DSP_Set_Abort(FALSE);
@@ -681,6 +667,30 @@ enum CCD_DSP_GAIN CCD_Setup_Get_Gain(void)
 }
 
 /**
+ * Routine to return the amplifier used by the CCD Camera.
+ * @return The current amplifier, in the enum CCD_DSP_AMPLIFIER.
+ * @see #Setup_Data
+ * @see ccd_dsp.html#CCD_DSP_AMPLIFIER
+ */
+enum CCD_DSP_AMPLIFIER CCD_Setup_Get_Amplifier(void)
+{
+	return Setup_Data.Amplifier;
+}
+
+/**
+ * Routine that returns whether the controller is set to Idle or not.
+ * @return A boolean. This is TRUE if the controller is currently setup to idle clock the CCD, or FALSE if it
+ * 	is not.
+ * @see #CCD_Setup_Startup
+ * @see #Setup_Idle
+ * @see #Setup_Data
+ */
+int CCD_Setup_Get_Idle(void)
+{
+	return Setup_Data.Idle;
+}
+
+/**
  * Routine that returns the window flags number of the last successful dimension setup.
  * @return The window flags.
  * @see #CCD_Setup_Dimensions
@@ -712,6 +722,12 @@ int CCD_Setup_Get_Window(int window_index,struct CCD_Setup_Window_Struct *window
 		Setup_Error_Number = 1;
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Window:Window Index '%d' out of range:"
 			"['%d' to '%d'] inclusive.",window_index,0,CCD_SETUP_WINDOW_COUNT-1);
+		return FALSE;
+	}
+	if(window == NULL)
+	{
+		Setup_Error_Number = 49;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Window:Window Index '%d':Null pointer.",window_index);
 		return FALSE;
 	}
 	(*window) = Setup_Data.Window_List[window_index];
@@ -1114,10 +1130,12 @@ static int Setup_Gain(enum CCD_DSP_GAIN gain,int speed)
 /**
  * Internal routine to set whether the SDSU CCD Controller timing board should
  * idle when not executing commands, using the IDL or STP DSP commands. 
- * This routine is called from CCD_Setup_Startup.
+ * This routine is called from CCD_Setup_Startup. The Setup_Data's Idle property is changed to
+ * reflect the current status of idling on the controller.
  * @param idle TRUE if the timing board is to idle when not executing commands, FALSE if it isn't to idle.
  * @return returns TRUE if the operation succeeded, FALSE if it failed.
  * @see #CCD_Setup_Startup
+ * @see #Setup_Data
  * @see ccd_dsp.html#CCD_DSP_Command_IDL
  * @see ccd_dsp.html#CCD_DSP_Command_STP
  */
@@ -1137,6 +1155,7 @@ static int Setup_Idle(int idle)
 			sprintf(Setup_Error_String,"Setting Idle failed");
 			return FALSE;
 		}
+		Setup_Data.Idle = TRUE;
 	}
 	else
 	{
@@ -1146,6 +1165,7 @@ static int Setup_Idle(int idle)
 			sprintf(Setup_Error_String,"Setting Stop Idle failed");
 			return FALSE;
 		}
+		Setup_Data.Idle = FALSE;
 	}
 	return TRUE;
 }
@@ -1234,13 +1254,13 @@ static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEIN
 		return FALSE;
 	}
 /* setup output amplifier */
-	Setup_Data.Amplifier = amplifier;
-	if(CCD_DSP_Command_SOS(Setup_Data.Amplifier)!=CCD_DSP_DON)
+	if(CCD_DSP_Command_SOS(amplifier)!=CCD_DSP_DON)
 	{
 		Setup_Error_Number = 43;
-		sprintf(Setup_Error_String,"Setup_DeInterlace:Setting Amplifier to %d failed",Setup_Data.Amplifier);
+		sprintf(Setup_Error_String,"Setup_DeInterlace:Setting Amplifier to %d failed",amplifier);
 		return FALSE;
 	}
+	Setup_Data.Amplifier = amplifier;
 /* setup deinterlace type */
 	Setup_Data.DeInterlace_Type = deinterlace_type;
 /* check rows/columns based on deinterlace type */
@@ -1316,8 +1336,113 @@ static int Setup_Dimensions(void)
 	return TRUE;
 }
 
+/**
+ * This routine sets the Setup_Data.Window_List from the passed in list of windows.
+ * The windows are checked to ensure they don't overlap in either direction, and that sub-images are
+ * all the same size. Only windows 
+ * which are included in the window_flags parameter are checked.
+ * @param window_flags Information on which of the sets of window positions supplied contain windows to be used.
+ * @param window_list A list of CCD_Setup_Window_Structs defining the position of the windows. The list should
+ * 	<b>always</b> contain <b>four</b> entries, one for each possible window. The window_flags parameter
+ * 	determines which items in the list are used.
+ * @return The routine returns TRUE on success and FALSE if an error occured.
+ * @see #Setup_Data
+ * @see #CCD_Setup_Window_Struct
+ */
+static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct window_list[])
+{
+	int i,start_window_index,end_window_index,found;
+	int start_x_size,start_y_size,end_x_size,end_y_size;
+
+/* check non-overlapping in both directions/ all sub-images are same size. */
+	start_window_index = 0;
+	end_window_index = 0;
+	/* while there are active windows, keep checking */
+	while((start_window_index < CCD_SETUP_WINDOW_COUNT)&&(end_window_index < CCD_SETUP_WINDOW_COUNT))
+	{
+	/* find a valid start window index */
+		found = FALSE;
+		while((found == FALSE)&&(start_window_index < CCD_SETUP_WINDOW_COUNT))
+		{
+			found = (window_flags&(1<<start_window_index));
+			if(!found)
+				start_window_index++;
+		}
+	/* find a valid end window index  after start window index */
+		end_window_index = start_window_index+1;
+		found = FALSE;
+		while((found == FALSE)&&(end_window_index < CCD_SETUP_WINDOW_COUNT))
+		{
+			found = (window_flags&(1<<end_window_index));
+			if(!found)
+				end_window_index++;
+		}
+	/* if we found two valid windows, check the second does not overlap the first */
+		if((start_window_index < CCD_SETUP_WINDOW_COUNT)&&(end_window_index < CCD_SETUP_WINDOW_COUNT))
+		{
+		/* is start window's X_End greater or equal to end windows X_Start? */
+			if(window_list[start_window_index].X_End >= window_list[end_window_index].X_Start)
+			{
+				Setup_Error_Number = 45;
+				sprintf(Setup_Error_String,"Setting Windows:Windows %d and %d overlap in X (%d,%d)",
+					start_window_index,end_window_index,window_list[start_window_index].X_End,
+					window_list[end_window_index].X_Start);
+				return FALSE;
+			}
+		/* is start window's Y_End greater or equal to end windows Y_Start? */
+			if(window_list[start_window_index].Y_End >= window_list[end_window_index].Y_Start)
+			{
+				Setup_Error_Number = 46;
+				sprintf(Setup_Error_String,"Setting Windows:Windows %d and %d overlap in Y (%d,%d)",
+					start_window_index,end_window_index,window_list[start_window_index].Y_End,
+					window_list[end_window_index].Y_Start);
+				return FALSE;
+			}
+		/* check sub-images are the same size/are positive size */
+			start_x_size = window_list[start_window_index].X_End-window_list[start_window_index].X_Start;
+			start_y_size = window_list[start_window_index].Y_End-window_list[start_window_index].Y_Start;
+			end_x_size = window_list[end_window_index].X_End-window_list[end_window_index].X_Start;
+			end_y_size = window_list[end_window_index].Y_End-window_list[end_window_index].Y_Start;
+			if((start_x_size != end_x_size)||(start_y_size != end_y_size))
+			{
+				Setup_Error_Number = 47;
+				sprintf(Setup_Error_String,"Setting Windows:Windows are different sizes"
+					"%d = (%d,%d),%d = (%d,%d).",
+					start_window_index,start_x_size,start_y_size,
+					end_window_index,end_x_size,end_y_size);
+				return FALSE;
+			}
+		/* note both windows are same size, only need to check one for sensible size */
+			if((start_x_size <= 0)||(start_y_size <= 0))
+			{
+				Setup_Error_Number = 48;
+				sprintf(Setup_Error_String,"Setting Windows:Windows are too small(%d,%d).",
+					start_x_size,start_y_size);
+				return FALSE;
+			}
+		}
+	/* check the next pair of windows, by setting the start point to the last end point in the list */
+		start_window_index = end_window_index;
+	}
+/* copy parameters to Setup_Data.Window_List and Setup_Data.Window_Flags */
+	if(window_flags&CCD_SETUP_WINDOW_ONE)
+		Setup_Data.Window_List[0] = window_list[0];
+	if(window_flags&CCD_SETUP_WINDOW_TWO)
+		Setup_Data.Window_List[1] = window_list[1];
+	if(window_flags&CCD_SETUP_WINDOW_THREE)
+		Setup_Data.Window_List[2] = window_list[2];
+	if(window_flags&CCD_SETUP_WINDOW_FOUR)
+		Setup_Data.Window_List[3] = window_list[3];
+	Setup_Data.Window_Flags = window_flags;
+/* diddly write parameters to window table on timing board */
+	return TRUE;
+}
+
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.16  2001/01/31 16:35:18  cjm
+** Added tests for filename is NULL in DSP download code.
+**
 ** Revision 0.15  2000/12/19 17:52:47  cjm
 ** New filter wheel code.
 **
@@ -1375,7 +1500,3 @@ static int Setup_Dimensions(void)
 ** initial revision (PCI version).
 **
 */
-
-
-
-
