@@ -1,5 +1,5 @@
 /* ccd_setup.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.3 2000-02-14 17:10:02 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.4 2000-03-02 16:46:58 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -94,6 +94,7 @@ extern int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,int window_flags,
 	struct CCD_Setup_Window_Struct window_list[]);
 extern int CCD_Setup_Filter_Wheel(int position_one,int position_two);
+extern int CCD_Setup_Hardware_Test(int test_count);
 extern void CCD_Setup_Abort(void);
 extern int CCD_Setup_Get_NCols(void);
 extern int CCD_Setup_Get_NRows(void);
@@ -107,4 +108,5 @@ extern int CCD_Setup_Get_Setup_In_Progress(void);
 extern int CCD_Setup_Get_Error_Number(void);
 extern void CCD_Setup_Error(void);
 extern void CCD_Setup_Error_String(char *error_string);
+extern void CCD_Setup_Warning(void);
 #endif
