@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.5 2000-06-26 17:01:44 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.6 2000-07-06 14:34:21 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -61,8 +61,10 @@ $(LT_LIB_HOME)/libccd.a: $(OBJS)
 
 # special case for ngat_ccd_CCDLibrary - depending on whether ngat.ccd.CCDLibrary has changed
 # recreate the machine generated JNI header
+# touch it, javah does not update the timestamp correctly
 $(INCDIR)/ngat_ccd_CCDLibrary.h: $(LT_JAVALIB_HOME)/ngat.jar
 	$(JAVAH) -jni -d $(INCDIR) ngat.ccd.CCDLibrary
+	$(TOUCH) $@
 
 docs: $(JAVADOCS)
 
@@ -100,6 +102,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.5  2000/06/26 17:01:44  cjm
+# Changed default CFLAGS with respect to debugging (DEBUGCFLAGS).
+#
 # Revision 1.4  2000/06/19 08:49:00  cjm
 # Backup.
 #
