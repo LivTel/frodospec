@@ -1,5 +1,5 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.10 2000-02-03 16:59:21 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.11 2001-01-31 17:03:27 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -8,14 +8,14 @@ import ngat.ccd.*;
 /**
  * This is the main test program.
  * @author Chris Mottram
- * @version $Revision: 0.10 $
+ * @version $Revision: 0.11 $
  */
 class Test
 {
 	/**
 	 * A CCD X size to pass into the library.
 	 */
-	private final static int CCD_X_SIZE 	= 2048;
+	private final static int CCD_X_SIZE 	= 2150;
 	/**
 	 * A CCD Y size to pass into the library.
 	 */
@@ -45,6 +45,11 @@ class Test
 	 */
 	private ReadOutThread readOutThread = null;
 	/**
+	 * Variable used to configure libccd as to which
+	 * interface device to use.
+	 */
+	private int interfaceDevice = CCDLibrary.CCD_INTERFACE_DEVICE_NONE;
+	/**
 	 * A boolean determining whether to do an exposure or not.
 	 */
 	private boolean doExpose = false;
@@ -58,15 +63,16 @@ class Test
 	private boolean exposureAborted = false;
 
 	/**
-	 * Initialisation routine. Sets up the libccd library interface.
+	 * Initialisation routine. Sets up the libccd library interface. Opens the specified interface.
 	 * @exception CCDLibraryNativeException Thrown if CCDInterfaceOpen fails.
 	 * @see #libccd
+	 * @see #interfaceDevice
 	 */
 	public void init() throws CCDLibraryNativeException
 	{
 		libccd = new CCDLibrary();
 
-		libccd.CCDInitialise(libccd.CCD_INTERFACE_DEVICE_TEXT);
+		libccd.CCDInitialise(interfaceDevice);
 		libccd.CCDTextSetPrintLevel(libccd.CCD_TEXT_PRINT_LEVEL_COMMANDS);//libccd.CCD_TEXT_PRINT_LEVEL_ALL
 		libccd.CCDInterfaceOpen();
 	}
@@ -84,9 +90,9 @@ class Test
 
 		abortThread = new AbortThread(this);
 		abortThread.setPriority(Thread.NORM_PRIORITY-1);
-		setupThread = new SetupThread(libccd,libccd.CCD_SETUP_LOAD_APPLICATION,1,null,
-			libccd.CCD_SETUP_LOAD_APPLICATION,2,null,-107.0,libccd.CCD_DSP_GAIN_FOUR,true,true,
-			CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,libccd.CCD_DSP_DEINTERLACE_SPLIT_QUAD);
+		setupThread = new SetupThread(libccd,libccd.CCD_SETUP_LOAD_FILENAME,0,"tim.lod",
+			libccd.CCD_SETUP_LOAD_FILENAME,0,"util.lod",-107.0,libccd.CCD_DSP_GAIN_ONE,true,true,
+			CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,libccd.CCD_DSP_DEINTERLACE_SPLIT_SERIAL);
 		setupThread.setPriority(Thread.NORM_PRIORITY-1);
 		setupThread.start();
 		abortThread.start();
@@ -142,12 +148,14 @@ class Test
 	public void expose()
 	{
 		AbortThread abortThread = null;
-		CCDLibraryNativeException exposeException = null;
+		Exception exposeException = null;
 		int errorNumber = 0;
 
 		abortThread = new AbortThread(this);
 		abortThread.setPriority(Thread.NORM_PRIORITY-1);
-		exposureThread = new ExposureThread(libccd,true,true,10000,new String("test.fits"));
+		exposureThread = new ExposureThread(libccd,true,true,
+			CCD_X_SIZE/CCD_XBIN_SIZE,CCD_Y_SIZE/CCD_YBIN_SIZE,
+			10000,new String("test.fits"));
 		exposureThread.setPriority(Thread.NORM_PRIORITY-1);
 		exposureThread.start();
 		abortThread.start();
@@ -303,7 +311,33 @@ class Test
 	{
 		for(int i = 0; i < args.length;i++)
 		{
-			if(args[i].equals("-temperature")||args[i].equals("-t"))
+			if(args[i].equals("-interface")||args[i].equals("-i"))
+			{
+				if((i+1) < args.length)
+				{
+					i++;
+					if(args[i].equals("pci"))
+					{
+						interfaceDevice = CCDLibrary.CCD_INTERFACE_DEVICE_PCI;
+					}
+					else if(args[i].equals("text"))
+					{
+						interfaceDevice = CCDLibrary.CCD_INTERFACE_DEVICE_TEXT;
+					}
+					else
+					{
+						System.out.println(this.getClass().getName()+
+							"-interface:illegal device:"+args[i]);
+						System.exit(1);
+					}
+				}
+				else
+				{
+					System.out.println(this.getClass().getName()+"-interface:specify device.");
+					System.exit(1);
+				}
+			}
+			else if(args[i].equals("-temperature")||args[i].equals("-t"))
 			{
 				doTemperature = true;
 			}
@@ -318,6 +352,7 @@ class Test
 				System.out.println("jre -cp <pathname of classes> "+this.getClass().getName()+
 					" [Options]");
 				System.out.println("Options are:");
+				System.out.println("\t-i[interface] <device> - Set interface device [pci|text]");
 				System.out.println("\t-t[emperature] - Get current CCD temperature.");
 				System.out.println("\t-e[xpose] - Do an exposure.");
 				System.out.println("\t-h[elp] - display this help.");
@@ -327,7 +362,7 @@ class Test
 	}
 
 	/**
-	 * Main routine of program. Creates an instance of test,initialises it and parses arguments,
+	 * Main routine of program. Creates an instance of test,parses arguments, initialises it,
 	 * calls the camera setup, and optionally does an exposure/takes the ccd temperature.
 	 * @see #init
 	 * @see #parseArgs
@@ -340,6 +375,7 @@ class Test
 	{
 		Test test = new Test();
 
+		test.parseArgs(args);
 		try
 		{
 			test.init();
@@ -349,7 +385,6 @@ class Test
 			System.err.println("Test:init failed:"+e);
 			System.exit(1);
 		}
-		test.parseArgs(args);
 		if(!test.setup())
 		{
 			test.close();
@@ -371,6 +406,9 @@ class Test
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.10  2000/02/03 16:59:21  cjm
+// Changed for new ngat.ccd.CCLibrary interface to setup methods.
+//
 // Revision 0.9  1999/09/20 14:39:48  cjm
 // Changed due to libccd native routines throwing CCDLibraryNativeException when errors occur.
 //
