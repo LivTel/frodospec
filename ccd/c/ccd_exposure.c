@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.30 2004-08-02 16:34:58 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.31 2005-02-04 17:46:49 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.30 $
+ * @version $Revision: 0.31 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.30 2004-08-02 16:34:58 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.31 2005-02-04 17:46:49 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -159,7 +159,7 @@ static struct Exposure_Struct Exposure_Data =
 static int Exposure_Shutter_Control(int value);
 static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data,char *filename);
 static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
-					       char **filename_listfilename_list,int filename_count);
+					       char **filename_list,int filename_count);
 /* we should provide an alternative for these two routines if the library is not using short ints. */
 #if CCD_GLOBAL_BYTES_PER_PIXEL == 2
 static void Exposure_Byte_Swap(unsigned short *svalues,long nvals);
@@ -173,6 +173,8 @@ static void Exposure_TimeSpec_To_Date_String(struct timespec time,char *time_str
 static void Exposure_TimeSpec_To_Date_Obs_String(struct timespec time,char *time_string);
 static void Exposure_TimeSpec_To_UtStart_String(struct timespec time,char *time_string);
 static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correction,double *mjd);
+static int Exposure_Expose_Delete_Fits_Images(char **filename_list,int filename_count);
+static int fexist(char *filename);
 
 /* external functions */
 /**
@@ -232,7 +234,8 @@ void CCD_Exposure_Initialise(void)
  *     Exposure_Expose_Post_Readout_Window.
  * </ul>
  * The Exposure_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
- * If the exposure is aborted at any stage the routine returns.
+ * If the exposure is aborted at any stage the routine returns. Exposure_Expose_Delete_Fits_Images is
+ * called to attempt to delete the blank FITS files, if the routine fails or is aborted.
  * @param clear_array An integer representing a boolean. This should be set to TRUE if we wish to
  * 	manually clear the array before the exposure starts, FALSE if we do not. This is usually TRUE.
  * @param open_shutter TRUE if the shutter is to be opened over the duration of the exposure, FALSE if the
@@ -256,6 +259,7 @@ void CCD_Exposure_Initialise(void)
  * @see #Exposure_Byte_Swap
  * @see #Exposure_Expose_Post_Readout_Full_Frame
  * @see #Exposure_Expose_Post_Readout_Window
+ * @see #Exposure_Expose_Delete_Fits_Images
  * @see ccd_setup.html#CCD_Setup_Get_Setup_Complete
  * @see ccd_setup.html#CCD_Setup_Get_Window_Flags
  * @see ccd_setup.html#CCD_Setup_Get_Readout_Pixel_Count
@@ -292,6 +296,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* we shouldn't be able to expose until setup has been successfully completed - check this */
 	if(!CCD_Setup_Get_Setup_Complete())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 1;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Exposure failed:Setup was not complete");
 		return FALSE;
@@ -299,6 +304,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* check parameter ranges */
 	if(!CCD_GLOBAL_IS_BOOLEAN(clear_array))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 6;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:clear_array = %d.",
 			clear_array);
@@ -306,6 +312,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	}
 	if(!CCD_GLOBAL_IS_BOOLEAN(open_shutter))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 2;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:open_shutter = %d.",
 			open_shutter);
@@ -313,12 +320,14 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	}
 	if((exposure_time < 0)||(exposure_time > CCD_DSP_EXPOSURE_MAX_LENGTH))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 3;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:exposure_time = %d",exposure_time);
 		return FALSE;
 	}
 	if(filename_count < 0)
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 7;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:filename_count = %d",filename_count);
 		return FALSE;
@@ -326,6 +335,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	window_flags = CCD_Setup_Get_Window_Flags();
 	if((window_flags == 0)&&(filename_count > 1))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 8;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Too many filenames for window_flags %d:"
 			"filename_count = %d",window_flags,filename_count);
@@ -335,6 +345,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	expected_pixel_count = CCD_Setup_Get_Readout_Pixel_Count();
 	if(expected_pixel_count <= 0)
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 9;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal expected pixel count '%d'.",
 			expected_pixel_count);
@@ -343,6 +354,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 4;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -354,9 +366,13 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			      open_shutter);
 #endif
 	if(!Exposure_Shutter_Control(open_shutter))
+	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		return FALSE;
+	}
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 5;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -368,6 +384,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 	if(!CCD_DSP_Command_SET(exposure_time))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 23;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Setting exposure time failed.");
 		return FALSE;
@@ -375,6 +392,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	Exposure_Data.Exposure_Length = exposure_time;
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 25;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -413,6 +431,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		/* check - have we been aborted? */
 			if(CCD_DSP_Get_Abort())
 			{
+				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 				Exposure_Error_Number = 37;
 				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -429,6 +448,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_CLEAR;
 		if(!CCD_DSP_Command_CLR())
 		{
+			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 38;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Clear Array failed.");
@@ -438,6 +458,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* check - have we been aborted? */
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 20;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -451,6 +472,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	** the exposure. */
 	if(!CCD_DSP_Command_SEX(start_time,exposure_time))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 39;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed(%ld,%ld,%d).",
@@ -470,6 +492,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 		if(!CCD_DSP_Command_Get_HSTR(&status))
 		{
+			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 40;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Getting HSTR failed.");
@@ -567,6 +590,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		last_pixel_count = current_pixel_count;
 		if(!CCD_DSP_Command_Get_Readout_Progress(&current_pixel_count))
 		{
+			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 41;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Get Readout Progress failed.");
@@ -603,6 +627,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			/* have we timed out? If so, exit loop. */
 			if(readout_timeout_count == EXPOSURE_READ_TIMEOUT)
 			{
+				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 #if LOGGING > 9
 				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 				       "CCD_Exposure_Expose():Readout timeout has occured.");
@@ -626,11 +651,13 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 				if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
 				{
+					Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 					Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 					Exposure_Error_Number = 15;
 					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:AEX Abort command failed.");
 					return FALSE;
 				}
+				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 				/* we now only abort when exposure status is STATUS_EXPOSE. */
 				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 				Exposure_Error_Number = 42;
@@ -660,6 +687,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	/* did the readout time out?*/
 	if(readout_timeout_count == EXPOSURE_READ_TIMEOUT)
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 30;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Readout timed out.");
@@ -668,6 +696,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* check - have we been aborted? */
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 24;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -679,6 +708,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	/* get data */
 	if(!CCD_Interface_Get_Reply_Data(&exposure_data))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 44;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Failed to get reply data.");
@@ -688,6 +718,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* did we abort? */
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 26;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -703,6 +734,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* did we abort? */
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 29;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -713,6 +745,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	{
 		if(Exposure_Expose_Post_Readout_Full_Frame(exposure_data,filename_list[0]) == FALSE)
 		{
+			/* Do not call Exposure_Expose_Delete_Fits_Images here - we may have saved to disk */
 			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			return FALSE;
 		}
@@ -721,6 +754,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	{
 		if(Exposure_Expose_Post_Readout_Window(exposure_data,filename_list,filename_count) == FALSE)
 		{
+			/* Do not call Exposure_Expose_Delete_Fits_Images here - we may have saved to disk */
 			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			return FALSE;
 		}
@@ -1205,18 +1239,22 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
  * <li>The data is de-interlaced using Exposure_DeInterlace.
  * <li>The data is saved to disc using Exposure_Save.
  * </ul>
+ * If an error occurs BEFORE saving the read out frame to disk, Exposure_Expose_Delete_Fits_Images is called
+ * to delete any 'blank' FITS files.
  * @param exposure_data The data read out from the CCD.
  * @param filename The FITS filename (which should already contain relevant headers), in which to write 
  *        the image data.
  * @return The routine returns TRUE if it suceeded, and FALSE if it fails.
  * @see #Exposure_DeInterlace
  * @see #Exposure_Save
+ * @see #Exposure_Expose_Delete_Fits_Images
  * @see ccd_setup.html#CCD_Setup_Get_NCols
  * @see ccd_setup.html#CCD_Setup_Get_NRows
  */
 static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data,char *filename)
 {
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
+	char *filename_list[1];
 	int ncols,nrows;
 
 /* get setup details */
@@ -1226,6 +1264,8 @@ static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data
 /* number of columns must be a positive number */
 	if(ncols <= 0)
 	{
+		filename_list[0] = filename;
+		Exposure_Expose_Delete_Fits_Images(filename_list,1);
 		Exposure_Error_Number = 27;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Illegal ncols '%d'.",ncols);
 		return FALSE;
@@ -1233,12 +1273,16 @@ static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data
 /* number of rows must be a positive number */
 	if(nrows <= 0)
 	{
+		filename_list[0] = filename;
+		Exposure_Expose_Delete_Fits_Images(filename_list,1);
 		Exposure_Error_Number = 31;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Illegal nrows '%d'.",nrows);
 		return FALSE;
 	}
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
+		filename_list[0] = filename;
+		Exposure_Expose_Delete_Fits_Images(filename_list,1);
 		Exposure_Error_Number = 36;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:"
 			"Illegal deinterlace type '%d'.",deinterlace_type);
@@ -1251,10 +1295,16 @@ static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Post_Readout_Full_Frame:De-Interlacing.");
 #endif
 	if(!Exposure_DeInterlace(ncols,nrows,exposure_data,deinterlace_type))
+	{
+		filename_list[0] = filename;
+		Exposure_Expose_Delete_Fits_Images(filename_list,1);
 		return FALSE;
+	}
 /* if we have aborted stop and return */
 	if(CCD_DSP_Get_Abort())
 	{
+		filename_list[0] = filename;
+		Exposure_Expose_Delete_Fits_Images(filename_list,1);
 		Exposure_Error_Number = 45;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Aborted.");
 		return FALSE;
@@ -1265,7 +1315,10 @@ static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data
 			      "Saving to filename %s.",filename);
 #endif
 	if(!Exposure_Save(filename,exposure_data,ncols,nrows))
+	{
+		/* Exposure_Save can fail but still have saved the exposure_data to disk OK */
 		return FALSE;
+	}
 	return TRUE; 
 }
 
@@ -1314,6 +1367,7 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
+		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 10;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
 			"Illegal deinterlace type '%d'.",deinterlace_type);
@@ -1349,6 +1403,8 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 			subimage_data = (unsigned short*)malloc(pixel_count*CCD_GLOBAL_BYTES_PER_PIXEL);
 			if(subimage_data == NULL)
 			{
+				Exposure_Expose_Delete_Fits_Images(filename_list+filename_index,
+								   filename_count-filename_index);
 				Exposure_Error_Number = 18;
 				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
 					"SubImage Data was NULL (%d,%d).",window_number,pixel_count);
@@ -1362,12 +1418,16 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 			if(!Exposure_DeInterlace(ncols,nrows,subimage_data,deinterlace_type))
 			{
 				free(subimage_data);
+				Exposure_Expose_Delete_Fits_Images(filename_list+filename_index,
+								   filename_count-filename_index);
 				return FALSE;
 			}
 /* if we have aborted stop and return */
 			if(CCD_DSP_Get_Abort())
 			{
 				free(subimage_data);
+				Exposure_Expose_Delete_Fits_Images(filename_list+filename_index,
+								   filename_count-filename_index);
 				Exposure_Error_Number = 19;
 				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:Aborted.");
 				return FALSE;
@@ -1380,6 +1440,7 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 			if(!Exposure_Save(filename_list[filename_index],subimage_data,ncols,nrows))
 			{
 				free(subimage_data);
+				/* Exposure_Save can fail but still have saved the exposure_data to disk OK */
 				return FALSE;
 			}
 			/* increment index into exposure data to start of next window. */
@@ -1894,8 +1955,79 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 	return TRUE;
 }
 
+/**
+ * Routine used to delete any of the filenames specified in filename_list, if they exist on disk.
+ * This is done as part of aborting or when an error occurs during an exposure sequence.
+ * This stops FITS images being left on disk with blank image data within them, which the data pipeline
+ * does not like.
+ * @param filename_list A list of strings, containing filenames to delete. These filenames should be
+ *        a list of FITS images passed to the CCD_Exposure_Expose routine (a list of windows to readout to).
+ * @param filename_count The number of filenames in filename_list.
+ * @return The routine returns TRUE if it succeeded, FALSE if it fails. 
+ * @see #CCD_Exposure_Expose
+ * @see #fexist
+ */
+static int Exposure_Expose_Delete_Fits_Images(char **filename_list,int filename_count)
+{
+	int i,retval,local_errno;
+
+#if LOGGING > 4
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Delete_Fits_Images:Started.");
+#endif
+	for(i=0;i<filename_count; i++)
+	{
+		if(fexist(filename_list[i]))
+		{
+#if LOGGING > 4
+			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Delete_Fits_Images:"
+					      "Removing file %s (index %d).",filename_list[i],i);
+#endif
+			retval = remove(filename_list[i]);
+			local_errno = errno;
+			if(retval != 0)
+			{
+				Exposure_Error_Number = 17;
+				sprintf(Exposure_Error_String,"Exposure_Expose_Delete_Fits_Images: "
+					"remove failed(%s,%d,%d,%s).",filename_list[i],retval,local_errno,
+					strerror(local_errno));
+				return FALSE;
+			}
+		}/* end if exist */
+		else
+		{
+#if LOGGING > 4
+			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Delete_Fits_Images:"
+					      "file %s (index %d) does not exist?",filename_list[i],i);
+#endif
+		}
+	}/* end for */
+#if LOGGING > 4
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Delete_Fits_Images:Finished.");
+#endif
+	return TRUE;
+}
+
+/**
+ * Return whether the specified filename exists or not.
+ * @param filename A string representing the filename to test.
+ * @return The routine returns TRUE if the filename exists, and FALSE if it does not exist. 
+ */
+static int fexist(char *filename)
+{
+	FILE *fptr = NULL;
+
+	fptr = fopen(filename,"r");
+	if(fptr == NULL )
+		return FALSE;
+	fclose(fptr);
+	return TRUE;
+}
+
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.30  2004/08/02 16:34:58  cjm
+** Added CCD_DSP_DEINTERLACE_FLIP.
+**
 ** Revision 0.29  2004/06/03 16:23:23  cjm
 ** Calling ABR when exposure status is READOUT seems to cause occasional lockups.
 ** So we now only abort when exposing.
