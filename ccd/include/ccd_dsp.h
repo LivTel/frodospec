@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.14 2000-06-20 12:53:37 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.15 2000-07-11 10:43:08 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -233,6 +233,7 @@ extern int CCD_DSP_Command_Reset(void);
 extern int CCD_DSP_Command_Flush_Reply_Buffer(void);
 extern int CCD_DSP_Command_Read_Controller_Status(void);
 extern int CCD_DSP_Command_Write_Controller_Status(int bit_value);
+extern int CCD_DSP_Command_Read_PCI_Status(void);
 extern int CCD_DSP_Command_Set_Exposure_Time(int msecs);
 extern int CCD_DSP_Command_Read_Exposure_Time(void);
 extern int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename);
