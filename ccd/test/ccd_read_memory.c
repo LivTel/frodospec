@@ -1,5 +1,5 @@
 /* ccd_read_memory.c  -*- mode: Fundamental;-*-
- * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.2 2001-01-17 18:11:44 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.3 2001-01-18 14:23:16 cjm Exp $
  */
 #include <stdio.h>
 #include <time.h>
@@ -15,7 +15,7 @@
  * ccd_read_memory -board <board> -space <memory space> -address <address>
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 /* hash definitions */
 /**
@@ -27,7 +27,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: ccd_read_memory.c,v 1.2 2001-01-17 18:11:44 cjm Exp $";
+static char rcsid[] = "$Id: ccd_read_memory.c,v 1.3 2001-01-18 14:23:16 cjm Exp $";
 /**
  * Which interface to communicate with the SDSU controller with.
  */
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
 	CCD_Interface_Open();
 	fprintf(stdout,"Reading memory at address %#x.\n",Memory_Address);
 	retval = CCD_DSP_Command_RDM(Board,Memory_Space,Memory_Address);
-	if((retval == 0)&&(CCD_DSP_Get_Error_Number != 0))
+	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		CCD_DSP_Error();
 		return 1;
@@ -187,11 +187,14 @@ static void Help(void)
 	fprintf(stdout,"\t<interface device> can be either [pci|text].\n");
 	fprintf(stdout,"\t<controller board> can be either [interface|timing|utility].\n");
 	fprintf(stdout,"\t<memory space> can be either [x|y].\n");
-	fprintf(stdout,"\t<memory address> can be a positive integer.\n");
+	fprintf(stdout,"\t<memory address> is a positive integer, either decimal or hexidecimal (0x).\n");
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2001/01/17 18:11:44  cjm
+** Changed address input so it can use an hex address.
+**
 ** Revision 1.1  2001/01/17 18:04:48  cjm
 ** Initial revision
 **
