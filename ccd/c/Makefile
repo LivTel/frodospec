@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.7 2000-09-25 09:52:15 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.8 2000-12-18 11:59:42 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -67,7 +67,7 @@ $(LT_LIB_HOME)/libccd.a: $(OBJS)
 # special case for ngat_ccd_CCDLibrary - depending on whether ngat.ccd.CCDLibrary has changed
 # recreate the machine generated JNI header
 # touch it, javah does not update the timestamp correctly
-$(INCDIR)/ngat_ccd_CCDLibrary.h: $(LT_JAVALIB_HOME)/ngat.jar
+$(INCDIR)/ngat_ccd_CCDLibrary.h: $(LT_JAVALIB_HOME)/ngat_ccd.jar
 	$(JAVAH) -jni -d $(INCDIR) ngat.ccd.CCDLibrary
 	$(TOUCH) $@
 
@@ -107,6 +107,10 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.7  2000/09/25 09:52:15  cjm
+# y
+# Changes to use with v1.4 SDSU DSP code.
+#
 # Revision 1.6  2000/07/06 14:34:21  cjm
 # Added touch to javah command.
 #
