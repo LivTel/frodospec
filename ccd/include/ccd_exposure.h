@@ -1,5 +1,5 @@
 /* ccd_exposure.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.6 2002-12-16 16:56:55 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.7 2003-03-26 15:50:00 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
@@ -58,7 +58,7 @@ enum CCD_EXPOSURE_STATUS
 
 extern void CCD_Exposure_Initialise(void);
 extern int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_time,int exposure_time,
-			       char *filename);
+			       char **filename_list,int filename_count);
 extern int CCD_Exposure_Bias(char *filename);
 extern int CCD_Exposure_Open_Shutter(void);
 extern int CCD_Exposure_Close_Shutter(void);
