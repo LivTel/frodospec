@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.15 2001-01-23 18:21:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.16 2001-02-05 14:30:09 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.15 $
+ * @version $Revision: 0.16 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.15 2001-01-23 18:21:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.16 2001-02-05 14:30:09 cjm Exp $";
 
 /* external variables */
 
@@ -218,7 +218,7 @@ int CCD_Exposure_Bias(char *filename)
 	fflush(stdout);
 #endif
 /* clear the ccd */
-	if(!CCD_DSP_Command_CLR())
+	if(CCD_DSP_Command_CLR()!= CCD_DSP_DON)
 	{
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 7;
@@ -226,23 +226,27 @@ int CCD_Exposure_Bias(char *filename)
 		return FALSE;
 	}
 /* stop idle clocking on the timing board */
-	if(!CCD_DSP_Command_STP())
+	if(CCD_Setup_Get_Idle())
 	{
-		CCD_DSP_Set_Abort(FALSE);
-		Exposure_Error_Number = 8;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Stop Idle clocking failed.");
-		return FALSE;
+		if(CCD_DSP_Command_STP()!= CCD_DSP_DON)
+		{
+			CCD_DSP_Set_Abort(FALSE);
+			Exposure_Error_Number = 8;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Stop Idle clocking failed.");
+			return FALSE;
+		}
 	}
 /* remember, here DSP_Data.Exposure_Status has been set. 
-** therefore we can't check for abort here. 
+** therefore we don't check for abort here. 
 ** If we did, we would have to IDL the Timing board clocks to stop
 ** the electronics locking up. */
 /* Bias frames do not call start exposure and hence the exposure start time is not set
 ** It is saved in the FITS file however, so set it manually here. */
 	CCD_DSP_Set_Exposure_Start_Time();
 /* tell the timing board to readout the ccd */
-	if(!CCD_DSP_Command_RDC())
+	if(CCD_DSP_Command_RDC()!= CCD_DSP_DON)
 	{
+		/* note that idling is not reset if RDC fails. */
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 29;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Read CCD failed.");
@@ -254,21 +258,24 @@ int CCD_Exposure_Bias(char *filename)
 ** the electronics locking up. */
 /* read out ccd and save to filename */
 	return_value = CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,TRUE,filename);
-	if(return_value == FALSE)
+	if(return_value != CCD_DSP_DON)
 	{
+		/* note that idling is not reset if RDC fails. */
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 9;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Readout failed.");
 		return FALSE;
 	}
 /* re-start idle clocking on the timing board */
-/* diddly, what if idling is set to false in the configuration - we don't want to do this */
-	if(!CCD_DSP_Command_IDL())
+	if(CCD_Setup_Get_Idle())
 	{
-		CCD_DSP_Set_Abort(FALSE);
-		Exposure_Error_Number = 10;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Starting Idle clocking failed.");
-		return FALSE;
+		if(CCD_DSP_Command_IDL()!= CCD_DSP_DON)
+		{
+			CCD_DSP_Set_Abort(FALSE);
+			Exposure_Error_Number = 10;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Starting Idle clocking failed.");
+			return FALSE;
+		}
 	}
 	return TRUE;
 }
@@ -641,6 +648,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.15  2001/01/23 18:21:27  cjm
+** Added check for maximum exposure length CCD_DSP_EXPOSURE_MAX_LENGTH.
+**
 ** Revision 0.14  2000/09/25 09:51:28  cjm
 ** Changes to use with v1.4 SDSU DSP code.
 **
