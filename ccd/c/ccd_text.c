@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.4 2000-02-09 18:27:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.5 2000-02-10 16:26:08 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -35,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.4 2000-02-09 18:27:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.5 2000-02-10 16:26:08 cjm Exp $";
 
 /* #defines */
 /**
@@ -771,14 +771,15 @@ static void Text_HCVR_Read_Memory(void)
  * Function invoked from Text_HCVR when a READ_EXPOSURE_TIME command is sent to the driver.
  * This should return the elapsed time of exposure.
  * We simulate this by incrementing the Elapsed_Time variable in Text_Data by 1000 milliseconds each time this
- * function is called. Text_Data.Reply is set to this new value.
+ * function is called. Text_Data.Reply is set to this new value. We post-increment the exposure time as
+ * voodoo waits until the elapsed time has been reset to zero before entering a wait loop.
  * @see #Text_HCVR
  * @see ccd_pci.html#CCD_PCI_HCVR_READ_EXPOSURE_TIME
  */
 static void Text_HCVR_Read_Exposure_Time(void)
 {
-	Text_Data.Elapsed_Time += 1000;
 	Text_Data.Reply = Text_Data.Elapsed_Time;
+	Text_Data.Elapsed_Time += 1000;
 }
 
 /**
@@ -795,6 +796,9 @@ static void Text_HCVR_Start_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2000/02/09 18:27:39  cjm
+** Fixed ioctl indeterminate prints for CLEAR_REPLY and GET_REPLY.
+**
 ** Revision 0.3  2000/01/28 16:19:39  cjm
 ** Added CCD_Text_Set_File_Pointer function.
 ** Changed implementation of Clear Reply Memory and others so that linking with voodoo
