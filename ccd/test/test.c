@@ -57,7 +57,9 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Test:CCD_Setup_Dimensions completed\n");
 
 	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel\n");
-	if(!CCD_Setup_Filter_Wheel(0,0))
+	if(!CCD_Filter_Wheel_Reset(0))
+		CCD_Global_Error();
+	if(!CCD_Filter_Wheel_Reset(1))
 		CCD_Global_Error();
 	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel completed\n");
 
