@@ -1,5 +1,5 @@
 /* ccd_read_memory.c  -*- mode: Fundamental;-*-
- * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.1 2001-01-17 18:04:48 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.2 2001-01-17 18:11:44 cjm Exp $
  */
 #include <stdio.h>
 #include <time.h>
@@ -15,7 +15,7 @@
  * ccd_read_memory -board <board> -space <memory space> -address <address>
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /* hash definitions */
 /**
@@ -27,7 +27,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: ccd_read_memory.c,v 1.1 2001-01-17 18:04:48 cjm Exp $";
+static char rcsid[] = "$Id: ccd_read_memory.c,v 1.2 2001-01-17 18:11:44 cjm Exp $";
 /**
  * Which interface to communicate with the SDSU controller with.
  */
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 
 	fprintf(stdout,"Opening SDSU device.\n");
 	CCD_Interface_Open();
-	fprintf(stdout,"Reading memory.\n");
+	fprintf(stdout,"Reading memory at address %#x.\n",Memory_Address);
 	retval = CCD_DSP_Command_RDM(Board,Memory_Space,Memory_Address);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number != 0))
 	{
@@ -102,7 +102,7 @@ static int Parse_Arguments(int argc, char *argv[])
 		{
 			if((i+1)<argc)
 			{
-				Memory_Address = atoi(argv[i+1]);
+				sscanf(argv[i+1],"%i",&Memory_Address);
 				i++;
 			}
 			else
@@ -192,6 +192,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2001/01/17 18:04:48  cjm
+** Initial revision
+**
 ** Revision 1.0  2000/12/18 17:25:31  cjm
 ** Initial revision
 **
