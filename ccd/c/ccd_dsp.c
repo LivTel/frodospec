@@ -1,12 +1,12 @@
  /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.21 2000-06-14 12:58:35 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.22 2000-06-14 13:29:27 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.21 $
+ * @version $Revision: 0.22 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.21 2000-06-14 12:58:35 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.22 2000-06-14 13:29:27 cjm Exp $";
 
 /* defines */
 /**
@@ -3341,16 +3341,8 @@ static void DSP_Byte_Swap(unsigned short *svalues,long nvals)
 static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
 {
-	unsigned short *new_iptr;
+	unsigned short *new_iptr = NULL;
 
-	/* allocate enough memory to store the deinterlaced image */
-	if((new_iptr = (unsigned short *)malloc(ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL)) == NULL)
-	{
- 		DSP_Error_Number = 49;
-		sprintf(DSP_Error_String,"DSP_DeInterlace:Memory Allocation Error(%d,%d),image not deinterlaced.",
-			ncols,nrows);
-		return FALSE;
-	}
 	switch(deinterlace_type)
 	{
 		/* SINGLE READOUT 
@@ -3358,7 +3350,6 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 		** was readout in order */
 		case CCD_DSP_DEINTERLACE_SINGLE:
 		{
-			free(new_iptr);
 			return TRUE;
 		} /*end single readout*/
 		/* SPLIT PARALLEL READOUT */
@@ -3371,7 +3362,14 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
  				DSP_Error_Number = 50;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Split Parallel Readout,"
 					"nrows not even(%d), image not deinterlaced.",nrows);
-				free(new_iptr);
+				return FALSE;
+			}
+		/* allocate enough memory to store the deinterlaced image */
+			if((new_iptr = (unsigned short *)malloc(ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL)) == NULL)
+			{
+		 		DSP_Error_Number = 49;
+				sprintf(DSP_Error_String,"DSP_DeInterlace:Memory Allocation Error(%d,%d),"
+					"image not deinterlaced.",ncols,nrows);
 				return FALSE;
 			}
 			for(i=0;i<(ncols*nrows)/2;i++)
@@ -3380,6 +3378,7 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 				*(new_iptr+(ncols*nrows)-i-1) = *(old_iptr+(2*i)+1);
 			}
 			memcpy(old_iptr,new_iptr,ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL);
+			free(new_iptr);
 			return TRUE;
 		} /*end split parallel*/
 		/* SPLIT SERIAL READOUT */
@@ -3392,7 +3391,14 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
  				DSP_Error_Number = 51;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Split Serial Readout,"
 					"ncols not even(%d), image not deinterlaced.",ncols);
-				free(new_iptr);
+				return FALSE;
+			}
+		/* allocate enough memory to store the deinterlaced image */
+			if((new_iptr = (unsigned short *)malloc(ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL)) == NULL)
+			{
+		 		DSP_Error_Number = 49;
+				sprintf(DSP_Error_String,"DSP_DeInterlace:Memory Allocation Error(%d,%d),"
+					"image not deinterlaced.",ncols,nrows);
 				return FALSE;
 			}
 			for (i=0;i<nrows;i++)
@@ -3425,7 +3431,14 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
  				DSP_Error_Number = 52;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Split Quad Readout,"
 					"ncols or nrows not even(%d,%d), image not deinterlaced.",ncols,nrows);
-				free(new_iptr);
+				return FALSE;
+			}
+		/* allocate enough memory to store the deinterlaced image */
+			if((new_iptr = (unsigned short *)malloc(ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL)) == NULL)
+			{
+		 		DSP_Error_Number = 49;
+				sprintf(DSP_Error_String,"DSP_DeInterlace:Memory Allocation Error(%d,%d),"
+					"image not deinterlaced.",ncols,nrows);
 				return FALSE;
 			}
 			while(i<ncols*nrows)
@@ -3451,7 +3464,6 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 	DSP_Error_Number = 53;
 	sprintf(DSP_Error_String,"DSP_DeInterlace:Wrong DeInterlace option(%d),Image not deinterlaced.",
 		deinterlace_type);
-	free(new_iptr);
 	return FALSE;
 } /* end deinterlacing */
 #else
@@ -3696,6 +3708,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.21  2000/06/14 12:58:35  cjm
+** Fixed DSP_DeInterlace memory error.
+**
 ** Revision 0.20  2000/06/13 17:14:13  cjm
 ** Changes to make Ccs agree with voodoo.
 **
