@@ -1,11 +1,11 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.3 1999-12-10 11:03:33 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.4 2000-01-24 10:25:23 cjm Exp $
 
 include ../../Makefile.common
 include ../Makefile.common
 
 INCDIR = $(CCD_SRC_HOME)/include
 
-CFLAGS = -g -I$(INCDIR) -c
+CFLAGS = -g -I$(INCDIR) -I$(CFITSIOINCDIR) -c
 
 SRCS = test.c
 OBJS		=	$(SRCS:%.c=%.o)
