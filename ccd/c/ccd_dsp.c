@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.16 2000-05-10 11:06:49 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.17 2000-05-10 16:51:02 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.16 $
+ * @version $Revision: 0.17 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.16 2000-05-10 11:06:49 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.17 2000-05-10 16:51:02 cjm Exp $";
 
 /* defines */
 /**
@@ -210,11 +210,16 @@ static int DSP_Get_Download_Type(FILE *fp);
 static int DSP_Address_Char_To_Mem_Space(char ch,enum CCD_DSP_MEM_SPACE *mem_space);
 static int DSP_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
 	enum CCD_DSP_MEM_SPACE mem_space,int addr);
-static int DSP_Image_Transfer(int ncols,int nrows,int numbytes,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename);
-static unsigned short *DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
+static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename);
+/* we should provide an alternative for these two routines if the library is not using short ints. */
+#if CCD_GLOBAL_BYTES_PER_PIXEL == 2
+static void DSP_Byte_Swap(unsigned short *svalues,long nvals);
+static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
-static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int number_bytes);
+#else
+#error CCD_GLOBAL_BYTES_PER_PIXEL uses illegal value.
+#endif
+static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows);
 static void DSP_TimeSpec_To_String(struct timespec time,char *time_string);
 #ifdef CCD_DSP_MUTEXED
 static int DSP_Mutex_Lock(void);
@@ -597,8 +602,6 @@ int CCD_DSP_Command_IDL(void)
  * and receiving a reply from it.
  * @param ncols The number of columns in the image. This must be a positive non-zero integer.
  * @param nrows The number of rows in the image to be readout from the CCD. This must be a positive non-zero integer.
- * @param numbytes The number of bytes to read out from the CCD. This should be (nrows * ncols * 
- * 	<a href="ccd_global.html#CCD_GLOBAL_BYTES_PER_PIXEL">CCD_GLOBAL_BYTES_PER_PIXEL</a>).
  * @param deinterlace_type The algorithm to use for deinterlacing the resulting data. The data needs to be
  * 	deinterlaced if the CCD is read out from multiple readouts. One of 
  * 	<a href="ccd_setup.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
@@ -612,8 +615,7 @@ int CCD_DSP_Command_IDL(void)
  * @see #DSP_Image_Transfer
  * @see #DSP_Get_Reply
  */
-int CCD_DSP_Command_RDC(int ncols,int nrows,int numbytes,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
+int CCD_DSP_Command_RDC(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
 {
 	int retval;
 
@@ -630,12 +632,6 @@ int CCD_DSP_Command_RDC(int ncols,int nrows,int numbytes,
 	{
 		DSP_Error_Number = 11;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDC:Illegal nrows '%d'.",nrows);
-		return FALSE;
-	}
-	if(numbytes <= 0)
-	{
-		DSP_Error_Number = 12;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_RDC:Illegal numbytes '%d'.",numbytes);
 		return FALSE;
 	}
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
@@ -656,7 +652,7 @@ int CCD_DSP_Command_RDC(int ncols,int nrows,int numbytes,
 		return FALSE;
 	}
 	/* DSP_Image_Transfer saves the exposed image into a filename */
-	if(!DSP_Image_Transfer(ncols,nrows,numbytes,deinterlace_type,filename))
+	if(!DSP_Image_Transfer(ncols,nrows,deinterlace_type,filename))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -2668,13 +2664,15 @@ static int DSP_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
 	return(TRUE);
 }
 
+#if CCD_GLOBAL_BYTES_PER_PIXEL == 2
 /**
  * This routine is responsible for transferring image data on the CCD into memory, de-interlacing it
  * and saving it to disk.
  * <ul>
- * <li>It allocates sufficient memory for the resultant image (numbytes).
+ * <li>It allocates sufficient memory for the resultant image (ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL).
  * <li>It reads the image into memory using  
  * 	<a href="ccd_interface.html#CCD_Interface_Get_Reply_Data">CCD_Interface_Get_Reply_Data</a>. 
+ * <li>It byte swaps the image using <a href="#DSP_Byte_Swap">DSP_Byte_Swap</a>.
  * <li>It deinterlaces the image using <a href="#DSP_DeInterlace">DSP_DeInterlace</a>.
  * <li>The image is then saved using <a href="#DSP_Save">DSP_Save</a> to a file and the image data freed.
  * </ul>
@@ -2684,23 +2682,22 @@ static int DSP_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
  * aborts when it next checks the Abort flag.
  * @param ncols The number of columns the CCD has.
  * @param nrows The number of rows the CCD has.
- * @param numbytes The number of bytes the image will fit into.
  * @param deinterlace_type What deinterlacing algorithm to perform on the raw data.
  * @param filename The filename to save the deinterlaced image to.
  * @return Returns TRUE if the exposure succeeded, FALSE if it failed or was aborted.
  * @see #CCD_DSP_Set_Abort
+ * @see #DSP_Byte_Swap
  * @see #DSP_DeInterlace
  * @see #DSP_Save
  * @see ccd_interface.html#CCD_Interface_Get_Reply_Data
+ * @see ccd_global.html#CCD_GLOBAL_BYTES_PER_PIXEL
  */
-static int DSP_Image_Transfer(int ncols,int nrows,int numbytes,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
+static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
 {
-	int retval;
-	char *file_mem = NULL;
-	char *expdata = NULL;
+	int retval,numbytes;
+	unsigned short *exposure_data = NULL;
 
-	/* if we have aborted stop here */
+/* if we have aborted stop here */
 	if(DSP_Data.Abort)
 	{
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
@@ -2708,21 +2705,23 @@ static int DSP_Image_Transfer(int ncols,int nrows,int numbytes,
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Aborted.");
 		return FALSE;
 	}
-	/* start reading out image */
+/* calculate number of bytes in the image */
+	numbytes = ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL;
+/* start reading out image */
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_READOUT;
-	expdata = (char *)malloc(numbytes);
-	if(expdata == NULL)
+	exposure_data = (unsigned short *)malloc(numbytes);
+	if(exposure_data == NULL)
 	{
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 43;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Memory Allocation Error(%d).",numbytes);
 		return FALSE;
 	}
-	retval = CCD_Interface_Get_Reply_Data(expdata,numbytes);
+	retval = CCD_Interface_Get_Reply_Data((char *)exposure_data,numbytes);
 	if(retval == -1)
 	{
-		if(expdata != NULL)
-			free(expdata);
+		if(exposure_data != NULL)
+			free(exposure_data);
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 44;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Failed to get reply data.");
@@ -2737,57 +2736,85 @@ static int DSP_Image_Transfer(int ncols,int nrows,int numbytes,
 	}
 	if(DSP_Data.Abort)
 	{
-		if(expdata != NULL)
-			free(expdata);
+		if(exposure_data != NULL)
+			free(exposure_data);
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 46;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Aborted.");
 		return FALSE;
 	}
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
-
-	/* Do deinterlacing. The image returned from the boards may not be in the correct order
-	** if the CCD was readout from multiple places etc. The deinterlace routine reorders the image
-	** so that it is back in the right order.
-	** Note if this routine fails it currently returns the interlaced data by returning the file_mem
-	** allocated memory area. This is so data gets saved even if deinterlacing fails. It means a
-	** memory allocation failure will still cause the expdata returned to be non-null.  */
-	file_mem = expdata;
-	if((expdata = (char *)DSP_DeInterlace(ncols,nrows,(unsigned short*)file_mem,deinterlace_type)) == NULL)
+/* byte swap to get into right order */
+	DSP_Byte_Swap(exposure_data,nrows*ncols);
+/* Do deinterlacing. The image returned from the boards may not be in the correct order
+** if the CCD was readout from multiple places etc. The deinterlace routine reorders the image
+** so that it is back in the right order. */
+	if(!DSP_DeInterlace(ncols,nrows,exposure_data,deinterlace_type))
 	{
-		if(file_mem == NULL)
-			free(file_mem);
-		DSP_Error_Number = 47;
-		sprintf(DSP_Error_String,"DSP_Image_Transfer:DeInterlace failed.");
+		if(exposure_data == NULL)
+			free(exposure_data);
 		return FALSE;
 	}
-	/* free the old copy of the data 
-	** Note if DSP_DeInterlace failed expdata == file_mem and the data is still interlaced.*/
-	if(expdata != file_mem)
-		free(file_mem);
-
-	/* if we have aborted stop and return */
+/* if we have aborted stop and return */
 	if(DSP_Data.Abort)
 	{
-		if(expdata != NULL)
-			free(expdata);
+		if(exposure_data != NULL)
+			free(exposure_data);
 		DSP_Error_Number = 48;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Aborted.");
 		return FALSE;
 	}
 	/* save the resultant image to disk */
-	if(!DSP_Save(filename,expdata,ncols,nrows,numbytes))
+	if(!DSP_Save(filename,exposure_data,ncols,nrows))
 	{
-		if(expdata != NULL)
-			free(expdata);
+		if(exposure_data != NULL)
+			free(exposure_data);
 		return FALSE;
 	}
 	/* free image in memory */
-	if(expdata != NULL)
-		free(expdata);
+	if(exposure_data != NULL)
+		free(exposure_data);
 	return TRUE;
 }
+#else
+#error DSP_Image_Transfer not defined for this value of CCD_GLOBAL_BYTES_PER_PIXEL.
+#endif
 
+#if CCD_GLOBAL_BYTES_PER_PIXEL == 2
+/**
+ * Swap the bytes in the input unsigned short integers: ( 0 1 -> 1 0 ).
+ * Based on CFITSIO's ffswap2 routine. This routine only works for CCD_GLOBAL_BYTES_PER_PIXEL == 2.
+ * @param svalues A list of unsigned short values to byte swap.
+ * @param nvals The number of values in svalues.
+ */
+static void DSP_Byte_Swap(unsigned short *svalues,long nvals)
+{
+	register char *cvalues;
+	register long i;
+
+/* equivalence an array of 2 bytes with a short */
+	union u_tag
+	{
+		char cvals[2];
+		unsigned short sval;
+	} u;
+/* copy the initial pointer value */
+	cvalues = (char *) svalues;
+
+	for (i = 0; i < nvals;)
+	{
+	/* copy next short to temporary buffer */
+		u.sval = svalues[i++];
+	/* copy the 2 bytes to output in turn */
+		*cvalues++ = u.cvals[1];
+		*cvalues++ = u.cvals[0];
+	}
+}
+#else
+#error DSP_Byte_Swap not defined for this value of CCD_GLOBAL_BYTES_PER_PIXEL.
+#endif
+
+#if CCD_GLOBAL_BYTES_PER_PIXEL == 2
 /**
  * This routine deinterlaces a raw image read from the ccd. If the ccd has more than one
  * readout port, the data will not be received in row-column order and will need deinterlacing.
@@ -2811,30 +2838,28 @@ static int DSP_Image_Transfer(int ncols,int nrows,int numbytes,
  * 16 bits per pixel.</em>
  * @param ncols The number of columns on the CCD.
  * @param nrows The number of rows on the CCD.
- * @param old_iptr The interlaced image data received from the CCD.
+ * @param old_iptr The interlaced image data received from the CCD. Once deinterlaced the image data is copied back
+ * 	in this memory area.
  * @param deinterlace_type The type of deinterlacing to perform. One of 
  * 	<a href="ccd_setup.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
  * 	CCD_DSP_DEINTERLACE_SINGLE,
  * 	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
- * @return If everything was successful this is a newly allocated area of memory,
- * 	containing the deinterlaced image data. If something failed the pointer to the old_iptr memory area,
- * 	containing the undelinterlaced image, is returned so that the interlaced image data can be saved for
- * 	deinterlacing later.
+ * @return If everything was successful TRUE is returned, otherwise FALSE is returned.
  */
-static unsigned short *DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
+static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
 {
 	unsigned short *new_iptr;
 
 	/* allocate enough memory to store the deinterlaced image */
-	if((new_iptr = (unsigned short *)malloc(ncols*nrows*sizeof(unsigned short))) == NULL)
+	if((new_iptr = (unsigned short *)malloc(ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL)) == NULL)
 	{
  		DSP_Error_Number = 49;
 		sprintf(DSP_Error_String,"DSP_DeInterlace:Memory Allocation Error(%d,%d),image not deinterlaced.",
 			ncols,nrows);
-		return(old_iptr);
+		return FALSE;
 	}
 	switch(deinterlace_type)
 	{
@@ -2843,41 +2868,41 @@ static unsigned short *DSP_DeInterlace(int ncols,int nrows,unsigned short *old_i
 		** was readout in order */
 		case CCD_DSP_DEINTERLACE_SINGLE:
 		{
-			memcpy(new_iptr,old_iptr,(size_t)(ncols*nrows*(sizeof(unsigned short))));
-			return(new_iptr);
+			return TRUE;
 		} /*end single readout*/
 		/* SPLIT PARALLEL READOUT */
 		case CCD_DSP_DEINTERLACE_SPLIT_PARALLEL:
 		{
 			int i;
 
-			if (((float)nrows/2) != (int)nrows/2)
+			if(((float)nrows/2) != (int)nrows/2)
 			{
  				DSP_Error_Number = 50;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Split Parallel Readout,"
 					"nrows not even(%d), image not deinterlaced.",nrows);
 				free(new_iptr);
-				return(old_iptr);
+				return FALSE;
 			}
-			for (i=0;i<(ncols*nrows)/2;i++)
+			for(i=0;i<(ncols*nrows)/2;i++)
 			{
 				*(new_iptr+i) = *(old_iptr+(2*i));
 				*(new_iptr+(ncols*nrows)-i-1) = *(old_iptr+(2*i)+1);
 			}
-			memcpy(old_iptr,new_iptr,ncols*nrows*sizeof(unsigned short));
-			return(new_iptr);
+			memcpy(old_iptr,new_iptr,ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL);
+			return TRUE;
 		} /*end split parallel*/
 		/* SPLIT SERIAL READOUT */
 		case CCD_DSP_DEINTERLACE_SPLIT_SERIAL:
 		{
 			int i,j,p1,p2,begin,end;
+
 			if ((float)ncols/2 != (int)ncols/2)
         		{
  				DSP_Error_Number = 51;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Split Serial Readout,"
 					"ncols not even(%d), image not deinterlaced.",ncols);
 				free(new_iptr);
-				return(old_iptr);
+				return FALSE;
 			}
 			for (i=0;i<nrows;i++)
 			{		 /* leave in +0 for clarity */
@@ -2896,20 +2921,21 @@ static unsigned short *DSP_DeInterlace(int ncols,int nrows,unsigned short *old_i
                 		}
                 	}
 			memcpy(old_iptr,new_iptr,ncols*nrows*sizeof(unsigned short));
-			return(new_iptr);
+			free(new_iptr);
+			return TRUE;
 		} /*end split serial*/
 		/* SPLIT QUAD READOUT */
 		case CCD_DSP_DEINTERLACE_SPLIT_QUAD:
 		{
 			int i=0,j=0,counter=0,end=0,begin=0;
 
-			if ((float)ncols/2 != (int)ncols/2 || (float)nrows/2 != (int)nrows/2)
+			if((float)ncols/2 != (int)ncols/2 || (float)nrows/2 != (int)nrows/2)
 			{
  				DSP_Error_Number = 52;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Split Quad Readout,"
 					"ncols or nrows not even(%d,%d), image not deinterlaced.",ncols,nrows);
-				free ( new_iptr );
-				return(old_iptr);
+				free(new_iptr);
+				return FALSE;
 			}
 			while(i<ncols*nrows)
 			{
@@ -2927,14 +2953,19 @@ static unsigned short *DSP_DeInterlace(int ncols,int nrows,unsigned short *old_i
 				counter++;
 			}
 			memcpy(old_iptr,new_iptr,ncols*nrows*sizeof(unsigned short));
-			return(new_iptr);
+			free(new_iptr);
+			return TRUE;
 		} /*end split quad readout*/
 	}/*end switch*/
 	DSP_Error_Number = 53;
 	sprintf(DSP_Error_String,"DSP_DeInterlace:Wrong DeInterlace option(%d),Image not deinterlaced.",
 		deinterlace_type);
-	return(old_iptr);
+	free(new_iptr);
+	return FALSE;
 } /* end deinterlacing */
+#else
+#error DSP_DeInterlace not defined for this value of CCD_GLOBAL_BYTES_PER_PIXEL.
+#endif
 
 /* 
 ** DSP_Save uses a different implementation depending on whether CFITSIO define was defined at compile time.
@@ -2949,10 +2980,9 @@ static unsigned short *DSP_DeInterlace(int ncols,int nrows,unsigned short *old_i
  * @param exposure_data The data to save.
  * @param ncols The number of columns in the image data.
  * @param nrows The number of rows in the image data.
- * @param number_bytes The number of bytes of data to save to disc.
  * @return Returns TRUE if the image is saved successfully, FALSE if it fails.
  */
-static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int number_bytes)
+static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows)
 {
 	fitsfile *fp = NULL;
 	int retval=0,status=0;
@@ -2970,7 +3000,7 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 		return FALSE;
 	}
 	/* write the data */
-	retval = fits_write_img(fp,TUSHORT,1,number_bytes/sizeof(unsigned short),exposure_data,&status);
+	retval = fits_write_img(fp,TUSHORT,1,ncols*nrows,exposure_data,&status);
 	if(retval)
 	{
 		fits_get_errstatus(status,buff);
@@ -3011,13 +3041,12 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
  * @param exposure_data The data to save.
  * @param ncols The number of columns in the image data.
  * @param nrows The number of rows in the image data.
- * @param number_bytes The number of bytes of data to save to disc.
  * @return Returns TRUE if the image is saved successfully, FALSE if it fails.
  */
-static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int number_bytes)
+static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows)
 {
 	FILE *fp = NULL;
-	int retval,error_number;
+	int retval,error_number,nitems;
 
 	/* try to open file */
 	fp = fopen(filename,"rb+");
@@ -3038,12 +3067,13 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 		return FALSE;
 	}
 	/* write the data */
-	retval = fwrite(exposure_data,sizeof(char),number_bytes,fp);
-	if(retval != number_bytes)
+	nitems = nrows*ncols;
+	retval = fwrite(exposure_data,CCD_GLOBAL_BYTES_PER_PIXEL,nitems,fp);
+	if(retval != nitems)
 	{
 		fclose(fp);
 		DSP_Error_Number = 59;
-		sprintf(DSP_Error_String,"DSP_Save: File write failed(%s,%d,%d).",filename,retval,number_bytes);
+		sprintf(DSP_Error_String,"DSP_Save: File write failed(%s,%d,%d).",filename,retval,nitems);
 		return FALSE;
 	}
 	fclose(fp);
@@ -3114,6 +3144,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.16  2000/05/10 11:06:49  cjm
+** Removed perror.
+**
 ** Revision 0.15  2000/04/13 13:19:52  cjm
 ** Added current time to error string.
 **
