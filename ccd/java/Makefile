@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.13 1999-09-13 13:54:34 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.14 1999-09-15 15:57:56 cjm Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -12,10 +12,7 @@ SRCS = ExposureThread.java Test.java SetupThread.java AbortThread.java ReadOutTh
 OBJS = $(SRCS:%.java=$(BINDIR)/%.class)
 DOCS = $(SRCS:%.java=$(DOCSDIR)/%.html)
 
-top: $(OBJS) $(INCDIR)/CCDLibrary.h docs
-
-$(INCDIR)/CCDLibrary.h:
-	$(JAVAH) -jni -d $(INCDIR) ngat.ccd.CCDLibrary
+top: $(OBJS) docs
 
 $(BINDIR)/%.class:%.java
 	$(JAVAC) $(JAVAC_OPTIONS) -d $(BINDIR) $<
@@ -43,6 +40,9 @@ checkin:
 	-$(CI) $(CI_OPTIONS) $(SRCS)
 #
 # $Log: not supported by cvs2svn $
+# Revision 0.13  1999/09/13 13:54:34  cjm
+# Changed to use CCDLibrary from ngat.ccd.
+#
 # Revision 0.12  1999/09/10 15:27:25  cjm
 # Changed due to CCDLibrary moving to ngat.ccd. package.
 #
