@@ -1,5 +1,5 @@
 /* ccd_global.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.2 2000-04-13 12:57:23 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.3 2000-05-10 15:38:59 cjm Exp $
 */
 
 #ifndef CCD_GLOBAL_H
@@ -30,7 +30,8 @@
 #define CCD_GLOBAL_ERROR_STRING_LENGTH	256
 /**
  * This is the number of bytes used to represent one pixel on the CCD. Currently the SDSU CCD Controller
- * returns 16 bit values for pixels, which is 2 bytes.
+ * returns 16 bit values for pixels, which is 2 bytes. The library will currently only compile when this
+ * is two, as some parts assume 16 bit values.
  */
 #define CCD_GLOBAL_BYTES_PER_PIXEL	2
 
