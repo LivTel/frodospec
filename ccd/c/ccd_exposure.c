@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.11 2000-06-20 12:53:07 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.12 2000-07-11 10:42:24 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.11 $
+ * @version $Revision: 0.12 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.11 2000-06-20 12:53:07 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.12 2000-07-11 10:42:24 cjm Exp $";
 
 /* external variables */
 
@@ -175,8 +175,8 @@ int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure
 }
 
 /**
- * Routine to take a bias frame. This is effectively a combination of the CCD_Exposure_Flush_CCD routine and the
- * CCD_Exposure_Read_Out_CCD routine. A bias frame is taken by clearing the CCD array using a 
+ * Routine to take a bias frame. This is effectively a combination of the CCD_DSP_Command_CLR, CCD_DSP_Command_RDC 
+ * and CCD_DSP_Command_RDI routine. A bias frame is taken by clearing the CCD array using a 
  * clear command to clear the array, followed immediately by a 
  * read-out command to read the array into a FITS file.
  * @param filename The filename to save the resultant data (in FITS format) to.
@@ -191,6 +191,9 @@ int CCD_Exposure_Bias(char *filename)
 	int nrows;
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	int return_value;	/* value returned from function calls */
+#if DEBUG == 1
+	int debug;
+#endif
 
 	Exposure_Error_Number = 0;
 /* reset abort flag */
@@ -206,6 +209,14 @@ int CCD_Exposure_Bias(char *filename)
 	ncols = CCD_Setup_Get_NCols();
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	debug = CCD_DSP_Command_Read_Controller_Status();	
+	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+	debug = CCD_DSP_Command_Read_PCI_Status();	
+	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+	fflush(stdout);
+#endif
 /* clear the ccd */
 	if(!CCD_DSP_Command_CLR())
 	{
@@ -214,15 +225,10 @@ int CCD_Exposure_Bias(char *filename)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Clear array failed.");
 		return FALSE;
 	}
-/* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
-	{
-/* diddly IDL clocks again!! */
-		CCD_DSP_Set_Abort(FALSE);
-		Exposure_Error_Number = 8;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Aborted.");
-		return FALSE;
-	}
+/* remember, here DSP_Data.Exposure_Status has been set. 
+** therefore we can't check for abort here. 
+** If we did, we would have to IDL the Timing board clocks to stop
+** the electronics locking up. */
 /* Bias frames do not call start exposure and hence the exposure start time is not set
 ** It is saved in the FITS file however, so set it manually here. */
 	CCD_DSP_Set_Exposure_Start_Time();
@@ -234,15 +240,10 @@ int CCD_Exposure_Bias(char *filename)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Read CCD failed.");
 		return FALSE;
 	}
-/* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
-	{
-/* diddly abort readout */
-		CCD_DSP_Set_Abort(FALSE);
-		Exposure_Error_Number = 30;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Aborted.");
-		return FALSE;
-	}
+/* remember, here DSP_Data.Exposure_Status has been set. 
+** therefore we can't check for abort here. 
+** If we did, we would have to IDL the Timing board clocks to stop
+** the electronics locking up. */
 /* read out ccd and save to filename */
 	return_value = CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,TRUE,filename);
 	if(return_value == FALSE)
@@ -250,28 +251,6 @@ int CCD_Exposure_Bias(char *filename)
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 9;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Readout failed.");
-		return FALSE;
-	}
-	return TRUE;
-}
-
-/**
- * This routine would not normally be called as part of an exposure sequence. It simply clears any charge
- * from the CCD by executing a clear command.
- * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
- * @see ccd_dsp.html#CCD_DSP_Command_CLR
- */
-int CCD_Exposure_Flush_CCD(void)
-/* a seperarate command to the main exposure sequence */
-{
-	Exposure_Error_Number = 0;
-/* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
-	if(!CCD_DSP_Command_CLR())
-	{
-		CCD_DSP_Set_Abort(FALSE);
-		Exposure_Error_Number = 10;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Flush_CCD:Clear array failed.");
 		return FALSE;
 	}
 	return TRUE;
@@ -574,6 +553,9 @@ void CCD_Exposure_Warning(void)
 static int Exposure_Shutter_Control(int open_shutter)
 {
 	int controller_status;
+#if DEBUG == 1
+	int debug;
+#endif
 
 /* check parameter */
 	if(!CCD_GLOBAL_IS_BOOLEAN(open_shutter))
@@ -583,6 +565,14 @@ static int Exposure_Shutter_Control(int open_shutter)
 			open_shutter);
 		return FALSE;
 	}
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	debug = CCD_DSP_Command_Read_Controller_Status();	
+	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+	debug = CCD_DSP_Command_Read_PCI_Status();	
+	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+	fflush(stdout);
+#endif
 /* get current controller status */
 	controller_status = CCD_DSP_Command_Read_Controller_Status();
 	if((controller_status == 0)&&(CCD_DSP_Get_Error_Number() != 0))
@@ -608,6 +598,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.11  2000/06/20 12:53:07  cjm
+** CCD_DSP_Command_Sex now automatically calls CCD_DSP_Command_RDI.
+**
 ** Revision 0.10  2000/06/19 08:48:34  cjm
 ** Backup.
 **
