@@ -1,5 +1,5 @@
 /* test.c  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.9 2001-01-30 12:35:47 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.10 2001-01-30 17:51:48 cjm Exp $
 */
 #include <stdio.h>
 #include <time.h>
@@ -12,15 +12,64 @@
 #include "ccd_setup.h"
 #include "fitsio.h"
 
+/**
+ * This program is a basic test of the SDSU CCD controller. It has no arguments. It sets up the controller
+ * and performs a basic exposure.
+ * @author $Author: cjm $
+ * @version $Revision: 1.10 $
+ */
+
+/**
+ * The size of the image array in the X direction.
+ */
 #define CCD_X_SIZE	2048
+/**
+ * The size of the image array in the Y direction.
+ */
 #define CCD_Y_SIZE	2048
+/**
+ * The amount of array binning in the X direction.
+ */
 #define CCD_XBIN_SIZE	1
+/**
+ * The amount of array binning in the Y direction.
+ */
 #define CCD_YBIN_SIZE	1
+/**
+ * The number of bytes per pixel.
+ */
 #define BYTES_PER_PIXEL	2
 
 static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *filename);
 static void Test_Fits_Header_Error(int status);
 
+/**
+ * Main program.
+ * <ul>
+ * <li>Initialises the library.
+ * <li>The interface is opened.
+ * <li>The current temperature is retrieved.
+ * <li>The controller is setup.
+ * <li>The controller dimensions are setup.
+ * <li>The filter wheels are reset.
+ * <li>Some fits headers are saved to disc.
+ * <li>An exposure is taken.
+ * <li>The interface to the controller is closed.
+ * </ul>
+ * @param argc The number of command line parameters.
+ * @param argv The list of parameter strings.
+ * @return This program returns 0 on success, and a positive number for failure.
+ * @see ccd_global.html#CCD_Global_Initialise
+ * @see ccd_interface.html#CCD_Interface_Open
+ * @see ccd_temperature.html#CCD_Temperature_Get
+ * @see ccd_setup.html#CCD_Setup_Startup
+ * @see ccd_setup.html#CCD_Setup_Dimensions
+ * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Reset
+ * @see #Test_Save_Fits_Headers
+ * @see ccd_exposure.html#CCD_Exposure_Expose
+ * @see ccd_setup.html#CCD_Setup_Shutdown
+ * @see ccd_interface.html#CCD_Interface_Close
+ */
 int main(int argc, char *argv[])
 {
 	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
@@ -191,4 +240,7 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.9  2001/01/30 12:35:47  cjm
+** Added BZERO and BSCALE keywords so FITS images save successfully.
+**
 */
