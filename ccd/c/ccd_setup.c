@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.25 2004-05-16 14:28:18 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.26 2004-11-04 15:59:35 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.25 $
+ * @version $Revision: 0.26 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -37,7 +37,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.25 2004-05-16 14:28:18 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.26 2004-11-04 15:59:35 cjm Exp $";
 
 /* #defines */
 /**
@@ -125,6 +125,7 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.25 2004-05-16 14:28:18 cjm Exp $";
  * 	SDSU CCD Controller reads out the CCD. Acceptable values in 
  * 	<a href="ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a> are:
  *	CCD_DSP_DEINTERLACE_SINGLE,
+ *	CCD_DSP_DEINTERLACE_FLIP,
  *	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.</dd>
@@ -566,6 +567,7 @@ int CCD_Setup_Shutdown(void)
  * 	deinterlaced if the CCD is read out from multiple readouts. One of
  * 	<a href="ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
  * 	CCD_DSP_DEINTERLACE_SINGLE,
+ * 	CCD_DSP_DEINTERLACE_FLIP,
  * 	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
@@ -1015,6 +1017,7 @@ int CCD_Setup_Get_Window_Height(int window_index)
  * @return The current deinterlace type, one of
  * <a href="ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
  * 	CCD_DSP_DEINTERLACE_SINGLE,
+ * 	CCD_DSP_DEINTERLACE_FLIP,
  * 	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
@@ -1896,6 +1899,7 @@ static int Setup_Binning(int nsbin,int npbin)
  * 	deinterlaced if the CCD is read out from multiple readouts. One of
  * 	<a href="ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
  * 	CCD_DSP_DEINTERLACE_SINGLE,
+ * 	CCD_DSP_DEINTERLACE_FLIP,
  * 	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
@@ -1932,6 +1936,8 @@ static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEIN
 	switch(Setup_Data.DeInterlace_Type)
 	{
 		case CCD_DSP_DEINTERLACE_SINGLE:		/* Single readout */
+			break;
+		case CCD_DSP_DEINTERLACE_FLIP:		        /* Single readout flipped in X */
 			break;
 		case CCD_DSP_DEINTERLACE_SPLIT_PARALLEL:	/* Split Parallel readout */
 			if((float)Setup_Data.NRows/2 != (int)Setup_Data.NRows/2)
@@ -2189,6 +2195,9 @@ static int Setup_Controller_Windows(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.25  2004/05/16 14:28:18  cjm
+** Re-wrote abort code.
+**
 ** Revision 0.24  2003/06/06 12:36:01  cjm
 ** CHanged vacuum gauge read implementation, now issues VON/VOF and
 ** averages multiple samples.
