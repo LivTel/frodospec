@@ -1,5 +1,5 @@
 /* test.c
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.12 2002-11-07 19:18:22 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.13 2002-11-28 17:57:51 cjm Exp $
 */
 #include <stdio.h>
 #include <time.h>
@@ -21,9 +21,10 @@
  * Note the setup is performed by downloading two DSP .lod files, tim.lod and util.lod,
  * which must be present in the bin directory otherwise an error is returned.
  * @author $Author: cjm $
- * @version $Revision: 1.12 $
+ * @version $Revision: 1.13 $
  */
 
+/* hash defines */
 /**
  * Filename for the timing board DSP code .lod file.
  */
@@ -49,6 +50,13 @@
  */
 #define CCD_YBIN_SIZE	1
 
+/* internal variables */
+/**
+ * Revision Control System identifier.
+ */
+static char rcsid[] = "$Id: test.c,v 1.13 2002-11-28 17:57:51 cjm Exp $";
+
+/* internal functions */
 static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *filename);
 static void Test_Fits_Header_Error(int status);
 
@@ -293,6 +301,9 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.12  2002/11/07 19:18:22  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 1.11  2001/02/01 10:22:27  cjm
 ** Tidied program and made interface a parameter.
 **
