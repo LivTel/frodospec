@@ -1,5 +1,5 @@
 /* ccd_global.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.4 2001-04-05 17:00:54 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.5 2001-06-04 14:43:54 cjm Exp $
 */
 
 #ifndef CCD_GLOBAL_H
@@ -64,22 +64,35 @@
  * @see #CCD_Global_Log
  */
 #define CCD_GLOBAL_LOG_BIT_INTERFACE	(1<<13)
+/**
+ * Value to pass into logging calls, used for global code logging.
+ * @see #CCD_Global_Log
+ */
+#define CCD_GLOBAL_LOG_BIT_GLOBAL	(1<<14)
 
 extern void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device);
 extern void CCD_Global_Error(void);
 extern void CCD_Global_Error_String(char *error_string);
 
 /* routine used by other modules error code */
-extern  void CCD_Global_Get_Current_Time_String(char *time_string,int string_length);
+extern void CCD_Global_Get_Current_Time_String(char *time_string,int string_length);
 
 /* logging routines */
-void CCD_Global_Log_Format(int level,char *format,...);
-void CCD_Global_Log(int level,char *string);
-void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(int level,char *string));
-void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string));
-void CCD_Global_Log_Handler_Stdout(int level,char *string);
-void CCD_Global_Set_Log_Filter_Level(int level);
-int CCD_Global_Log_Filter_Level_Absolute(int level,char *string);
-int CCD_Global_Log_Filter_Level_Bitwise(int level,char *string);
+extern void CCD_Global_Log_Format(int level,char *format,...);
+extern void CCD_Global_Log(int level,char *string);
+extern void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(int level,char *string));
+extern void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string));
+extern void CCD_Global_Log_Handler_Stdout(int level,char *string);
+extern void CCD_Global_Set_Log_Filter_Level(int level);
+extern int CCD_Global_Log_Filter_Level_Absolute(int level,char *string);
+extern int CCD_Global_Log_Filter_Level_Bitwise(int level,char *string);
+
+/* readout process priority and memory locking */
+extern int CCD_Global_Increase_Priority(void);
+extern int CCD_Global_Decrease_Priority(void);
+extern int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size);
+extern int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size);
+extern int CCD_Global_Memory_Lock_All(void);
+extern int CCD_Global_Memory_UnLock_All(void);
 
 #endif
