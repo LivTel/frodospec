@@ -1,5 +1,5 @@
 /* test.c  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.10 2001-01-30 17:51:48 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.11 2001-02-01 10:22:27 cjm Exp $
 */
 #include <stdio.h>
 #include <time.h>
@@ -13,16 +13,29 @@
 #include "fitsio.h"
 
 /**
- * This program is a basic test of the SDSU CCD controller. It has no arguments. It sets up the controller
- * and performs a basic exposure.
+ * This program is a basic test of the SDSU CCD controller. It is invoked with 1 argument:
+ * <pre>
+ * test <device>: device is either [pci|text]
+ * </pre>
+ * It sets up the controller and performs a basic exposure.
+ * Note the setup is performed by downloading two DSP .lod files, tim.lod and util.lod,
+ * which must be present in the bin directory otherwise an error is returned.
  * @author $Author: cjm $
- * @version $Revision: 1.10 $
+ * @version $Revision: 1.11 $
  */
 
 /**
+ * Filename for the timing board DSP code .lod file.
+ */
+#define TIMING_FILENAME "tim.lod"
+/**
+ * Filename for the utility board DSP code .lod file.
+ */
+#define UTILITY_FILENAME "util.lod"
+/**
  * The size of the image array in the X direction.
  */
-#define CCD_X_SIZE	2048
+#define CCD_X_SIZE	2150
 /**
  * The size of the image array in the Y direction.
  */
@@ -35,10 +48,6 @@
  * The amount of array binning in the Y direction.
  */
 #define CCD_YBIN_SIZE	1
-/**
- * The number of bytes per pixel.
- */
-#define BYTES_PER_PIXEL	2
 
 static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *filename);
 static void Test_Fits_Header_Error(int status);
@@ -48,8 +57,8 @@ static void Test_Fits_Header_Error(int status);
  * <ul>
  * <li>Initialises the library.
  * <li>The interface is opened.
- * <li>The current temperature is retrieved.
  * <li>The controller is setup.
+ * <li>The current temperature is retrieved.
  * <li>The controller dimensions are setup.
  * <li>The filter wheels are reset.
  * <li>Some fits headers are saved to disc.
@@ -78,56 +87,100 @@ int main(int argc, char *argv[])
 	char *exposure_data = NULL;
 	double temperature = 0.0;
 
+	if(argc != 2)
+	{
+		fprintf(stdout,"test <device>: device is either [pci|text].\n");
+		exit(1);
+	}
+
 	fprintf(stdout,"Test ...\n");
-	CCD_Global_Initialise(CCD_INTERFACE_DEVICE_TEXT);
+	if(strcmp(argv[1],"pci")==0)
+		CCD_Global_Initialise(CCD_INTERFACE_DEVICE_PCI);
+	else if(strcmp(argv[1],"text")==0)
+		CCD_Global_Initialise(CCD_INTERFACE_DEVICE_TEXT);
+	else
+	{
+		fprintf(stdout,"test <device>: device is either [pci|text].\n");
+		exit(2);
+	}
 
 	CCD_Text_Set_Print_Level(CCD_TEXT_PRINT_LEVEL_COMMANDS);
 
 	fprintf(stdout,"Test:CCD_Interface_Open\n");
-	CCD_Interface_Open();
-
-	fprintf(stdout,"Test:CCD_Temperature_Get\n");
-	if(CCD_Temperature_Get(&temperature))
-		fprintf(stdout,"Test:CCD_Temperature_Get returned %.2f\n",temperature);
-	else
+	if(!CCD_Interface_Open())
+	{
 		CCD_Global_Error();
-
+		exit(3);
+	}
 	fprintf(stdout,"Test:CCD_Setup_Startup\n");
 	if(!CCD_Setup_Startup(CCD_SETUP_LOAD_ROM,NULL,
-		CCD_SETUP_LOAD_APPLICATION,0,NULL,
-		CCD_SETUP_LOAD_APPLICATION,1,NULL,-107.0,
+		CCD_SETUP_LOAD_FILENAME,0,TIMING_FILENAME,
+		CCD_SETUP_LOAD_FILENAME,1,UTILITY_FILENAME,-107.0,
 		CCD_DSP_GAIN_FOUR,TRUE,TRUE))
+	{
 		CCD_Global_Error();
+		exit(4);
+	}
 	fprintf(stdout,"Test:CCD_Setup_Startup completed\n");
+
+	fprintf(stdout,"Test:CCD_Temperature_Get\n");
+	if(!CCD_Temperature_Get(&temperature))
+	{
+		CCD_Global_Error();
+		exit(5);
+	}
+	fprintf(stdout,"Test:CCD_Temperature_Get returned %.2f\n",temperature);
 
 	fprintf(stdout,"Test:CCD_Setup_Dimensions\n");
 	if(!CCD_Setup_Dimensions(CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
 		CCD_DSP_AMPLIFIER_LEFT,CCD_DSP_DEINTERLACE_SINGLE,0,window_list))
+	{
 		CCD_Global_Error();
+		exit(6);
+	}
 	fprintf(stdout,"Test:CCD_Setup_Dimensions completed\n");
 
 	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel\n");
 	if(!CCD_Filter_Wheel_Reset(0))
+	{
 		CCD_Global_Error();
+		exit(7);
+	}
 	if(!CCD_Filter_Wheel_Reset(1))
+	{
 		CCD_Global_Error();
+		exit(8);
+	}
 	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel completed\n");
 
 	if(!Test_Save_Fits_Headers(10000,CCD_X_SIZE/CCD_XBIN_SIZE,CCD_Y_SIZE/CCD_YBIN_SIZE,"test.fits"))
+	{
 		fprintf(stdout,"Test:Saving FITS headers failed.\n");
+		exit(9);
+	}
 	fprintf(stdout,"Test:Saving FITS headers completed.\n");
 
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
 	if(!CCD_Exposure_Expose(TRUE,start_time,10000,"test.fits"))
+	{
 		CCD_Global_Error();
+		exit(10);
+	}
 	fprintf(stdout,"Test:CCD_Exposure_Expose finished\n");
 
 	if(!CCD_Setup_Shutdown())
+	{
 		CCD_Global_Error();
+		exit(11);
+	}
 	fprintf(stdout,"Test:CCD_Setup_Shutdown completed\n");
 
-	CCD_Interface_Close();
+	if(!CCD_Interface_Close())
+	{
+		CCD_Global_Error();
+		exit(12);
+	}
 	fprintf(stdout,"Test:CCD_Interface_Close\n");
 
 	fprintf(stdout,"Test:Finished Test ...\n");
@@ -240,6 +293,9 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.10  2001/01/30 17:51:48  cjm
+** Added comments.
+**
 ** Revision 1.9  2001/01/30 12:35:47  cjm
 ** Added BZERO and BSCALE keywords so FITS images save successfully.
 **
