@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.18 2002-11-08 12:14:52 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.19 2003-03-04 17:10:27 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -50,8 +50,11 @@ CFITSIOLIB = -lcfitsio
 LOGGINGCFLAGS = -DLOGGING=10
 
 # SLALIB link information - used only for calculating MJD at the moment
-MJDCFLAGS = -DSLALIB=1 -I${LT_SRC_HOME}/astrometry/include
-MJDLIB = -lsla
+#MJDCFLAGS 	= -DSLALIB=1 -I${LT_SRC_HOME}/astrometry/include
+#MJDLIB		= -lsla
+# NGAT Astro MJD link informatiom
+MJDCFLAGS 	= -DNGATASTRO=1 -I${LT_SRC_HOME}/ngatastro/include
+MJDLIB		= -lngatastro
 
 # when reading out it could help if we lock down the memory we are reading out into to prevent page swaps
 # 1. No memory locking
@@ -161,6 +164,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.18  2002/11/08 12:14:52  cjm
+# *** empty log message ***
+#
 # Revision 1.17  2002/11/07 19:17:55  cjm
 # Changes to make library work with SDSU version 1.7 DSP code.
 #
