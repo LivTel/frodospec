@@ -1,5 +1,5 @@
 // SetupThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.4 1999-09-10 15:55:11 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.5 1999-09-20 10:27:40 cjm Exp $
 import java.io.*;
 import java.lang.*;
 
@@ -9,14 +9,14 @@ import ngat.ccd.*;
  * This class extends thread to support the setup of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway..
  * @author Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 class SetupThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: SetupThread.java,v 0.4 1999-09-10 15:55:11 cjm Exp $");
+	public final static String RCSID = new String("$Id: SetupThread.java,v 0.5 1999-09-20 10:27:40 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
@@ -102,10 +102,10 @@ class SetupThread extends Thread
 	 */
 	private int deinterlace_type 		= 0;
 	/**
-	 * Private copy of the Return value of 
-	 * CCDSetupSetupCCD.
+	 * Private copy of any exception returned by CCDSetupSetupCCD. This will be null for successful
+	 * completion of the method.
 	 */
-	private boolean returnValue 		= false;
+	private CCDLibraryNativeException setupException = null;
 
 	/**
 	 * Constructor of the thread. Copys all the parameters, ready to pass them into
@@ -146,32 +146,40 @@ class SetupThread extends Thread
 	 * Run method of the thread. Calls
 	 * CCDSetupSetupCCD with the parameters passed into the
 	 * constructor. This causes the CCD to be setup for an exposure. The success or failure of the
-	 * operation is stored in <a href="#returnValue">returnValue</a>, which can be retieved using the 
-	 * <a href="#getReturnValue">getReturnValue</a> method. Setup can be aborted using the
+	 * operation is stored in <a href="#setupException">setupException</a>, which can be retieved using the 
+	 * <a href="#getSetupException">getSetupException</a> method. Setup can be aborted using the
 	 * <a href="#abort">abort</a> method.
-	 * @see #getReturnValue
+	 * @see #getSetupException
 	 * @see #abort
 	 */
 	public void run()
 	{
-		returnValue = libccd.CCDSetupSetupCCD(setup_flags,timing_load_type,timing_application_number,
-			timing_filename,utility_load_type,utility_application_number,utility_filename,
-			target_temperature,gain,gain_speed,idle,
-			ncols,nrows,nsbin,npbin,deinterlace_type);
+		setupException = null;
+		try
+		{
+			libccd.CCDSetupSetupCCD(setup_flags,timing_load_type,timing_application_number,
+				timing_filename,utility_load_type,utility_application_number,utility_filename,
+				target_temperature,gain,gain_speed,idle,
+				ncols,nrows,nsbin,npbin,deinterlace_type);
+		}
+		catch(CCDLibraryNativeException e)
+		{
+			setupException = e;
+		}
 	}
 
 	/**
 	 * This method will terminate a partly completed Setup. It calls 
 	 * CCDSetupAbort which at the libccd level tells
 	 * CCDSetupSetupCCD to stop what it is doing. This causes
-	 * the <a href="#run">run</a> method to finish halting the thread, the <a href="#returnValue">returnValue</a>
-	 * will be false.
-	 * @see #getReturnValue
+	 * the <a href="#run">run</a> method to finish halting the thread, the 
+	 * <a href="#setupException">setupException</a>
+	 * will be non-null.
+	 * @see #getSetupException
 	 * @see #run
 	 */
 	public void abort()
 	{
-		returnValue = false;
 		libccd.CCDSetupAbort();
 	}
 
@@ -181,14 +189,17 @@ class SetupThread extends Thread
 	 * successfully completed it returns true, otherwise it returns false.
 	 * @see #run
 	 */
-	public boolean getReturnValue()
+	public CCDLibraryNativeException getSetupException()
 	{
-		return returnValue;
+		return setupException;
 	}
 }
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.4  1999/09/10 15:55:11  cjm
+// Changed due to CCDLibrary moving to ngat.ccd. package.
+//
 // Revision 0.3  1999/09/08 10:52:40  cjm
 // Trying to fix file permissions of these files.
 //
