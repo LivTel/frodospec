@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.34 2001-02-09 18:30:40 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.35 2001-02-16 09:55:19 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.34 $
+ * @version $Revision: 0.35 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.34 2001-02-09 18:30:40 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.35 2001-02-16 09:55:19 cjm Exp $";
 
 /* defines */
 /**
@@ -3901,7 +3901,7 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 			free(exposure_data);
 		CCD_DSP_Command_PCI_PC_Reset(); /* make sure the PCI card doesn't lock up */
 		DSP_Error_Number = 44;
-		sprintf(DSP_Error_String,"DSP_Image_Transfer:Failed to get reply data.");
+		sprintf(DSP_Error_String,"DSP_Image_Transfer:Failed to get %d bytes reply data.",numbytes);
 		return FALSE;
 	}
 	else if(retval != numbytes)
@@ -4396,6 +4396,10 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.34  2001/02/09 18:30:40  cjm
+** Changed Filter wheel code - to just simply send command, there is now no
+** second DON message returned from the controller.
+**
 ** Revision 0.33  2001/02/05 17:04:11  cjm
 ** Fixed return value in CCD_DSP_Command_RDC.
 **
