@@ -1,5 +1,5 @@
 /* ccd_setup.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.4 2000-03-02 16:46:58 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.5 2000-05-25 08:43:12 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -101,6 +101,7 @@ extern int CCD_Setup_Get_NRows(void);
 extern int CCD_Setup_Get_NSBin(void);
 extern int CCD_Setup_Get_NPBin(void);
 extern enum CCD_DSP_DEINTERLACE_TYPE CCD_Setup_Get_DeInterlace_Type(void);
+extern enum CCD_DSP_GAIN CCD_Setup_Get_Gain(void);
 extern int CCD_Setup_Get_Window_Flags(void);
 extern int CCD_Setup_Get_Filter_Wheel_Position(int wheel_number,int *position);
 extern int CCD_Setup_Get_Setup_Complete(void);
