@@ -1,23 +1,27 @@
 // AbortThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/AbortThread.java,v 0.3 1999-09-08 10:52:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/AbortThread.java,v 0.4 2000-01-24 16:21:05 cjm Exp $
 import java.io.*;
 
 /**
  * This class is a thread which when run, looks for a keypress on System.in, and then calls the parents
  * abort method.
  * @author Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 class AbortThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: AbortThread.java,v 0.3 1999-09-08 10:52:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: AbortThread.java,v 0.4 2000-01-24 16:21:05 cjm Exp $");
 	/**
 	 * Parent class, call it's abort method if a keypress is detected.
 	 */
 	private Test parent = null;
+	/**
+	 * Boolean used to decide when to stop running this thread.
+	 */
+	private boolean quit = false;
 
 	/**
 	 * Constructor for the thread. 
@@ -34,13 +38,15 @@ class AbortThread extends Thread
 	 */
 	public void run()
 	{
-		int retval;
+		int retval = 0;
 
 		try
 		{
-			while(System.in.available() == 0)
+			quit = false;
+			while((System.in.available() == 0)&&(quit == false))
 				Thread.yield();
-			retval = System.in.read();
+			if(System.in.available() != 0)
+				retval = System.in.read();
 		}
 		catch (IOException e)
 		{
@@ -50,10 +56,23 @@ class AbortThread extends Thread
 		if((retval >= 0)&&(parent != null))
 			parent.abort();
 	}
+
+	/**
+	 * Method to quit (stop) the abort thread. Used to replace the stop method which is
+ 	 * deprecated in JDK1.2.x.
+	 * @see #quit
+	 */
+	public void quit()
+	{
+		quit = true;
+	}
 }
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.3  1999/09/08 10:52:40  cjm
+// Trying to fix file permissions of these files.
+//
 // Revision 0.2  1999/05/20 16:37:58  dev
 // "Backup"
 //
