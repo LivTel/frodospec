@@ -1,6 +1,6 @@
 /* ccd_temperature.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.5 2000-09-25 09:51:28 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.6 2001-06-04 14:42:44 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -33,7 +33,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.5 2000-09-25 09:51:28 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.6 2001-06-04 14:42:44 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -196,6 +196,9 @@ int CCD_Temperature_Get(double *temperature)
 	float voltage;
 
 	Temperature_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Get() started.");
+#endif
 	CCD_DSP_Set_Abort(FALSE);
 	adu = 0;
 	for (i = 0; i < TEMPERATURE_MAX_CHECKS; i++)
@@ -223,6 +226,10 @@ int CCD_Temperature_Get(double *temperature)
 	/* is the voltage in range? */
 	if ((voltage > Temperature_Data.V_Lower) && (voltage < Temperature_Data.V_Upper))
 	{
+#if LOGGING > 0
+		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Get() returned %.2f.",
+			(*temperature));
+#endif
 		return TRUE;
 	}
 	else
@@ -248,6 +255,10 @@ int CCD_Temperature_Set(double target_temperature)
 	int adu = 0;
 
 	Temperature_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Set(temperature=%.2f) started.",
+		target_temperature);
+#endif
 	CCD_DSP_Set_Abort(FALSE);
 	/* get the target adu count from target_temperature using the setup data */
 	adu = Temperature_Calc_Temp_ADU(Temperature_Data.Temp_Coeff,Temperature_Data.Temp_Coeff_Count,
@@ -261,6 +272,9 @@ int CCD_Temperature_Set(double target_temperature)
 		sprintf(Temperature_Error_String,"Setting CCD Temperature failed.");
 		return FALSE;
 	}
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Set() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -424,6 +438,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.5  2000/09/25 09:51:28  cjm
+** Changes to use with v1.4 SDSU DSP code.
+**
 ** Revision 0.4  2000/04/13 13:09:30  cjm
 ** Added current time to error routines.
 **

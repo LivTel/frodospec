@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.17 2001-02-05 17:04:48 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.18 2001-06-04 14:42:17 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.17 $
+ * @version $Revision: 0.18 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.17 2001-02-05 17:04:48 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.18 2001-06-04 14:42:17 cjm Exp $";
 
 /* #defines */
 /**
@@ -244,6 +244,15 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle)
 {
 	Setup_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Startup(pci_load_type=%d,pci_filename=%s,"
+		"timing_load_type=%d,timing_application=%d,timing_filename=%s,"
+		"utility_load_type=%d,utility_application=%d,utility_filename=%s,"
+		"temperature=%.2f,gain=%d,gain_speed=%d,idle=%d) started.",pci_load_type,pci_filename,
+		timing_load_type,timing_application_number,timing_filename,
+		utility_load_type,utility_application_number,utility_filename,
+		target_temperature,gain,gain_speed,idle);
+#endif
 /* we are in a setup routine */
 	Setup_Data.Setup_In_Progress = TRUE;
 /* reset abort flag - we havn't aborted yet! */
@@ -343,6 +352,9 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 /* tidy up flags and return */
 	Setup_Data.Setup_In_Progress = FALSE;
 	CCD_DSP_Set_Abort(FALSE);
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Startup() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -360,6 +372,9 @@ int CCD_Setup_Shutdown(void)
 	int i;
 
 	Setup_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Stutdown() started.");
+#endif
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
 /* perform a power off */
@@ -374,6 +389,9 @@ int CCD_Setup_Shutdown(void)
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Stutdown() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -417,6 +435,11 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	int window_flags,struct CCD_Setup_Window_Struct window_list[])
 {
 	Setup_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Dimensions(ncols=%d,nrows=%d,nsbin=%d,npbin=%d,"
+		"amplifier=%d,deinterlace_type=%d,window_flags=%d) started.",ncols,nrows,nsbin,npbin,
+		amplifier,deinterlace_type,window_flags);
+#endif
 /* we are in a setup routine */
 	Setup_Data.Setup_In_Progress = TRUE;
 /* reset abort flag - we havn't aborted yet! */
@@ -480,6 +503,9 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 /* reset in progress information */
 	Setup_Data.Setup_In_Progress = FALSE;
 	CCD_DSP_Set_Abort(FALSE);
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Dimensions() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -1440,6 +1466,9 @@ static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct win
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.17  2001/02/05 17:04:48  cjm
+** More work on windowing.
+**
 ** Revision 0.16  2001/01/31 16:35:18  cjm
 ** Added tests for filename is NULL in DSP download code.
 **
