@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.5 2000-02-22 17:38:17 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.6 2000-02-23 11:56:16 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.5 2000-02-22 17:38:17 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.6 2000-02-23 11:56:16 cjm Exp $";
 
 /* defines */
 /**
@@ -302,57 +302,6 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 		return FALSE;
 	/* get reply - DON should be returned */
 	return(DSP_Get_Reply(CCD_DSP_DON));
-}
-
-/**
- * This routine executes the WRite Memory (WRM) command on a SDSU Controller board.
- * This sets the value of a word of memory, it's location specified by board,memory space and address.
- * This is different from the normal write memory command in that it does not wait for a confirmation message
- * to be sent back to the host, a DON command. This means this routine can be used for the special case of
- * turning of the PCI boards ability to send replies to the host, which is part of the shutdown procedure.
- * @param board_id The SDSU CCD Controller board to send the command to, one of 
- * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
- *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
- * @param mem_space The memory space on board board_id to read from, of type 
- * <a href="#CCD_DSP_MEM_SPACE">CCD_DSP_MEM_SPACE</a>. One of:
- * 	CCD_DSP_MEM_SPACE_D(DRAM),
- * 	CCD_DSP_MEM_SPACE_P(program),
- * 	CCD_DSP_MEM_SPACE_X(X data),
- * 	CCD_DSP_MEM_SPACE_Y(Y data)
- * 	or CCD_DSP_MEM_SPACE_R(ROM).
- * @param address The memory address to write data to.
- * @param data The data value to write to the memory address.
- * @return The routine returns DON if the command was sent and FALSE if a paramater error occured. 
- * 	No reply is checked for.
- * @see #DSP_Send_Wrm
- * @see #DSP_Get_Reply
- */
-int CCD_DSP_Command_WRM_No_Reply(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data)
-{
-	DSP_Error_Number = 0;
-	/* check - is board_id a legal value */
-	if(!CCD_DSP_IS_BOARD_ID(board_id))
-	{
-		DSP_Error_Number = 29;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM_No_Reply:Illegal board ID '%d'.",board_id);
-		return FALSE;
-	}
-	if(!CCD_DSP_IS_MEMORY_SPACE(mem_space))
-	{
-		DSP_Error_Number = 68;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM_No_Reply:Illegal memory space '%c'.",mem_space);
-		return FALSE;
-	}
-	if(address < 0)
-	{
-		DSP_Error_Number = 69;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM_No_Reply:Illegal address '%#x'.",address);
-		return FALSE;
-	}
-	if(!DSP_Send_Wrm(board_id,mem_space,address,data))
-		return FALSE;
-	/* do not get reply */
-	return CCD_DSP_DON;
 }
 
 /* timing board commands */
@@ -2303,6 +2252,9 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.5  2000/02/22 17:38:17  cjm
+** Added CCD_DSP_EXPOSURE_STATUS_CLEAR status.
+**
 ** Revision 0.4  2000/02/10 12:01:25  cjm
 ** Added CCD_DSP_Command_WRM_No_Reply routine for special case of switching off controller replies.
 **
