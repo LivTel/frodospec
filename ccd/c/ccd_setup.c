@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.9 2000-03-02 16:46:53 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.10 2000-04-13 13:06:59 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.9 2000-03-02 16:46:53 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.10 2000-04-13 13:06:59 cjm Exp $";
 
 /* #defines */
 /**
@@ -743,15 +743,19 @@ int CCD_Setup_Get_Error_Number(void)
 
 /**
  * The error routine that reports any errors occuring in ccd_setup in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_Setup_Error(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(Setup_Error_Number == 0)
 		sprintf(Setup_Error_String,"Logic Error:No Error defined");
-	fprintf(stderr,"CCD_Setup:Error(%d) : %s\n",Setup_Error_Number,Setup_Error_String);
+	fprintf(stderr,"%s CCD_Setup:Error(%d) : %s\n",time_string,Setup_Error_Number,Setup_Error_String);
 	Setup_Error_Number = 0;
 }
 
@@ -761,29 +765,38 @@ void CCD_Setup_Error(void)
  * @param error_string A string to put the generated error in. This string should be initialised before
  * being passed to this routine. The routine will try to concatenate it's error string onto the end
  * of any string already in existance.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_Setup_Error_String(char *error_string)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(Setup_Error_Number == 0)
 		sprintf(Setup_Error_String,"Logic Error:No Error defined");
-	sprintf(error_string+strlen(error_string),"CCD_Setup:Error(%d) : %s\n",Setup_Error_Number,Setup_Error_String);
+	sprintf(error_string+strlen(error_string),"%s CCD_Setup:Error(%d) : %s\n",time_string,
+		Setup_Error_Number,Setup_Error_String);
 	Setup_Error_Number = 0;
 }
 
 /**
  * The warning routine that reports any warnings occuring in ccd_setup in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_Setup_Warning(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an warning message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an warning to display */
 	if(Setup_Error_Number == 0)
 		sprintf(Setup_Error_String,"Logic Error:No Warning defined");
-	fprintf(stderr,"CCD_Setup:Warning(%d) : %s\n",Setup_Error_Number,Setup_Error_String);
+	fprintf(stderr,"%s CCD_Setup:Warning(%d) : %s\n",time_string,Setup_Error_Number,Setup_Error_String);
 	Setup_Error_Number = 0;
 }
 
@@ -1166,6 +1179,12 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.10  2000/04/13 13:04:46  cjm
+** Changed error routine to print out current time.
+**
+** Revision 0.9  2000/03/02 16:46:53  cjm
+** Converted Setup_Hardware_Test from internal routine to external CCD_Setup_Hardware_Test.
+**
 ** Revision 0.8  2000/03/01 15:44:41  cjm
 ** Backup.
 **

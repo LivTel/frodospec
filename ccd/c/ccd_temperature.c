@@ -1,6 +1,6 @@
 /* ccd_temperature.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.3 2000-03-01 15:44:41 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.4 2000-04-13 13:09:30 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -33,7 +33,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.3 2000-03-01 15:44:41 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.4 2000-04-13 13:09:30 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -275,15 +275,20 @@ int CCD_Temperature_Get_Error_Number(void)
 
 /**
  * The error routine that reports any errors occuring in ccd_temperature in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_Temperature_Error(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(Temperature_Error_Number == 0)
 		sprintf(Temperature_Error_String,"Logic Error:No Error defined");
-	fprintf(stderr,"CCD_Temperature:Error(%d) : %s\n",Temperature_Error_Number,Temperature_Error_String);
+	fprintf(stderr,"%s CCD_Temperature:Error(%d) : %s\n",time_string,
+		Temperature_Error_Number,Temperature_Error_String);
 	Temperature_Error_Number = 0;
 }
 
@@ -293,16 +298,20 @@ void CCD_Temperature_Error(void)
  * @param error_string A string to put the generated error in. This string should be initialised before
  * being passed to this routine. The routine will try to concatenate it's error string onto the end
  * of any string already in existance.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_Temperature_Error_String(char *error_string)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(Temperature_Error_Number == 0)
 		sprintf(Temperature_Error_String,"Logic Error:No Error defined");
-	sprintf(error_string+strlen(error_string),"CCD_Temperature:Error(%d) : %s\n",Temperature_Error_Number,
-		Temperature_Error_String);
+	sprintf(error_string+strlen(error_string),"%s CCD_Temperature:Error(%d) : %s\n",time_string,
+		Temperature_Error_Number,Temperature_Error_String);
 	Temperature_Error_Number = 0;
 }
 
@@ -415,6 +424,12 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2000/04/13 13:03:14  cjm
+** Changed error routine to print current time.
+**
+** Revision 0.3  2000/03/01 15:44:41  cjm
+** Backup.
+**
 ** Revision 0.2  2000/02/22 16:07:55  cjm
 ** Added calls to CCD_DSP_Set_Abort.
 **

@@ -1,12 +1,12 @@
 /* ccd_pci.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.1 2000-01-25 14:57:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.2 2000-04-13 13:13:34 cjm Exp $
 */
 /**
  * ccd_pci.c will implement a specific interface that connects the SDSU CCD Controller system with a host
  * computer using a PCI interface.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.1 $
+ * @version $Revision: 0.2 $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -22,7 +22,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_pci.c,v 0.1 2000-01-25 14:57:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_pci.c,v 0.2 2000-04-13 13:13:34 cjm Exp $";
 
 /* #defines */
 /**
@@ -204,15 +204,19 @@ int CCD_PCI_Get_Error_Number(void)
 
 /**
  * The error routine that reports any errors occuring in ccd_pci in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_PCI_Error(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(PCI_Error_Number == 0)
 		sprintf(PCI_Error_String,"Logic Error:No Error defined");
-	fprintf(stderr,"CCD_PCI:Error(%d) : %s\n",PCI_Error_Number,PCI_Error_String);
+	fprintf(stderr,"%s CCD_PCI:Error(%d) : %s\n",time_string,PCI_Error_Number,PCI_Error_String);
 	PCI_Error_Number = 0;
 }
 
@@ -222,32 +226,44 @@ void CCD_PCI_Error(void)
  * @param error_string A string to put the generated error in. This string should be initialised before
  * being passed to this routine. The routine will try to concatenate it's error string onto the end
  * of any string already in existance.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_PCI_Error_String(char *error_string)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(PCI_Error_Number == 0)
 		sprintf(PCI_Error_String,"Logic Error:No Error defined");
-	sprintf(error_string+strlen(error_string),"CCD_PCI:Error(%d) : %s\n",PCI_Error_Number,PCI_Error_String);
+	sprintf(error_string+strlen(error_string),"%s CCD_PCI:Error(%d) : %s\n",time_string,
+		PCI_Error_Number,PCI_Error_String);
 	PCI_Error_Number = 0;
 }
 
 /**
  * The warning routine that reports any warnings occuring in ccd_pci in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_PCI_Warning(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an warning message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an warning to display */
 	if(PCI_Error_Number == 0)
 		sprintf(PCI_Error_String,"Logic Error:No Warning defined");
-	fprintf(stderr,"CCD_PCI:Warning(%d) : %s\n",PCI_Error_Number,PCI_Error_String);
+	fprintf(stderr,"%s CCD_PCI:Warning(%d) : %s\n",time_string,PCI_Error_Number,PCI_Error_String);
 	PCI_Error_Number = 0;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.1  2000/01/25 14:57:27  cjm
+** initial revision (PCI version).
+**
 */

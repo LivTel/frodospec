@@ -1,13 +1,13 @@
 /* ccd_interface.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.1 2000-01-25 14:57:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.2 2000-04-13 13:15:33 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.1 $
+ * @version $Revision: 0.2 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +24,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.1 2000-01-25 14:57:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.2 2000-04-13 13:15:33 cjm Exp $";
 
 /* external variables */
 
@@ -216,15 +216,19 @@ int CCD_Interface_Get_Error_Number(void)
 
 /**
  * The error routine that reports any errors occuring in ccd_interface in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_Interface_Error(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(Interface_Error_Number == 0)
 		sprintf(Interface_Error_String,"Logic Error:No Error defined");
-	fprintf(stderr,"CCD_Interface:Error(%d) : %s\n",Interface_Error_Number,Interface_Error_String);
+	fprintf(stderr,"%s CCD_Interface:Error(%d) : %s\n",time_string,Interface_Error_Number,Interface_Error_String);
 	Interface_Error_Number = 0;
 }
 
@@ -234,19 +238,26 @@ void CCD_Interface_Error(void)
  * @param error_string A string to put the generated error in. This string should be initialised before
  * being passed to this routine. The routine will try to concatenate it's error string onto the end
  * of any string already in existance.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_Interface_Error_String(char *error_string)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(Interface_Error_Number == 0)
 		sprintf(Interface_Error_String,"Logic Error:No Error defined");
-	sprintf(error_string+strlen(error_string),"CCD_Interface:Error(%d) : %s\n",Interface_Error_Number,
-		Interface_Error_String);
+	sprintf(error_string+strlen(error_string),"%s CCD_Interface:Error(%d) : %s\n",time_string,
+		Interface_Error_Number,Interface_Error_String);
 	Interface_Error_Number = 0;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.1  2000/01/25 14:57:27  cjm
+** initial revision (PCI version).
+**
 */
