@@ -43,7 +43,8 @@ int main(int argc, char *argv[])
 		CCD_Global_Error();
 
 	fprintf(stdout,"Test:CCD_Setup_Startup\n");
-	if(!CCD_Setup_Startup(CCD_SETUP_LOAD_APPLICATION,0,NULL,
+	if(!CCD_Setup_Startup(CCD_SETUP_LOAD_ROM,NULL,
+		CCD_SETUP_LOAD_APPLICATION,0,NULL,
 		CCD_SETUP_LOAD_APPLICATION,1,NULL,-107.0,
 		CCD_DSP_GAIN_FOUR,TRUE,TRUE))
 		CCD_Global_Error();
@@ -51,7 +52,7 @@ int main(int argc, char *argv[])
 
 	fprintf(stdout,"Test:CCD_Setup_Dimensions\n");
 	if(!CCD_Setup_Dimensions(CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
-		CCD_DSP_DEINTERLACE_SINGLE,0,window_list))
+		CCD_DSP_AMPLIFIER_LEFT,CCD_DSP_DEINTERLACE_SINGLE,0,window_list))
 		CCD_Global_Error();
 	fprintf(stdout,"Test:CCD_Setup_Dimensions completed\n");
 
