@@ -1,5 +1,5 @@
 /* test_setup_dimensions.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_dimensions.c,v 1.1 2002-11-07 19:18:22 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_dimensions.c,v 1.2 2004-11-04 16:03:58 cjm Exp $
  */
 #include <stdio.h>
 #include <time.h>
@@ -21,7 +21,7 @@
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /* hash definitions */
 /**
@@ -49,7 +49,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_setup_dimensions.c,v 1.1 2002-11-07 19:18:22 cjm Exp $";
+static char rcsid[] = "$Id: test_setup_dimensions.c,v 1.2 2004-11-04 16:03:58 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -190,7 +190,7 @@ static int Parse_Arguments(int argc, char *argv[])
 				else if(strcmp(argv[i+1],"right")==0)
 				{
 					Amplifier = CCD_DSP_AMPLIFIER_RIGHT;
-					DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
+					DeInterlace_Type = CCD_DSP_DEINTERLACE_FLIP;
 				}
 				else if(strcmp(argv[i+1],"both")==0)
 				{
@@ -444,4 +444,7 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2002/11/07 19:18:22  cjm
+** Initial revision
+**
 */
