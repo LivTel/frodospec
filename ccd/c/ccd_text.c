@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.1 2000-01-25 14:57:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.2 2000-01-26 14:02:39 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.1 $
+ * @version $Revision: 0.2 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -35,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.1 2000-01-25 14:57:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.2 2000-01-26 14:02:39 cjm Exp $";
 
 /* #defines */
 /**
@@ -262,6 +262,13 @@ int CCD_Text_Command(int request,int *argument)
 	char board_string[4][16] = {"Host","Interface","Timing","Utility"};
 
 	Text_Error_Number = 0;
+	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
+	{
+		if(argument != NULL)
+			fprintf(Text_File_Ptr,"ioctl(%#x,%#x)\n",request,*argument);
+		else
+			fprintf(Text_File_Ptr,"ioctl(%#x,NULL)\n",request);
+	}
 /* set Text_Data Ioctl_Request */
 	Text_Data.Ioctl_Request = request;
 	switch(request)
@@ -718,4 +725,7 @@ static void Text_HCVR_Start_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.1  2000/01/25 14:57:27  cjm
+** initial revision (PCI version).
+**
 */
