@@ -1,6 +1,6 @@
 /* ccd_temperature.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.6 2001-06-04 14:42:44 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.7 2001-07-13 09:48:48 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -33,7 +33,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.6 2001-06-04 14:42:44 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.7 2001-07-13 09:48:48 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -127,6 +127,12 @@ static char rcsid[] = "$Id: ccd_temperature.c,v 0.6 2001-06-04 14:42:44 cjm Exp 
  * @see #Temperature_Calc_Temp_ADU
  */
 #define TEMPERATURE_MAX_TOLERANCE_TRIALS	30
+/**
+ * Definition of the memory address where the Temperature regulation ADU counts are held,
+ * in utility board Y memory space. This is the same value as is in the DSP code.
+ * @see#CCD_Temperature_Get_Heater_ADU
+ */
+#define TEMPERATURE_HEATER_ADDRESS	(0x2)
 
 /* data types */
 /**
@@ -274,6 +280,47 @@ int CCD_Temperature_Set(double target_temperature)
 	}
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Set() returned TRUE.");
+#endif
+	return TRUE;
+}
+
+/**
+ * This routine gets the current ADU count of the voltage fed into the heater that regulates
+ * the CCD temperature.
+ * CCD_DSP_Command_RDM is used to read the relevant DSP memory location.
+ * @param heater_adu The address of an integer to hold the current heater ADU.
+ * @return TRUE if the operation was successfull and the temperature returned was sensible, FALSE
+ * 	if a failure occured or the temperature returned was not sensible.
+ * @see ccd_dsp.html#CCD_DSP_Command_RDM
+ * @see #TEMPERATURE_HEATER_ADDRESS
+ */
+int CCD_Temperature_Get_Heater_ADU(int *heater_adu)
+{
+	int retval;
+
+	Temperature_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Get_Heater_ADU() started.");
+#endif
+	CCD_DSP_Set_Abort(FALSE);
+	if(heater_adu == NULL)
+	{
+		Temperature_Error_Number = 4;
+		sprintf(Temperature_Error_String,"CCD_Temperature_Get_Heater_ADU:adu was NULL.");
+		return FALSE;
+	}
+	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,TEMPERATURE_HEATER_ADDRESS);
+	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Temperature_Error_Number = 5;
+		sprintf(Temperature_Error_String,"CCD_Temperature_Get_Heater_ADU:Read memory failed.");
+		return FALSE;
+	}
+	(*heater_adu) = retval;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Get_Heater_ADU() returned %#x.",
+		(*heater_adu));
 #endif
 	return TRUE;
 }
@@ -438,6 +485,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.6  2001/06/04 14:42:44  cjm
+** Added LOGGING code.
+**
 ** Revision 0.5  2000/09/25 09:51:28  cjm
 ** Changes to use with v1.4 SDSU DSP code.
 **
