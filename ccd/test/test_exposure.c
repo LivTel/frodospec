@@ -1,5 +1,5 @@
 /* test_exposure.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.2 2003-03-26 15:51:55 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.3 2004-11-04 16:03:05 cjm Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -29,7 +29,7 @@
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 /* hash definitions */
 /**
@@ -76,7 +76,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_exposure.c,v 1.2 2003-03-26 15:51:55 cjm Exp $";
+static char rcsid[] = "$Id: test_exposure.c,v 1.3 2004-11-04 16:03:05 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -383,7 +383,7 @@ static int Parse_Arguments(int argc, char *argv[])
 				else if(strcmp(argv[i+1],"right")==0)
 				{
 					Amplifier = CCD_DSP_AMPLIFIER_RIGHT;
-					DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
+					DeInterlace_Type = CCD_DSP_DEINTERLACE_FLIP;
 				}
 				else if(strcmp(argv[i+1],"both")==0)
 				{
@@ -873,6 +873,9 @@ static void Test_Fits_Header_Error(int status)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2003/03/26 15:51:55  cjm
+** Changed for windowing API change.
+**
 ** Revision 1.1  2002/11/07 19:18:22  cjm
 ** Initial revision
 **
