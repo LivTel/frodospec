@@ -21,6 +21,7 @@ static void Test_Fits_Header_Error(int status);
 
 int main(int argc, char *argv[])
 {
+	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
 	int retval;
 	char *exposure_data = NULL;
 	double temperature = 0.0;
@@ -39,13 +40,23 @@ int main(int argc, char *argv[])
 	else
 		CCD_Global_Error();
 
-	fprintf(stdout,"Test:CCD_Setup_Setup\n");
-	if(!CCD_Setup_Setup_CCD(CCD_SETUP_FLAG_ALL,CCD_SETUP_LOAD_APPLICATION,0,NULL,
-		CCD_SETUP_LOAD_APPLICATION,1,NULL,-123.0,
-		CCD_DSP_GAIN_FOUR,TRUE,TRUE,CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
-		CCD_DSP_DEINTERLACE_SINGLE))
+	fprintf(stdout,"Test:CCD_Setup_Startup\n");
+	if(!CCD_Setup_Startup(CCD_SETUP_LOAD_APPLICATION,0,NULL,
+		CCD_SETUP_LOAD_APPLICATION,1,NULL,-107.0,
+		CCD_DSP_GAIN_FOUR,TRUE,TRUE))
 		CCD_Global_Error();
-	fprintf(stdout,"Test:CCD_Setup_Setup completed\n");
+	fprintf(stdout,"Test:CCD_Setup_Startup completed\n");
+
+	fprintf(stdout,"Test:CCD_Setup_Dimensions\n");
+	if(!CCD_Setup_Dimensions(CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
+		CCD_DSP_DEINTERLACE_SINGLE,0,window_list))
+		CCD_Global_Error();
+	fprintf(stdout,"Test:CCD_Setup_Dimensions completed\n");
+
+	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel\n");
+	if(!CCD_Setup_Filter_Wheel(0,0))
+		CCD_Global_Error();
+	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel completed\n");
 
 	if(!Test_Save_Fits_Headers(10000,CCD_X_SIZE/CCD_XBIN_SIZE,CCD_Y_SIZE/CCD_YBIN_SIZE,"test.fits"))
 		fprintf(stdout,"Test:Saving FITS headers failed.\n");
@@ -53,8 +64,11 @@ int main(int argc, char *argv[])
 
 	if(!CCD_Exposure_Expose(TRUE,TRUE,10000,"test.fits"))
 		CCD_Global_Error();
-
 	fprintf(stdout,"Test:CCD_Exposure_Expose finished\n");
+
+	if(!CCD_Setup_Shutdown())
+		CCD_Global_Error();
+	fprintf(stdout,"Test:CCD_Setup_Shutdown completed\n");
 
 	CCD_Interface_Close();
 	fprintf(stdout,"Test:CCD_Interface_Close\n");
