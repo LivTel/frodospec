@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.22 2002-12-16 16:49:36 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.23 2003-03-04 17:09:53 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.22 $
+ * @version $Revision: 0.23 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -39,6 +39,10 @@
 #endif
 #ifdef SLALIB
 #include "slalib.h"
+#endif
+#ifdef NGATASTRO
+#include "ngat_astro.h"
+#include "ngat_astro_mjd.h"
 #endif
 
 /* hash definitions */
@@ -115,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.22 2002-12-16 16:49:36 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.23 2003-03-04 17:09:53 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -1579,17 +1583,22 @@ static void Exposure_TimeSpec_To_UtStart_String(struct timespec time,char *time_
 
 /**
  * Routine to convert a timespec structure to a Modified Julian Date (decimal days) to put into a FITS header.
- * This uses slaCldj to get the MJD for zero hours, and then adds hours/minutes/seconds/milliseconds 
- * on the end as a decimal.
- * This routine is still wrong for last second of the leap day, as gmtime will return 1st second of the next day.
+ * <p>If SLALIB is defined, this uses slaCldj to get the MJD for zero hours, 
+ * and then adds hours/minutes/seconds/milliseconds on the end as a decimal.
+ * <p>If NGATASTRO is defined, this uses NGAT_Astro_Timespec_To_MJD to get the MJD.
+ * <p>If neither SLALIB or NGATASTRO are defined at compile time, this routine should throw an error
+ * when compiling.
+ * <p>This routine is still wrong for last second of the leap day, as gmtime will return 1st second of the next day.
  * Also note the passed in leap_second_correction should change at midnight, when the leap second occurs.
+ * None of this should really matter, 1 second will not affect the MJD for several decimal places.
  * @param time The time to convert.
  * @param leap_second_correction A number representing whether a leap second will occur. This is normally zero,
  * 	which means no leap second will occur. It can be 1, which means the last minute of the day has 61 seconds,
  *	i.e. there are 86401 seconds in the day. It can be -1,which means the last minute of the day has 59 seconds,
  *	i.e. there are 86399 seconds in the day.
  * @param mjd The address of a double to store the calculated MJD.
- * @return The routine returns TRUE if it succeeded, FALSE if it fails. slaCldj can fail.
+ * @return The routine returns TRUE if it succeeded, FALSE if it fails. 
+ *         slaCldj and NGAT_Astro_Timespec_To_MJD can fail.
  */
 static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correction,double *mjd)
 {
@@ -1599,6 +1608,7 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 	double elapsed_seconds;
 	double day_fraction;
 
+#ifdef SLALIB
 /* check leap_second_correction in range */
 /* convert time to ymdhms*/
 	tm_time = gmtime(&(time.tv_sec));
@@ -1607,11 +1617,7 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 	month = tm_time->tm_mon+1;/* tm_mon is 0..11 : slaCldj wants 1..12 */
 	day = tm_time->tm_mday;
 /* call slaCldj to get MJD for 0hr */
-#ifdef SLALIB
 	slaCldj(year,month,day,mjd,&retval);
-#else
-#error SLALIB not defined: needed for MJD calculation.
-#endif
 	if(retval != 0)
 	{
 		Exposure_Error_Number = 63;
@@ -1630,11 +1636,31 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 	day_fraction = elapsed_seconds / seconds_in_day;
 /* add day_fraction to mjd */
 	(*mjd) += day_fraction;
+#else
+#ifdef NGATASTRO
+	retval = NGAT_Astro_Timespec_To_MJD(time,leap_second_correction,mjd);
+	if(retval == FALSE)
+	{
+		Exposure_Error_Number = 64;
+		sprintf(Exposure_Error_String,"Exposure_TimeSpec_To_Mjd:NGAT_Astro_Timespec_To_MJD failed.\n");
+		/* concatenate NGAT Astro library error onto Exposure_Error_String */
+		NGAT_Astro_Error_String(Exposure_Error_String+strlen(Exposure_Error_String));
+		return FALSE;
+	}
+#else
+#error Neither NGATASTRO or SLALIB are defined: No library defined for MJD calculation.
+#endif
+#endif
 	return TRUE;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.22  2002/12/16 16:49:36  cjm
+** Fixed problems with status during an exposure, so that it only goes into
+** PRE_READOUT at the correct time.
+** Removed Error routines resetting error number to zero.
+**
 ** Revision 0.21  2002/11/08 12:13:19  cjm
 ** CCD_DSP_Command_SEX now changes the exposure status to READOUT immediately,
 ** if the exposure length is small enough.
