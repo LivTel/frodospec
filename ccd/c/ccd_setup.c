@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.5 2000-02-10 12:07:38 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.6 2000-02-14 17:09:35 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.5 2000-02-10 12:07:38 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.6 2000-02-14 17:09:35 cjm Exp $";
 
 /* #defines */
 /**
@@ -212,7 +212,7 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_appli
 	Setup_Data.Dimension_Complete = FALSE;
 /* diddly - magical Voodoo.java write memory
 ** WRM PCI X:1 = 1.
-** Is this needed?
+** Is this needed? The new device driver does this, but voodoo does this as well.
 */
 /* Inform the PCI board that replies are ready to be recieved. */
 	if(CCD_DSP_Command_WRM(CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,1)!=CCD_DSP_DON)
@@ -318,7 +318,7 @@ int CCD_Setup_Shutdown(void)
 	}
 /* diddly - magical VoodooMainWindowListener.java write memory
 ** WRM PCI X:1 = 0.
-** Is this needed?
+** Is this needed? The new device driver does this.
 */
 /* Inform the PCI board that replies are no longer able to be recieved. 
 ** Note this write memory will always fail to retuurn DON: we have told the SDSU CCD Controller
@@ -391,9 +391,9 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	Setup_Data.Dimension_Complete = FALSE;
 
 /* The binning needs to be done first to set the final
-** image dimensions.  Then Setup_DeInterlace is called
+** image dimensions. Then Setup_DeInterlace is called
 ** to ensure that the dimensions agree with the deinterlace
-** setting.  When all is said and done, the final dimensions
+** setting. When all is said and done, the final dimensions
 ** are written to the boards.
 */
 /* first do the binning */
@@ -533,6 +533,7 @@ void CCD_Setup_Abort(void)
  * number of columns.
  * @return The number of columns.
  * @see #CCD_Setup_Dimensions
+ * @see #Setup_Data
  */
 int CCD_Setup_Get_NCols(void)
 {
@@ -546,10 +547,35 @@ int CCD_Setup_Get_NCols(void)
  * number of rows.
  * @return The number of rows.
  * @see #CCD_Setup_Dimensions
+ * @see #Setup_Data
  */
 int CCD_Setup_Get_NRows(void)
 {
 	return Setup_Data.NRows;
+}
+
+/**
+ * Routine that returns the column binning factor the last dimension setup has set the SDSU CCD Controller to. 
+ * This is the number passed into CCD_Setup_Dimensions.
+ * @return The columns binning number.
+ * @see #CCD_Setup_Dimensions
+ * @see #Setup_Data
+ */
+int CCD_Setup_Get_NSBin(void)
+{
+	return Setup_Data.NSBin;
+}
+
+/**
+ * Routine that returns the row binning factor the last dimension setup has set the SDSU CCD Controller to. 
+ * This is the number passed into CCD_Setup_Dimensions.
+ * @return The row binning number.
+ * @see #CCD_Setup_Dimensions
+ * @see #Setup_Data
+ */
+int CCD_Setup_Get_NPBin(void)
+{
+	return Setup_Data.NPBin;
 }
 
 /**
@@ -565,6 +591,45 @@ int CCD_Setup_Get_NRows(void)
 enum CCD_DSP_DEINTERLACE_TYPE CCD_Setup_Get_DeInterlace_Type(void)
 {
 	return Setup_Data.DeInterlace_Type;
+}
+
+/**
+ * Routine that returns the window flags number of the last successful dimension setup.
+ * @return The window flags.
+ * @see #CCD_Setup_Dimensions
+ * @see #Setup_Data
+ */
+int CCD_Setup_Get_Window_Flags(void)
+{
+	return Setup_Data.Window_Flags;
+}
+
+/**
+ * Routine that returns the position number of a filter wheel.
+ * @param wheel_number The wheel number to get the position of: less then SETUP_FILTER_WHEEL_POSITION_COUNT.
+ * @param position The address of a integer memory location to store the position of the wheel.
+ * @return Returns TRUE if the operation succeeded, FALSE if it fails.
+ * @see #CCD_Setup_Dimensions
+ * @see #Setup_Data
+ * @see #SETUP_FILTER_WHEEL_POSITION_COUNT
+ */
+int CCD_Setup_Get_Filter_Wheel_Position(int wheel_number,int *position)
+{
+	if((wheel_number < 0)||(wheel_number>=SETUP_FILTER_WHEEL_POSITION_COUNT))
+	{
+		Setup_Error_Number = 37;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Filter_Wheel_Position:Illegal value:"
+			"Wheel Number '%d' of '%d'",wheel_number,SETUP_FILTER_WHEEL_POSITION_COUNT);
+		return FALSE;
+	}
+	if(position == NULL)
+	{
+		Setup_Error_Number = 38;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Filter_Wheel_Position:Position is NULL.");
+		return FALSE;
+	}
+	(*position) = Setup_Data.Filter_Wheel_Position_List[wheel_number];
+	return TRUE;
 }
 
 /**
@@ -1119,6 +1184,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.5  2000/02/10 12:07:38  cjm
+** Added interface board to hardware test.
+**
 ** Revision 0.4  2000/02/10 12:01:19  cjm
 ** Modified CCD_Setup_Shutdown with call to CCD_DSP_Command_WRM_No_Reply to switch off controller replies.
 **
