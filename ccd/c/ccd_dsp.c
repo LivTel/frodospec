@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.45 2003-06-06 12:36:01 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.46 2003-06-09 11:30:39 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.45 $
+ * @version $Revision: 0.46 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.45 2003-06-06 12:36:01 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.46 2003-06-09 11:30:39 cjm Exp $";
 
 /* defines */
 /**
@@ -251,8 +251,7 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 
 /**
  * This routine executes the ReaD Memory (RDM) command on a SDSU Controller board. 
- * This
- * gets the value of a word of memory, location specified by board,memory space and address, and returns
+ * This gets the value of a word of memory, location specified by board,memory space and address, and returns
  * it's value.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
@@ -1852,9 +1851,13 @@ int CCD_DSP_Command_FWR(int wheel)
  * This turns the power on to the vacuum gauge.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The routine checks that the exposure status is non-zero if we are reading from the utility board, 
+ * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Von
  * @see #DSP_Check_Reply
+ * @see ccd_exposure.html#CCD_Exposure_Get_Exposure_Status
+ * @see ccd_exposure.html#CCD_EXPOSURE_STATUS
  */
 int CCD_DSP_Command_VON(void)
 {
@@ -1867,6 +1870,28 @@ int CCD_DSP_Command_VON(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+/* Version 1.3: We can only read memory on the utility board when we are not exposing.
+** Version 1.4: We can read memory on the utility board when we are exposing.
+** Version 1.7: We can only read memory on the utility board when we are not reading out.
+*/
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
+#if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
+	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
+		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
+#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
+	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
+#endif
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 37; /* this error code is checked for in the Java layer */
+		sprintf(DSP_Error_String,"CCD_DSP_Command_VON failed:Illegal Exposure Status (%d) when"
+			" switching the vaccuum gauge on.", CCD_Exposure_Get_Exposure_Status());
+		return FALSE;
+	}
 #endif
 	if(!DSP_Send_Von(&retval))
 	{
@@ -1893,9 +1918,13 @@ int CCD_DSP_Command_VON(void)
  * This turns the vacuum gauge circuitry off.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The routine checks that the exposure status is non-zero if we are reading from the utility board, 
+ * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Vof
  * @see #DSP_Check_Reply
+ * @see ccd_exposure.html#CCD_Exposure_Get_Exposure_Status
+ * @see ccd_exposure.html#CCD_EXPOSURE_STATUS
  */
 int CCD_DSP_Command_VOF(void)
 {
@@ -1908,6 +1937,28 @@ int CCD_DSP_Command_VOF(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+/* Version 1.3: We can only read memory on the utility board when we are not exposing.
+** Version 1.4: We can read memory on the utility board when we are exposing.
+** Version 1.7: We can only read memory on the utility board when we are not reading out.
+*/
+#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
+#if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
+	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
+		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
+#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
+	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
+#endif
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 38; /* this error code is checked for in the Java layer */
+		sprintf(DSP_Error_String,"CCD_DSP_Command_VOF failed:Illegal Exposure Status (%d) when"
+			" switching the vaccuum gauge off.", CCD_Exposure_Get_Exposure_Status());
+		return FALSE;
+	}
 #endif
 	if(!DSP_Send_Vof(&retval))
 	{
@@ -2915,6 +2966,9 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.45  2003/06/06 12:36:01  cjm
+** Added VON/VOF.
+**
 ** Revision 0.44  2003/03/26 15:44:48  cjm
 ** Added SSS and SSP implementations.
 **
