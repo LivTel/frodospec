@@ -1,4 +1,5 @@
 /* test.c  -*- mode: Fundamental;-*-
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.9 2001-01-30 12:35:47 cjm Exp $
 */
 #include <stdio.h>
 #include <time.h>
@@ -97,6 +98,7 @@ static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *fi
 {
 	static fitsfile *fits_fp = NULL;
 	int status = 0,retval,ivalue;
+	double dvalue;
 
 /* open file */
 	if(fits_create_file(&fits_fp,filename,&status))
@@ -149,6 +151,26 @@ static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *fi
 		fits_close_file(fits_fp,&status);
 		return FALSE;
 	}
+/* BZERO keyword */
+	dvalue = 32768.0;
+	retval = fits_update_key_fixdbl(fits_fp,(char*)"BZERO",dvalue,6,
+		(char*)"Number to offset data values by",&status);
+	if(retval != 0)
+	{
+		Test_Fits_Header_Error(status);
+		fits_close_file(fits_fp,&status);
+		return FALSE;
+	}
+/* BSCALE keyword */
+	dvalue = 1.0;
+	retval = fits_update_key_fixdbl(fits_fp,(char*)"BSCALE",dvalue,6,
+		(char*)"Number to multiply data values by",&status);
+	if(retval != 0)
+	{
+		Test_Fits_Header_Error(status);
+		fits_close_file(fits_fp,&status);
+		return FALSE;
+	}
 /* close file */
 	if(fits_close_file(fits_fp,&status))
 	{
@@ -157,9 +179,6 @@ static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *fi
 	}
 	return TRUE;
 }
-
-
-
 
 /**
  * Internal routine to write the complete CFITSIO error stack to stderr.
@@ -170,3 +189,6 @@ static void Test_Fits_Header_Error(int status)
 	/* report the whole CFITSIO error message stack to stderr. */
 	fits_report_error(stderr, status);
 }
+/*
+** $Log: not supported by cvs2svn $
+*/
