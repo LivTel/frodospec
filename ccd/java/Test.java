@@ -1,5 +1,5 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.8 1999-09-10 15:55:30 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.9 1999-09-20 14:39:48 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -8,7 +8,7 @@ import ngat.ccd.*;
 /**
  * This is the main test program.
  * @author Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 class Test
 {
@@ -59,9 +59,10 @@ class Test
 
 	/**
 	 * Initialisation routine. Sets up the libccd library interface.
+	 * @exception CCDLibraryNativeException Thrown if CCDInterfaceOpen fails.
 	 * @see #libccd
 	 */
-	public void init()
+	public void init() throws CCDLibraryNativeException
 	{
 		libccd = new CCDLibrary();
 
@@ -76,6 +77,7 @@ class Test
 	 */
 	public boolean setup()
 	{
+		CCDLibraryNativeException setupException = null;
 		AbortThread abortThread = null;
 		boolean retval = false;
 		int errorNumber = 0;
@@ -101,15 +103,16 @@ class Test
 			}
 		}
 		abortThread.stop();
-		retval = setupThread.getReturnValue();
-		if(retval)
+		setupException = setupThread.getSetupException();
+		if(setupException == null)
+		{
 			System.out.println("Test:CCDSetupSetup Completed.");
+			retval = true;
+		}
 		else
 		{
-			errorNumber = libccd.CCDDSPGetErrorNumber();
-			if((errorNumber == 4)||(errorNumber == 8)||(errorNumber == 12)||(errorNumber == 13))
-				System.out.println("Test:CCDSetupSetup was Aborted:Error Message follows.");
-			libccd.CCDError();
+			System.err.println("Test:CCDSetupSetupCCD returned:"+setupException);
+			retval = false;
 		}
 		return retval;
 	}
@@ -120,14 +123,17 @@ class Test
 	public void getTemperature()
 	{
 		CCDLibraryDouble temperature = null;
-		boolean retval;
 
 		temperature = new CCDLibraryDouble();
-		retval = libccd.CCDTemperatureGet(temperature);
-		if(retval)
+		try
+		{
+			libccd.CCDTemperatureGet(temperature);
 			System.out.println("Test:CCDTemperatureGet:"+temperature.getValue());
-		else
-			libccd.CCDError();
+		}
+		catch(CCDLibraryNativeException e)
+		{
+			System.err.println(e.toString());
+		}
 	}
 
 	/**
@@ -137,7 +143,7 @@ class Test
 	public void expose()
 	{
 		AbortThread abortThread = null;
-		boolean retval = false;
+		CCDLibraryNativeException exposeException = null;
 		int errorNumber = 0;
 
 		abortThread = new AbortThread(this);
@@ -159,24 +165,19 @@ class Test
 			}
 		}
 		abortThread.stop();
-		retval = exposureThread.getReturnValue();
+		exposeException = exposureThread.getExposeException();
 		exposureAborted = exposureThread.getAbortStatus();
-		if(retval)
+		if(exposeException == null)
 			System.out.println("Test:CCDExposureExpose Completed.");
 		else
 		{
 			if(exposureAborted)
 			{
 				System.out.println("Test:CCDExposureExpose was Aborted");
-				errorNumber = libccd.CCDDSPGetErrorNumber();
-				if((errorNumber == 4)||(errorNumber == 8)||(errorNumber == 12)||(errorNumber == 13))
-					libccd.CCDError();
-				else
-					System.out.println("Test:CCDExposureExpose was Aborted without an error "+
-						"occuring");
+				System.err.println("Test:CCDExposureExpose returned:"+exposeException);
 			}
 			else
-				libccd.CCDError();
+				System.err.println("Test:CCDExposureExpose returned:"+exposeException);
 		}
 	}
 
@@ -187,7 +188,7 @@ class Test
 	public void readout()
 	{
 		AbortThread abortThread = null;
-		boolean retval = false;
+		CCDLibraryNativeException readOutException = null;
 		int errorNumber = 0;
 
 		abortThread = new AbortThread(this);
@@ -208,16 +209,11 @@ class Test
 			}
 		}
 		abortThread.stop();
-		retval = readOutThread.getReturnValue();
-		if(retval)
+		readOutException = readOutThread.getReadOutException();
+		if(readOutException == null)
 			System.out.println("Test:CCDExposureReadOutCCD Completed.");
 		else
-		{
-			errorNumber = libccd.CCDDSPGetErrorNumber();
-			if((errorNumber == 4)||(errorNumber == 8)||(errorNumber == 12)||(errorNumber == 13))
-				System.out.println("Test:CCDExposureReadOutCCD was Aborted:Error Message follows.");
-			libccd.CCDError();
-		}
+			System.err.println("Test:readout:"+readOutException);
 	}
 
 	/**
@@ -289,7 +285,14 @@ class Test
 	 */
 	public void close()
 	{
-		libccd.CCDInterfaceClose();
+		try
+		{
+			libccd.CCDInterfaceClose();
+		}
+		catch(CCDLibraryNativeException e)
+		{
+			System.err.println("Test:close:"+e);
+		}
 	}
 
 	/**
@@ -338,7 +341,15 @@ class Test
 	{
 		Test test = new Test();
 
-		test.init();
+		try
+		{
+			test.init();
+		}
+		catch(CCDLibraryNativeException e)
+		{
+			System.err.println("Test:init failed:"+e);
+			System.exit(1);
+		}
 		test.parseArgs(args);
 		if(!test.setup())
 		{
@@ -361,6 +372,9 @@ class Test
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.8  1999/09/10 15:55:30  cjm
+// Changed due to CCDLibrary moving to ngat.ccd. package.
+//
 // Revision 0.7  1999/09/08 10:52:40  cjm
 // Trying to fix file permissions of these files.
 //
