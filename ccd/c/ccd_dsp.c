@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.7 2000-02-28 19:13:01 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.8 2000-03-01 15:31:36 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -33,10 +33,16 @@
 #include "fitsio.h"
 #endif
 
+/*
+ * This external declaration is needed, because we include <time.h> in POSIX.4 mode,
+ * but cftime is not a POSIX.4 function.
+ */
+extern int cftime(char *, char *, const time_t *);
+
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.7 2000-02-28 19:13:01 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.8 2000-03-01 15:31:36 cjm Exp $";
 
 /* defines */
 /**
@@ -52,40 +58,64 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.7 2000-02-28 19:13:01 cjm Exp $";
  * <a href="#CCD_DSP_DON">DON</a>.
  */
 #define	DSP_ACTUAL_VALUE 		-1 /* flag indicating return value of DSP command is to be returned as data */
-
 /**
- * The amount of time before we are due to start an exposure, that a CLEAR_ARRAY command should be sent to
+ * The number of nanoseconds in one second. A struct timespec has fields in nanoseconds.
+ */
+#define DSP_ONE_SECOND_NS		(1000000000)
+/**
+ * The number of nanoseconds in one millisecond. A struct timespec has fields in nanoseconds.
+ */
+#define DSP_ONE_MILLISECOND_NS		(1000000)
+/**
+ * The number of milliseconds in one second.
+ */
+#define DSP_ONE_SECOND_MS		(1000)
+/**
+ * The default amount of time before we are due to start an exposure, that a CLEAR_ARRAY command should be sent to
  * the controller. This time is in seconds, and must be greater than the time the CLEAR_ARRAY command takes to
  * clock all accumulated charge off the CCD (approx 5 seconds for a 2kx2k EEV42-40).
  */
-#define DSP_START_EXPOSURE_CLEAR_TIME	(10)
-
+#define DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME	(10)
 /**
- * Amount of time, in milleseconds, remaining for an exposure when we stop sleeping and tell the
- * interface to enter readout mode.
+ * The default amount of time, in milliseconds, before the desired start of exposure that we should send the
+ * START_EXPOSURE command, to allow for transmission delay.
  */
-#define DSP_READOUT_REMAINING_TIME	(1000)
-
-/* data types */
+#define DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME	(2)
 /**
- * Data type used to hold local data to ccd_dsp.
+ * The default amount of time, in milleseconds, remaining for an exposure when we stop sleeping and tell the
+ * interface to enter readout mode. Note, because the exposure time is read every second, it is best
+ * not have have this constant an exact multiple of 1000.
+ */
+#define DSP_DEFAULT_READOUT_REMAINING_TIME	(1100)
+
+/* structure */
+/**
+ * Structure used to hold local data to ccd_dsp.
  * <dl>
  * <dt>Abort</dt> <dd>Whether it has been requested to abort the current operation.</dd>
  * <dt>Exposure_Status</dt> <dd>Whether an operation is being performed to CLEAR, EXPOSE or READOUT the CCD.</dd>
+ * <dt>Start_Exposure_Clear_Time</dt> <dd>The amount of time before we are due to start an exposure, 
+ * 	that a CLEAR_ARRAY command should be sent to the controller. This time is in seconds, 
+ * 	and must be greater than the time the CLEAR_ARRAY command takes to clock all accumulated charge off the CCD 
+ * 	(approx 5 seconds for a 2kx2k EEV42-40).</dd>
+ * <dt>Start_Exposure_Offset_Time</dt> <dd>The amount of time, in milliseconds, before the desired start of 
+ * 	exposure that we should send the START_EXPOSURE command, to allow for transmission delay.</dd>
+ * <dt>Readout_Remaining_Time</dt> <dd>Amount of time, in milleseconds,
+ * 	remaining for an exposure when we stop sleeping and tell the interface to enter readout mode.</dd>
  * <dt>Exposure_Length</dt> <dd>The last exposure length to be set.</dd>
  * <dt>Exposure_Start_Time</dt> <dd>The time stamp when the START_EXPOSURE command was sent to the controller.</dd>
  * </dl>
  */
-typedef struct DSP_Attr_Struct
+struct DSP_Attr_Struct
 {
-/* whether the user has asked the current operation to stop 
-** This is volatile as a different thread may change this variable. */
-	volatile int Abort;
-/* whether the library is performing an exposure and it's status */
+	volatile int Abort; /* This is volatile as a different thread may change this variable. */
 	enum CCD_DSP_EXPOSURE_STATUS Exposure_Status;
+	int Start_Exposure_Clear_Time;
+	int Start_Exposure_Offset_Time;
+	int Readout_Remaining_Time;
 	int Exposure_Length;
 	struct timespec Exposure_Start_Time;
-} DSP_ATTR_T;
+};
 
 /* external variables */
 
@@ -100,8 +130,9 @@ static int DSP_Error_Number = 0;
 static char DSP_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 /**
  * Data holding the current status of ccd_dsp.
+ * @see #DSP_Attr_Struct
  */
-static DSP_ATTR_T DSP_Data;
+static struct DSP_Attr_Struct DSP_Data;
 
 /* internal functions */
 static int DSP_Send_Lda(enum CCD_DSP_BOARD_ID board_id,int data);
@@ -128,7 +159,7 @@ static int DSP_Send_Pof(void);
 static int DSP_Send_Read_Temperature(void);
 static int DSP_Send_Set_Temperature(int adu);
 static int DSP_Send_Rex(void);
-static int DSP_Send_Sex(void);
+static int DSP_Send_Sex(struct timespec start_time);
 static int DSP_Send_Reset(void);
 static int DSP_Send_Set_Util_Options(int bit_value);
 static int DSP_Send_Set_Exposure_Time(int msecs);
@@ -156,12 +187,18 @@ static void DSP_TimeSpec_To_String(struct timespec time,char *time_string);
 /**
  * This routine sets up ccd_dsp internal variables.
  * It should be called at startup.
+ * @see #DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME
+ * @see #DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME
+ * @see #DSP_DEFAULT_READOUT_REMAINING_TIME
  */
 void CCD_DSP_Initialise(void)
 {
 	DSP_Error_Number = 0;
 	DSP_Data.Abort = FALSE;
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+	DSP_Data.Start_Exposure_Clear_Time = DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME;
+	DSP_Data.Start_Exposure_Offset_Time = DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME;
+	DSP_Data.Readout_Remaining_Time = DSP_DEFAULT_READOUT_REMAINING_TIME;
 	DSP_Data.Exposure_Length = 0;
 	DSP_Data.Exposure_Start_Time.tv_sec = 0;
 	DSP_Data.Exposure_Start_Time.tv_nsec = 0;
@@ -711,19 +748,17 @@ int CCD_DSP_Command_REX(void)
 /**
  * This routine executes the Start EXposure (SEX) command on a SDSU Controller board.
  * <ul>
- * <li>A sleep is executed until it is nearly (DSP_START_EXPOSURE_CLEAR_TIME) time to start the exposure.
+ * <li>A sleep is executed until it is nearly (DSP_Data.Start_Exposure_Clear_Time) time to start the exposure.
  * <li>The array is cleared.
  * <li>A command is sent to the controller to open the shutter and start the exposure. 
  * <li>The routine then enters a loop reading the exposure time,
- * 	until the time nears for the shutter to close (DSP_READOUT_REMAINING_TIME) and readout to take place.
+ * 	until the time nears for the shutter to close (DSP_Data.Readout_Remaining_Time) and readout to take place.
  * </ul>
  * The DSP_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @param exposure_time The amount of time in milliseconds to open the shutter for. This must be greater than zero.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
- * @see #DSP_START_EXPOSURE_CLEAR_TIME
- * @see #DSP_READOUT_REMAINING_TIME
  * @see #DSP_Data
  * @see #DSP_Send_Sex
  * @see #DSP_Get_Reply
@@ -732,7 +767,7 @@ int CCD_DSP_Command_REX(void)
 int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 {
 	struct timespec sleep_time,current_time;
-	int dsp_exposure_time,remaining_exposure_time;
+	int dsp_exposure_time,remaining_exposure_time,done;
 
 	DSP_Error_Number = 0;
 /* exposure time must be greater than zero */
@@ -750,14 +785,29 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 /* do the clear array a few seconds before the exposure is due to start */
 	if(start_time.tv_sec > 0)
 	{
-		clock_gettime(CLOCK_REALTIME,&current_time);
-		while((start_time.tv_sec - current_time.tv_sec) > DSP_START_EXPOSURE_CLEAR_TIME)
+		done = FALSE;
+		while(done == FALSE)
 		{
-			sleep_time.tv_sec = (start_time.tv_sec - current_time.tv_sec)-DSP_START_EXPOSURE_CLEAR_TIME;
-			sleep_time.tv_nsec = 0;
-			nanosleep(&sleep_time,NULL);
 			clock_gettime(CLOCK_REALTIME,&current_time);
-		}
+		/* if we've time, sleep for a second */
+			if((start_time.tv_sec - current_time.tv_sec) > DSP_Data.Start_Exposure_Clear_Time)
+			{
+				sleep_time.tv_sec = 1;
+				sleep_time.tv_nsec = 0;
+				nanosleep(&sleep_time,NULL);
+			}
+			else
+				done = TRUE;
+		/* check - have we been aborted? */
+			if(DSP_Data.Abort)
+				done = TRUE;
+		}/* end while */
+	}
+	if(DSP_Data.Abort)
+	{
+		DSP_Error_Number = 16;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Aborted.");
+		return FALSE;
 	}
 /* clear the array */
 	if(!CCD_DSP_Command_CLR())
@@ -779,15 +829,16 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		return FALSE;
 	}
 /* wait until we are about ready to read out */
-	while((remaining_exposure_time > DSP_READOUT_REMAINING_TIME)&&(DSP_Data.Abort == FALSE))
+	while((remaining_exposure_time > DSP_Data.Readout_Remaining_Time)&&(DSP_Data.Abort == FALSE))
 	{
-/* diddly change this? */
-		sleep(1);
+		sleep_time.tv_sec = 1;
+		sleep_time.tv_nsec = 0;
+		nanosleep(&sleep_time,NULL);
 	/* get elapsed time from utility board */
 		if(!DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0))
 		{
 			CCD_DSP_Warning();
-			dsp_exposure_time += 1000;
+			dsp_exposure_time += DSP_ONE_SECOND_MS;
 			remaining_exposure_time = exposure_time-dsp_exposure_time;
 		}
 		else
@@ -804,9 +855,7 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		return FALSE;
 	}
 /* reset status to none, until readout command is sent */
-/* diddly change this */
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
-/* diddly change return value */
 	return CCD_DSP_DON;
 }
 
@@ -1022,6 +1071,74 @@ int CCD_DSP_Get_Exposure_Length(void)
 struct timespec CCD_DSP_Get_Exposure_Start_Time(void)
 {
 	return DSP_Data.Exposure_Start_Time;
+}
+
+/**
+ * Routine to set how many seconds before an exposure is due to start we wish to send the CLEAR_ARRAY
+ * command to the controller.
+ * @param time The time in seconds. This should be greater than the time the CLEAR_ARRAY command takes to
+ * 	clock all accumulated charge off the CCD (approx 5 seconds for a 2kx2k EEV42-40).
+ * @see #DSP_Data
+ */
+void CCD_DSP_Set_Start_Exposure_Clear_Time(int time)
+{
+	DSP_Data.Start_Exposure_Clear_Time = time;
+}
+
+/**
+ * Routine to get the current setting for how many seconds before an exposure is due to start we wish 
+ * to send the CLEAR_ARRAY command to the controller.
+ * @return The time, in seconds.
+ * @see #DSP_Data
+ */
+int CCD_DSP_Get_Start_Exposure_Clear_Time(void)
+{
+	return DSP_Data.Start_Exposure_Clear_Time;
+}
+
+/**
+ * Routine to set the amount of time, in milliseconds, before the desired start of exposure that we should send the
+ * START_EXPOSURE command, to allow for transmission delay.
+ * @param time The time, in milliseconds.
+ * @see #DSP_Data
+ */
+void CCD_DSP_Set_Start_Exposure_Offset_Time(int time)
+{
+	DSP_Data.Start_Exposure_Offset_Time = time;
+}
+
+/**
+ * Routine to get the amount of time, in milliseconds, before the desired start of exposure that we should send the
+ * START_EXPOSURE command, to allow for transmission delay.
+ * @return The time, in milliseconds.
+ * @see #DSP_Data
+ */
+int CCD_DSP_Get_Start_Exposure_Offset_Time(void)
+{
+	return DSP_Data.Start_Exposure_Offset_Time;
+}
+
+/**
+ * Routine to set the amount of time, in milleseconds, remaining for an exposure when we stop sleeping and tell the
+ * interface to enter readout mode. 
+ * @param time The time, in milliseconds. Note, because the exposure time is read every second, it is best
+ * 	not have have this constant an exact multiple of 1000.
+ * @see #DSP_Data
+ */
+void CCD_DSP_Set_Readout_Remaining_Time(int time)
+{
+	DSP_Data.Readout_Remaining_Time = time;
+}
+
+/**
+ * Routine to get the amount of time, in milleseconds, remaining for an exposure when we stop sleeping and tell the
+ * interface to enter readout mode. 
+ * @return The time, in milliseconds.
+ * @see #DSP_Data
+ */
+int CCD_DSP_Get_Readout_Remaining_Time(void)
+{
+	return DSP_Data.Readout_Remaining_Time;
 }
 
 /**
@@ -1478,44 +1595,67 @@ static int DSP_Send_Rex(void)
 
 /**
  * Internal DSP command to make the SDSU CCD Controller start an exposure.
+ * If the tv_sec field of start_time is non-zero, we want to open the shutter as near as possible to the 
+ * passed in time, allowing for some transmission delay (DSP_Data.Start_Exposure_Offset_Time).
  * Sets the DSP_Data.Exposure_Start_Time to start of the exposure.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #DSP_Data
  * @see #DSP_Send_Command
  * @see ccd_pci.html#CCD_PCI_HCVR_START_EXPOSURE
  */
 static int DSP_Send_Sex(struct timespec start_time)
 {
 	struct timespec current_time,sleep_time;
+	int remaining_sec,remaining_ns,done = FALSE;
 
 /* We need to review whether this set destination call is needed.
 ** Acording to the Voodoo code it is, according to the DSP code it is not.
 */
 	if(!DSP_Set_Destination(CCD_DSP_INTERFACE_BOARD_ID,0))
 		return FALSE;
+/* if a start time has been specified wait for it */
 	if(start_time.tv_sec > 0)
 	{
-		clock_gettime(CLOCK_REALTIME,&current_time);
-		sleep_time.tv_sec = start_time.tv_sec - current_time.tv_sec;
-		sleep_time.tv_nsec = start_time.tv_nsec - current_time.tv_nsec;
-		while((sleep_time.tv_sec > 0)||(sleep_time.tv_nsec > diddly))
+		done = FALSE;
+		while(done == FALSE)
 		{
-diddly do something clever if we are wrapping over a second
-			if(sleep_time.tv_nsec >= 1000)
-				sleep_time.tv_nsec -= 1000;
-			else
-			{
-				sleep_time.tv_sec = (start_time.tv_sec-1) - current_time.tv_sec;
-				sleep_time.tv_nsec = (start_time.tv_nsec+1E9) - current_time.tv_nsec;
-			}
-			nanosleep(&sleep_time,NULL);
 			clock_gettime(CLOCK_REALTIME,&current_time);
-			sleep_time.tv_sec = start_time.tv_sec - current_time.tv_sec;
-			sleep_time.tv_nsec = start_time.tv_nsec - current_time.tv_nsec;
-		}
-	}
-diddly use last current_time here?
+			remaining_sec = start_time.tv_sec - current_time.tv_sec;
+		/* if we have over a second before start_time, sleep for a second. */
+			if(remaining_sec > 1)
+			{
+				sleep_time.tv_sec = 1;
+				sleep_time.tv_nsec = 0;
+				nanosleep(&sleep_time,NULL);
+			}
+			else if(remaining_sec > -1)
+			{
+				remaining_ns = (start_time.tv_nsec - current_time.tv_nsec);
+			/* we need to allow time for propogation of the SEX command
+			** allow offset milliseconds to do this. */
+				remaining_ns -= DSP_Data.Start_Exposure_Offset_Time*DSP_ONE_MILLISECOND_NS;
+				if(remaining_ns < 0)
+				{
+					remaining_sec--;
+					remaining_ns += DSP_ONE_SECOND_NS;
+				}
+				if(remaining_sec > -1)
+				{
+					sleep_time.tv_sec = remaining_sec;
+					sleep_time.tv_nsec = remaining_ns;
+					nanosleep(&sleep_time,NULL);
+				}
+				done = TRUE;
+			}
+			else
+				done = TRUE;
+		/* if an abort has occured, stop sleeping. The following command send will catch the abort. */
+			if(DSP_Data.Abort)
+				done = TRUE;
+		}/* end while */
+	}/* end if */
 /* store the actual time the exposure is going to start */
 	clock_gettime(CLOCK_REALTIME,&(DSP_Data.Exposure_Start_Time));
 	return DSP_Send_Command(CCD_PCI_HCVR_START_EXPOSURE,NULL,0);
@@ -1861,7 +2001,7 @@ static int DSP_Get_Download_Type(FILE *fp)
  * into a memory space enum value, suitable for passing to a PCI write memory command.
  * @param ch The address type character.
  * @param mem_space The address of a variable to store the converted memory space.
- * @return Returns TRUE if the conversiob succeeded, FALSE if it failed.
+ * @return Returns TRUE if the conversion succeeded, FALSE if it failed.
  */
 static int DSP_Address_Char_To_Mem_Space(char ch,enum CCD_DSP_MEM_SPACE *mem_space)
 {
@@ -1942,14 +2082,15 @@ static int DSP_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
 }
 
 /**
- * This routine is called for SEX and RDC commands to actually 
- * perform an exposure. 
- * If the board_id is CCD_DSP_UTIL_BOARD_ID,it sends the SEX command and waits
- * tot_msecs milliseconds exposure time. It then sets the interface word width to 1, allocates sufficient memory
- * for the resultant image (numbytes), and reads the image into memory using 
- * <a href="ccd_interface.html#CCD_Interface_Get_Reply_Data">CCD_Interface_Get_Reply_Data</a>. It then resets
- * the interface word width and deinterlaces the image using <a href="#DSP_DeInterlace">DSP_DeInterlace</a>.
- * The image is then saved using <a href="#DSP_Save">DSP_Save</a> to a file and the image data freed.
+ * This routine is responsible for transferring image data on the CCD into memory, de-interlacing it
+ * and saving it to disk.
+ * <ul>
+ * <li>It allocates sufficient memory for the resultant image (numbytes).
+ * <li>It reads the image into memory using  
+ * 	<a href="ccd_interface.html#CCD_Interface_Get_Reply_Data">CCD_Interface_Get_Reply_Data</a>. 
+ * <li>It deinterlaces the image using <a href="#DSP_DeInterlace">DSP_DeInterlace</a>.
+ * <li>The image is then saved using <a href="#DSP_Save">DSP_Save</a> to a file and the image data freed.
+ * </ul>
  * The Exposure_Status variable in <a href="#DSP_Data">DSP_Data</a> is maintained to show the current
  * status of the exposure.
  * If at any point the exposure is aborted using <a href="#CCD_DSP_Set_Abort">CCD_DSP_Set_Abort</a> the routine
@@ -2352,12 +2493,15 @@ static void DSP_TimeSpec_To_String(struct timespec time,char *time_string)
 	int milliseconds;
 
 	cftime(buff,"%Y-%m-%dT%H:%M:%S.",&(time.tv_sec));
-	milliseconds = (((double)time.tv_nsec)/1000000.0);
+	milliseconds = (((double)time.tv_nsec)/((double)DSP_ONE_MILLISECOND_NS));
 	sprintf(time_string,"%s%03d",buff,milliseconds);
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.7  2000/02/28 19:13:01  cjm
+** Backup.
+**
 ** Revision 0.6  2000/02/23 11:56:16  cjm
 ** Removed CCD_DSP_Command_WRM_No_Reply.
 **
