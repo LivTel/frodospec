@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.9 2000-03-02 09:48:11 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.10 2000-03-09 15:01:25 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -26,6 +26,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#ifdef CCD_DSP_MUTEXED
+#include <pthread.h>
+#endif
 #include "ccd_interface.h"
 #include "ccd_pci.h"
 #include "ccd_dsp.h"
@@ -42,7 +45,7 @@ extern int cftime(char *, char *, const time_t *);
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.9 2000-03-02 09:48:11 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.10 2000-03-09 15:01:25 cjm Exp $";
 
 /* defines */
 /**
@@ -94,6 +97,8 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.9 2000-03-02 09:48:11 cjm Exp $";
  * <dl>
  * <dt>Abort</dt> <dd>Whether it has been requested to abort the current operation.</dd>
  * <dt>Exposure_Status</dt> <dd>Whether an operation is being performed to CLEAR, EXPOSE or READOUT the CCD.</dd>
+ * <dt>Mutex</dt> <dd>Optionally compiled mutex locking for sending commands and getting replies from the 
+ * 	controller.</dd>
  * <dt>Start_Exposure_Clear_Time</dt> <dd>The amount of time before we are due to start an exposure, 
  * 	that a CLEAR_ARRAY command should be sent to the controller. This time is in seconds, 
  * 	and must be greater than the time the CLEAR_ARRAY command takes to clock all accumulated charge off the CCD 
@@ -110,6 +115,9 @@ struct DSP_Attr_Struct
 {
 	volatile int Abort; /* This is volatile as a different thread may change this variable. */
 	enum CCD_DSP_EXPOSURE_STATUS Exposure_Status;
+#ifdef CCD_DSP_MUTEXED
+	pthread_mutex_t Mutex;
+#endif
 	int Start_Exposure_Clear_Time;
 	int Start_Exposure_Offset_Time;
 	int Readout_Remaining_Time;
@@ -129,10 +137,34 @@ static int DSP_Error_Number = 0;
  */
 static char DSP_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 /**
- * Data holding the current status of ccd_dsp.
+ * Data holding the current status of ccd_dsp. This is statically initialised to the following:
+ * <dl>
+ * <dt>Abort</dt> <dd>FALSE</dd>
+ * <dt>Exposure_Status</dt> <dd>CCD_DSP_EXPOSURE_STATUS_NONE</dd>
+ * <dt>Mutex</dt> <dd>PTHREAD_MUTEX_INITIALIZER</dd>
+ * <dt>Start_Exposure_Clear_Time</dt> <dd>DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME</dd>
+ * <dt>Start_Exposure_Offset_Time</dt> <dd>DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME</dd>
+ * <dt>Readout_Remaining_Time</dt> <dd>DSP_DEFAULT_READOUT_REMAINING_TIME</dd>
+ * <dt>Exposure_Length</dt> <dd>0</dd>
+ * <dt>Exposure_Start_Time</dt> <dd>{0L,0L}</dd>
+ * </dl>
  * @see #DSP_Attr_Struct
+ * @see #CCD_DSP_EXPOSURE_STATUS
+ * @see #DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME
+ * @see #DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME
+ * @see #DSP_DEFAULT_READOUT_REMAINING_TIME
  */
-static struct DSP_Attr_Struct DSP_Data;
+static struct DSP_Attr_Struct DSP_Data = 
+{
+	FALSE,
+	CCD_DSP_EXPOSURE_STATUS_NONE,
+	PTHREAD_MUTEX_INITIALIZER,
+	DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME,
+	DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME,
+	DSP_DEFAULT_READOUT_REMAINING_TIME,
+	0,
+	{0L,0L}
+};
 
 /* internal functions */
 static int DSP_Send_Lda(enum CCD_DSP_BOARD_ID board_id,int data);
@@ -181,27 +213,38 @@ static unsigned short *DSP_DeInterlace(int ncols,int nrows,unsigned short *old_i
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
 static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int number_bytes);
 static void DSP_TimeSpec_To_String(struct timespec time,char *time_string);
+#ifdef CCD_DSP_MUTEXED
+static int DSP_Mutex_Lock(void);
+static int DSP_Mutex_Unlock(void);
+#endif
 
 /* external functions */
 
 /**
  * This routine sets up ccd_dsp internal variables.
  * It should be called at startup.
+ * The mutex is <b>NOT</b> initialised, this is statically initialised only. This allows us to call
+ * this routine more than once without having to destroy the mutex in between.
+ * @return Return TRUE if initialisation is successful, FALSE if it wasn't.
  * @see #DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME
  * @see #DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME
  * @see #DSP_DEFAULT_READOUT_REMAINING_TIME
  */
-void CCD_DSP_Initialise(void)
+int CCD_DSP_Initialise(void)
 {
+	int error_number;
+
 	DSP_Error_Number = 0;
 	DSP_Data.Abort = FALSE;
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+/* don't intialise the mutex here, it is statically initialised, once only */
 	DSP_Data.Start_Exposure_Clear_Time = DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME;
 	DSP_Data.Start_Exposure_Offset_Time = DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME;
 	DSP_Data.Readout_Remaining_Time = DSP_DEFAULT_READOUT_REMAINING_TIME;
 	DSP_Data.Exposure_Length = 0;
 	DSP_Data.Exposure_Start_Time.tv_sec = 0;
 	DSP_Data.Exposure_Start_Time.tv_nsec = 0;
+	return TRUE;
 }
 
 /* Boot commands */
@@ -209,6 +252,8 @@ void CCD_DSP_Initialise(void)
  * This routine executes the LoaD Application (LDA) command on a 
  * SDSU Controller board. This
  * causes some DSP application code to be loaded from (EEP)ROM into DSP memory for the controller to execute.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -219,6 +264,8 @@ void CCD_DSP_Initialise(void)
  */
 int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
 	/* check - is board_id a legal value */
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
@@ -235,10 +282,24 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 			application_number);
 		return FALSE;
 	}
-	if(!DSP_Send_Lda(board_id,application_number))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Lda(board_id,application_number))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - should be DON */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
@@ -246,6 +307,8 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
  * This
  * gets the value of a word of memory, location specified by board,memory space and address, and returns
  * it's value.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -268,6 +331,8 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
  */
 int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
 	/* check - is board_id a legal value */
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
@@ -289,15 +354,31 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDM:Illegal address '%#x'.",address);
 		return FALSE;
 	}
-	if(!DSP_Send_Rdm(board_id,mem_space,address))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Rdm(board_id,mem_space,address))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - actual value of memory location returned */
-	return(DSP_Get_Reply(DSP_ACTUAL_VALUE));
+	retval = DSP_Get_Reply(DSP_ACTUAL_VALUE);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine Tests the Data Link (TDL) on a SDSU Controller board. 
  * This ensures the host computer can communicate with the board.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -308,6 +389,8 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  */
 int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
 	/* check - is board_id a legal value */
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
@@ -316,15 +399,31 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 		sprintf(DSP_Error_String,"CCD_DSP_Command_TDL:Illegal board ID '%d'.",board_id);
 		return FALSE;
 	}
-	if(!DSP_Send_Tdl(board_id,data))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Tdl(board_id,data))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - data value sent should be returned */
-	return(DSP_Get_Reply(data));
+	retval = DSP_Get_Reply(data);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the WRite Memory (WRM) command on a SDSU Controller board.
  * This sets the value of a word of memory, it's location specified by board,memory space and address.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -343,6 +442,8 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
  */
 int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
 	/* check - is board_id a legal value */
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
@@ -363,10 +464,24 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM:Illegal address '%#x'.",address);
 		return FALSE;
 	}
-	if(!DSP_Send_Wrm(board_id,mem_space,address,data))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Wrm(board_id,mem_space,address,data))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /* timing board commands */
@@ -375,6 +490,8 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  * If the SDSU CCD Controller is currently reading out the CCD, it is stopped immediately.
  * Unlike most commands, this one does not wait for a DON message to be returned from the controller,
  * as the interface will be returning data when this request is made.
+ * This routine is not mutexed, the Abort Readout command should be sent whilst a read is underway from the 
+ * controller.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Abr
  */
@@ -391,6 +508,8 @@ int CCD_DSP_Command_ABR(void)
 /**
  * This routine executes the CLeaR (CLR) command on a SDSU Controller board. This
  * clocks out any stored charge on the CCD, leaving the CCD ready for an exposure.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Clr
  * @see #DSP_Get_Reply
@@ -400,15 +519,26 @@ int CCD_DSP_Command_CLR(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_CLEAR;
 	if(!DSP_Send_Clr())
 	{
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
 		return FALSE;
 	}
 	/* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
 	return retval;
 }
 
@@ -416,6 +546,8 @@ int CCD_DSP_Command_CLR(void)
  * This routine executes the IDLe (IDL) command on a SDSU Controller board. This
  * puts the clocks in the readout sequence, but does not transfer the clocked data to prevent charge from 
  * building up on the CCD.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_STP
  * @see #DSP_Send_Idl
@@ -423,16 +555,34 @@ int CCD_DSP_Command_CLR(void)
  */
 int CCD_DSP_Command_IDL(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Idl())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Idl())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the ReaDout Ccd (RDC) command on a SDSU Controller board. 
  * This reads out the data on the CCD.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param ncols The number of columns in the image. This must be a positive non-zero integer.
  * @param nrows The number of rows in the image to be readout from the CCD. This must be a positive non-zero integer.
  * @param numbytes The number of bytes to read out from the CCD. This should be (nrows * ncols * 
@@ -453,6 +603,8 @@ int CCD_DSP_Command_IDL(void)
 int CCD_DSP_Command_RDC(int ncols,int nrows,int numbytes,
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
 	/* number of columns must be a positive number */
 	if(ncols <= 0)
@@ -480,36 +632,75 @@ int CCD_DSP_Command_RDC(int ncols,int nrows,int numbytes,
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDC:Illegal deinterlace type '%d'.",deinterlace_type);
 		return FALSE;
 	}
-	if(!DSP_Send_Rdi())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Rdi())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* DSP_Image_Transfer saves the exposed image into a filename */
 	if(!DSP_Image_Transfer(ncols,nrows,numbytes,deinterlace_type,filename))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
 		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the Set Bias Voltage (SBV) command on a 
  * SDSU Controller board. This
  * sets the voltage of the video processor DC bias and clock driver DACs from information in DSP memory.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Sbv
  * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_SBV(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Sbv())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Sbv())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * SGN command routine. Timing board command that means Set GaiN. 
  * This sets the gains of all the video processors.
  * The integrator speed is also set using this command to slow or fast.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param gain The gain to set the video processors to. One of:
  * 	CCD_DSP_GAIN_ONE(one),CCD_DSP_GAIN_TWO(two),CCD_DSP_GAIN_FOUR(4.75) and
  * 	CCD_DSP_GAIN_NINE(9.5).
@@ -520,6 +711,8 @@ int CCD_DSP_Command_SBV(void)
  */
 int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
 	if(!CCD_DSP_IS_GAIN(gain))
 	{
@@ -535,15 +728,31 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 		sprintf(DSP_Error_String,"CCD_DSP_Command_SGN:Illegal speed '%d'.",speed);
 		return FALSE;
 	}
-	if(!DSP_Send_Sgn(gain,speed))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Sgn(gain,speed))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the SToP (STP) command on the timing board. This
  * stops the clocks clocking the readout sequence.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_IDL
  * @see #DSP_Send_Stp
@@ -551,16 +760,34 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
  */
 int CCD_DSP_Command_STP(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Stp())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Stp())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine sets the number of Columns the SDSU Controller will read out. This is sent to the PCI
  * interface which stores it in the timing table.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param ncols The number of columns to read out, after binning has been taken into account.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Set_NCols
@@ -568,16 +795,34 @@ int CCD_DSP_Command_STP(void)
  */
 int CCD_DSP_Command_Set_NCols(int ncols)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Set_NCols(ncols))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Set_NCols(ncols))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine sets the number of Rows the SDSU Controller will read out. This is sent to the PCI
  * interface which stores it in the timing table.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param nrows The number of rows to read out, after binning has been taken into account.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Set_NRows
@@ -585,11 +830,27 @@ int CCD_DSP_Command_Set_NCols(int ncols)
  */
 int CCD_DSP_Command_Set_NRows(int nrows)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Set_NRows(nrows))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Set_NRows(nrows))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /* utility board commands */
@@ -597,54 +858,110 @@ int CCD_DSP_Command_Set_NRows(int nrows)
  * This routine executes the Abort EXposure (AEX) command on a 
  * SDSU utility board. If an
  * exposure is currently underway this is stopped by closing the shutter and putting the CCD in idle mode.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Aex
  * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_AEX(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Aex())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Aex())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON)); 
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the Close SHutter (CSH) command on the SDSU utility board.
  * This closes the shutter.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Csh
  * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_CSH(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Csh())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Csh())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the Open SHutter (OSH) command on the SDSU utility board.
  * This opens the shutter.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Osh
  * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_OSH(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Osh())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Osh())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the Pause EXposure (PEX) command on the
  * SDSU utility board. This closes the shutter and stops the timer.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_REX
  * @see #DSP_Send_Pex
@@ -652,49 +969,103 @@ int CCD_DSP_Command_OSH(void)
  */
 int CCD_DSP_Command_PEX(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Pex())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Pex())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the Power ON (PON) command on a SDSU Controller board.
  * This turns the analog power on safely, using the power control board.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Pon
  * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_PON(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Pon())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Pon())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the Power OFF (POF) command on a SDSU Controller board.
  * This turns the analog power off safely, using the power control board.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Pof
  * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_POF(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Pof())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Pof())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * Routine to read the array temperature from the utility board.
  * This calls the PCI interfaces read temperature command. This in turn calls the utility board with
  * read memory command for address 0x0c in Y memory space. The reply memory is then read.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The adu counts held on the utility board. If an error occurs, zero is returned. Use 
  * 	CCD_DSP_Get_Error_Number to determine whether zero is returned from the board or is an error.
  * @see #DSP_Send_Read_Temperature
@@ -703,17 +1074,35 @@ int CCD_DSP_Command_POF(void)
  */
 int CCD_DSP_Command_Read_Temperature(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Read_Temperature())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Read_Temperature())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - the array temperature adu should be returned */
-	return(DSP_Get_Reply(DSP_ACTUAL_VALUE));
+	retval = DSP_Get_Reply(DSP_ACTUAL_VALUE);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * Routine to set the target array temperature on the utility board.
  * This calls the PCI interfaces set temperature command. This in turn calls the utility board with
  * write memory command for address 0x1c in Y memory space. The reply memory is then read to ensure DON is returned.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param The target adu counts for the desired temperature.
  * @return The routine returnd DON if the command suceeded, FALSE if it failed.
  * @see #DSP_Send_Set_Temperature
@@ -721,16 +1110,34 @@ int CCD_DSP_Command_Read_Temperature(void)
  */
 int CCD_DSP_Command_Set_Temperature(int adu)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Set_Temperature(adu))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Set_Temperature(adu))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * This routine executes the Resume EXposure (REX) command on a 
  * SDSU Controller board. This opens the shutter and restarts the timer.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_PEX
  * @see #DSP_Send_Rex
@@ -738,11 +1145,27 @@ int CCD_DSP_Command_Set_Temperature(int adu)
  */
 int CCD_DSP_Command_REX(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Rex())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Rex())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
@@ -755,6 +1178,8 @@ int CCD_DSP_Command_REX(void)
  * 	until the time nears for the shutter to close (DSP_Data.Readout_Remaining_Time) and readout to take place.
  * </ul>
  * The DSP_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @param exposure_time The amount of time in milliseconds to open the shutter for. This must be greater than zero.
@@ -768,6 +1193,7 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 {
 	struct timespec sleep_time,current_time;
 	int dsp_exposure_time,remaining_exposure_time,done;
+	int retval;
 
 	DSP_Error_Number = 0;
 /* exposure time must be greater than zero */
@@ -816,17 +1242,31 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		return FALSE;
 	}
 /* start the exposure */
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
 	if(!DSP_Send_Sex(start_time))
 	{
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
 		return FALSE;
 	}
 /* ensure SEX command sent correctly */
 	if(!DSP_Get_Reply(CCD_DSP_DON))
 	{
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
 		return FALSE;
 	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
 /* wait until we are about ready to read out */
 	while((remaining_exposure_time > DSP_Data.Readout_Remaining_Time)&&(DSP_Data.Abort == FALSE))
 	{
@@ -834,6 +1274,10 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		sleep_time.tv_nsec = 0;
 		nanosleep(&sleep_time,NULL);
 	/* get elapsed time from utility board */
+#ifdef CCD_DSP_MUTEXED
+		if(!DSP_Mutex_Lock())
+			CCD_DSP_Warning();
+#endif
 		if(!DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0))
 		{
 			CCD_DSP_Warning();
@@ -845,6 +1289,10 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 			dsp_exposure_time = DSP_Get_Reply(DSP_ACTUAL_VALUE);
 			remaining_exposure_time = exposure_time-dsp_exposure_time;
 		}
+#ifdef CCD_DSP_MUTEXED
+		if(!DSP_Mutex_Unlock())
+			CCD_DSP_Warning();
+#endif
 	}/* end while exposing */
 	if(DSP_Data.Abort)
 	{
@@ -861,6 +1309,8 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 /**
  * This routine resets the SDSU Controller boards. It sends the PCI reset controller command.
  * It then gets the reply from the interface, which should be SYR.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @return The routine returns SYR if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Reset
  * @see #DSP_Get_Reply
@@ -868,11 +1318,27 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
  */
 int CCD_DSP_Command_Reset(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Reset())
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Reset())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_SYR));
+	retval = DSP_Get_Reply(CCD_DSP_SYR);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
@@ -881,6 +1347,8 @@ int CCD_DSP_Command_Reset(void)
  * utility board, memory space X, location 1.
  * Currently only the first bit is used. If it is set the utility board will open the shutter during a 
  * SEX command, otherwise the shutter will remain closed.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param bit_value The bit value of the utility options. 
  * @return The routine returns DON if the operation succeeds, FALSE otherwise.
  * @see #DSP_Send_Set_Util_Options
@@ -888,17 +1356,35 @@ int CCD_DSP_Command_Reset(void)
  */
 int CCD_DSP_Command_Set_Util_Options(int bit_value)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
-	if(!DSP_Send_Set_Util_Options(bit_value))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Set_Util_Options(bit_value))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 /* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
  * Routine to set the utility board exposure time. This is written to the PCI interface 
  * exposure time register using a special PCI command. The PCI interface itself writes this to the
  * utility board, memory space Y, location 24.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
  * @param msecs The exposure time in milliseconds. 
  * @return The routine returns DON if the operation succeeds, FALSE otherwise.
  * @see #DSP_Send_Set_Exposure_Time
@@ -906,6 +1392,8 @@ int CCD_DSP_Command_Set_Util_Options(int bit_value)
  */
 int CCD_DSP_Command_Set_Exposure_Time(int msecs)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
 /* exposure time  must be a positive/zero number */
 	if(msecs < 0)
@@ -915,10 +1403,24 @@ int CCD_DSP_Command_Set_Exposure_Time(int msecs)
 		return FALSE;
 	}
 	DSP_Data.Exposure_Length = msecs;
-	if(!DSP_Send_Set_Exposure_Time(msecs))
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
 		return FALSE;
+#endif
+	if(!DSP_Send_Set_Exposure_Time(msecs))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 /* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
 }
 
 /**
@@ -2497,8 +2999,53 @@ static void DSP_TimeSpec_To_String(struct timespec time,char *time_string)
 	sprintf(time_string,"%s%03d",buff,milliseconds);
 }
 
+#ifdef CCD_DSP_MUTEXED
+/**
+ * Routine to lock the controller access mutex. This will block until the mutex has been acquired,
+ * unless an error occurs.
+ * @return Returns TRUE if the mutex has been  locked for access by this thread,
+ * 	FALSE if an error occured.
+ * @see #DSP_Data
+ */
+static int DSP_Mutex_Lock(void)
+{
+	int error_number;
+
+	error_number = pthread_mutex_lock(&(DSP_Data.Mutex));
+	if(error_number != 0)
+	{
+		DSP_Error_Number = 18;
+		sprintf(DSP_Error_String,"DSP_Mutex_Lock:Mutex lock failed '%d'.",error_number);
+		return FALSE;
+	}
+	return TRUE;
+}
+
+/**
+ * Routine to unlock the controller access mutex. 
+ * @return Returns TRUE if the mutex has been unlocked, FALSE if an error occured.
+ * @see #DSP_Data
+ */
+static int DSP_Mutex_Unlock(void)
+{
+	int error_number;
+
+	error_number = pthread_mutex_unlock(&(DSP_Data.Mutex));
+	if(error_number != 0)
+	{
+		DSP_Error_Number = 20;
+		sprintf(DSP_Error_String,"DSP_Mutex_Unlock:Mutex unlock failed '%d'.",error_number);
+		return FALSE;
+	}
+	return TRUE;
+}
+#endif
+
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.9  2000/03/02 09:48:11  cjm
+** Moved Exposure_Status EXPOSE to after wait for start_time of exposure.
+**
 ** Revision 0.8  2000/03/01 15:31:36  cjm
 ** Added exposure timing code.
 **
