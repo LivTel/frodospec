@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.11 2000-05-09 15:17:44 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.12 2000-05-12 15:29:19 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.11 $
+ * @version $Revision: 0.12 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.11 2000-05-09 15:17:44 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.12 2000-05-12 15:29:19 cjm Exp $";
 
 /* #defines */
 /**
@@ -542,7 +542,7 @@ int CCD_Text_Get_Reply_Data(char *data,int byte_count)
 	i=0;
 	while((i<(byte_count/sizeof(unsigned short)))&&(!CCD_DSP_Get_Abort()))
 	{
-		ushort_data[i] = (i%(2<<16));
+		ushort_data[i] = (i%((1<<16)-1));
 		i++;
 	}
 	return byte_count;
@@ -962,6 +962,9 @@ static void Text_HCVR_Clear_Array(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.11  2000/05/09 15:17:44  cjm
+** Changed data values returned from CCD_Text_Get_Reply_Data.
+**
 ** Revision 0.10  2000/04/13 13:11:35  cjm
 ** Added current time to error routines.
 **
