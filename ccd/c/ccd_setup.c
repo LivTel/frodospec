@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.19 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.20 2002-11-08 10:35:43 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.19 $
+ * @version $Revision: 0.20 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -31,7 +31,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.19 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.20 2002-11-08 10:35:43 cjm Exp $";
 
 /* #defines */
 /**
@@ -314,16 +314,6 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
-/* memory map initialisation */
-	if(!CCD_Interface_Memory_Map(SETUP_MEMORY_BUFFER_SIZE))
-	{
-		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
-		Setup_Error_Number = 41;
-		sprintf(Setup_Error_String,"CCD_Setup_Startup:Memory Map failed.");
-		return FALSE;
-
-	}
 /* load a PCI interface board ROM or a filename */
 	if(!Setup_PCI_Board(pci_load_type,pci_filename))
 	{
@@ -333,6 +323,18 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	}
 	else   /*acknowlege PCI load complete*/
 		Setup_Data.PCI_Complete = TRUE;
+/* memory map initialisation */
+/* done after PCI download, as astropci sends a WRITE_PCI_ADDRESS HCVR command to the PCI board
+** in response to a mmap call. */
+	if(!CCD_Interface_Memory_Map(SETUP_MEMORY_BUFFER_SIZE))
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		CCD_DSP_Set_Abort(FALSE);
+		Setup_Error_Number = 41;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Memory Map failed.");
+		return FALSE;
+
+	}
 /* reset controller */
 	if(!Setup_Reset_Controller())
 	{
@@ -1667,6 +1669,9 @@ static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct win
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.19  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.18  2001/06/04 14:42:17  cjm
 ** Added LOGGING code.
 **
