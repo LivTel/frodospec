@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.1 2000-01-25 14:57:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.2 2000-01-27 15:38:47 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.1 $
+ * @version $Revision: 0.2 $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.1 2000-01-25 14:57:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.2 2000-01-27 15:38:47 cjm Exp $";
 
 /* defines */
 /**
@@ -1480,7 +1480,7 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
 }
 
 /**
- * Internal command to clear the reply memory.
+ * Internal command to clear the reply memory. This sets all the reply memory to -1.
  * @return Returns true if clearing the reply memory succeeded, false if it failed.
  * @see ccd_interface.html#CCD_Interface_Command
  * @see ccd_pci.html#CCD_PCI_IOCTL_CLEAR_REPLY
@@ -1493,14 +1493,6 @@ static int DSP_Clear_Reply_Memory(void)
 	{
 		DSP_Error_Number = 28;
 		sprintf(DSP_Error_String,"DSP_Clear_Reply_Memory:Clear reply failed.");
-		return FALSE;
-	}
-	/* CCD_PCI_IOCTL_CLEAR_REPLY sets the reply memory to all -1s, and returns -1 if
-	** it succeeds. */
-	if(retval != -1)
-	{
-		DSP_Error_Number = 29;
-		sprintf(DSP_Error_String,"DSP_Clear_Reply_Memory:Wrong value returned:%d.",retval);
 		return FALSE;
 	}
 	return TRUE;
@@ -2223,4 +2215,7 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.1  2000/01/25 14:57:27  cjm
+** initial revision (PCI version).
+**
 */
