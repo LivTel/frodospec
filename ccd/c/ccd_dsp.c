@@ -1,12 +1,12 @@
  /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.20 2000-06-13 17:14:13 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.21 2000-06-14 12:58:35 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.20 $
+ * @version $Revision: 0.21 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.20 2000-06-13 17:14:13 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.21 2000-06-14 12:58:35 cjm Exp $";
 
 /* defines */
 /**
@@ -3358,6 +3358,7 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 		** was readout in order */
 		case CCD_DSP_DEINTERLACE_SINGLE:
 		{
+			free(new_iptr);
 			return TRUE;
 		} /*end single readout*/
 		/* SPLIT PARALLEL READOUT */
@@ -3695,6 +3696,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.20  2000/06/13 17:14:13  cjm
+** Changes to make Ccs agree with voodoo.
+**
 ** Revision 0.19  2000/05/23 10:33:44  cjm
 ** Added CCD_DSP_Set_Exposure_Start_Time and changed DSP_Send_Sex to use it.
 **
