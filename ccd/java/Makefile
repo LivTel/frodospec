@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.12 1999-09-10 15:27:25 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.13 1999-09-13 13:54:34 cjm Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -14,16 +14,16 @@ DOCS = $(SRCS:%.java=$(DOCSDIR)/%.html)
 
 top: $(OBJS) $(INCDIR)/CCDLibrary.h docs
 
-$(INCDIR)/CCDLibrary.h: $(BINDIR)/CCDLibrary.class
-	$(JAVAH) -jni -d $(INCDIR) CCDLibrary
+$(INCDIR)/CCDLibrary.h:
+	$(JAVAH) -jni -d $(INCDIR) ngat.ccd.CCDLibrary
 
 $(BINDIR)/%.class:%.java
 	$(JAVAC) $(JAVAC_OPTIONS) -d $(BINDIR) $<
 
-Test.class: Test.java $(BINDIR)/CCDLibrary.class $(BINDIR)/ExposureThread.class $(BINDIR)/AbortThread.class $(BINDIR)/SetupThread.class $(BINDIR)/ReadOutThread.class
+Test.class: Test.java $(BINDIR)/ExposureThread.class $(BINDIR)/AbortThread.class $(BINDIR)/SetupThread.class $(BINDIR)/ReadOutThread.class
 	$(JAVAC) $(JAVAC_OPTIONS) -d $(BINDIR) Test.java
 
-$(BINDIR)/ExposureThread.class $(BINDIR)/AbortThread.class $(BINDIR)/SetupThread.class $(BINDIR)/ReadOutThread.class: $(BINDIR)/CCDLibrary.class
+$(BINDIR)/ExposureThread.class $(BINDIR)/AbortThread.class $(BINDIR)/SetupThread.class $(BINDIR)/ReadOutThread.class: 
 
 docs: $(DOCS)
 
@@ -31,7 +31,7 @@ $(DOCS): $(SRCS)
 	$(JAVADOC) -d $(DOCSDIR) $(DOCFLAGS) $(SRCS)
 
 clean:
-	$(RM) $(RM_OPTIONS) $(OBJS) $(TIDY_OPTIONS)
+	$(RM) $(RM_OPTIONS) $(OBJS) $(INCDIR)/CCDLibrary.h $(TIDY_OPTIONS)
 
 tidy:
 	$(RM) $(RM_OPTIONS) $(TIDY_OPTIONS)
@@ -43,6 +43,9 @@ checkin:
 	-$(CI) $(CI_OPTIONS) $(SRCS)
 #
 # $Log: not supported by cvs2svn $
+# Revision 0.12  1999/09/10 15:27:25  cjm
+# Changed due to CCDLibrary moving to ngat.ccd. package.
+#
 # Revision 0.11  1999/09/08 10:03:09  cjm
 # Changed checkin target so the return value is ignored and it uses CI_OPTIONS.
 #
