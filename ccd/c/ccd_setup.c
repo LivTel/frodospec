@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.22 2002-12-16 16:49:36 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.23 2003-03-26 15:44:48 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.22 $
+ * @version $Revision: 0.23 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -32,7 +32,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.22 2002-12-16 16:49:36 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.23 2003-03-26 15:44:48 cjm Exp $";
 
 /* #defines */
 /**
@@ -98,6 +98,10 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.22 2002-12-16 16:49:36 cjm Exp $";
  * Memory buffer size for mmap/malloc.
  */
 #define SETUP_MEMORY_BUFFER_SIZE      (9680000)
+/**
+ * The width of bias strip to use when windowing.
+ */
+#define SETUP_WINDOW_BIAS_WIDTH		(53)
 
 /* data types */
 /**
@@ -184,6 +188,7 @@ static int Setup_Binning(int nsbin,int npbin);
 static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
 static int Setup_Dimensions(void);
 static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct window_list[]);
+static int Setup_Controller_Windows(void);
 
 /* external functions */
 /**
@@ -511,7 +516,6 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	CCD_DSP_Set_Abort(FALSE);
 /* reset dimension flag */
 	Setup_Data.Dimension_Complete = FALSE;
-
 /* The binning needs to be done first to set the final
 ** image dimensions. Then Setup_DeInterlace is called
 ** to ensure that the dimensions agree with the deinterlace
@@ -726,6 +730,152 @@ int CCD_Setup_Get_NSBin(void)
 int CCD_Setup_Get_NPBin(void)
 {
 	return Setup_Data.NPBin;
+}
+
+/**
+ * Routine to return the number of pixels that will be read out from the CCD. This is the number of
+ * columns x the number of rows (post binning) for full array images, and something more comlicated for
+ * windowed readouts.
+ * @return The number of pixels.
+ * @see #Setup_Data
+ * @see #CCD_SETUP_WINDOW_COUNT
+ * @see #SETUP_WINDOW_BIAS_WIDTH
+ */
+int CCD_Setup_Get_Readout_Pixel_Count(void)
+{
+	int pixel_count,i,bias_width,box_width,box_height;
+
+	if(Setup_Data.Window_Flags == 0)
+	{
+		/* the NCols and NRows variables should already have been adjusted for binning. */
+		pixel_count = Setup_Data.NCols*Setup_Data.NRows;
+	}
+	else
+	{
+		pixel_count = 0;
+		for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
+		{
+			/* Note, relies on CCD_SETUP_WINDOW_ONE == (1<<0),
+			** CCD_SETUP_WINDOW_TWO	== (1<<1),
+			** CCD_SETUP_WINDOW_THREE == (1<<2) and
+			** CCD_SETUP_WINDOW_FOUR == (1<<3) */
+			if(Setup_Data.Window_Flags&(1<<i))
+			{
+				/* These next lines  must agree with Setup_Controller_Windows for this to work */
+				bias_width = SETUP_WINDOW_BIAS_WIDTH;/* diddly - get this from parameters? */
+				box_width = Setup_Data.Window_List[i].X_End-Setup_Data.Window_List[i].X_Start;
+				box_height = Setup_Data.Window_List[i].Y_End-Setup_Data.Window_List[i].Y_Start;
+				pixel_count += (box_width+bias_width)*box_height;
+			}
+		}/* end for */
+	}
+	return pixel_count;
+}
+
+/**
+ * Routine to return the number of pixels in the specified window. 
+ * @param window_index This is the index in the window list to return. The first window is at index zero
+ * 	and the last at (CCD_SETUP_WINDOW_COUNT-1). This index must be within this range.
+ * @return The number of pixels, or -1 if this window is not in use.
+ * @see #Setup_Data
+ * @see #CCD_SETUP_WINDOW_COUNT
+ * @see #SETUP_WINDOW_BIAS_WIDTH
+ */
+int CCD_Setup_Get_Window_Pixel_Count(int window_index)
+{
+	int pixel_count,bias_width,box_width,box_height;
+
+	if((window_index < 0) || (window_index >= CCD_SETUP_WINDOW_COUNT))
+	{
+		Setup_Error_Number = 61;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Window_Pixel_Count:Window Index '%d' out of range:"
+			"['%d' to '%d'] inclusive.",window_index,0,CCD_SETUP_WINDOW_COUNT-1);
+		return -1;
+	}
+	/* Note, relies on CCD_SETUP_WINDOW_ONE == (1<<0),
+	** CCD_SETUP_WINDOW_TWO	== (1<<1),
+	** CCD_SETUP_WINDOW_THREE == (1<<2) and
+	** CCD_SETUP_WINDOW_FOUR == (1<<3) */
+	if(Setup_Data.Window_Flags&(1<<window_index))
+	{
+		/* These next lines  must agree with Setup_Controller_Windows for this to work */
+		bias_width = SETUP_WINDOW_BIAS_WIDTH;/* diddly - get this from parameters? */
+		box_width = Setup_Data.Window_List[window_index].X_End-Setup_Data.Window_List[window_index].X_Start;
+		box_height = Setup_Data.Window_List[window_index].Y_End-Setup_Data.Window_List[window_index].Y_Start;
+		pixel_count = (box_width+bias_width)*box_height;
+	}
+	else
+		pixel_count = -1;
+	return pixel_count;
+}
+
+/**
+ * Routine to return the width of the specified window. 
+ * @param window_index This is the index in the window list to return. The first window is at index zero
+ * 	and the last at (CCD_SETUP_WINDOW_COUNT-1). This index must be within this range.
+ * @return The width of the window (including any added bias strips), or -1 if this window is not in use.
+ * @see #Setup_Data
+ * @see #CCD_SETUP_WINDOW_COUNT
+ * @see #SETUP_WINDOW_BIAS_WIDTH
+ */
+int CCD_Setup_Get_Window_Width(int window_index)
+{
+	int box_width,bias_width;
+
+	if((window_index < 0) || (window_index >= CCD_SETUP_WINDOW_COUNT))
+	{
+		Setup_Error_Number = 62;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Window_Width:Window Index '%d' out of range:"
+			"['%d' to '%d'] inclusive.",window_index,0,CCD_SETUP_WINDOW_COUNT-1);
+		return -1;
+	}
+	/* Note, relies on CCD_SETUP_WINDOW_ONE == (1<<0),
+	** CCD_SETUP_WINDOW_TWO	== (1<<1),
+	** CCD_SETUP_WINDOW_THREE == (1<<2) and
+	** CCD_SETUP_WINDOW_FOUR == (1<<3) */
+	if(Setup_Data.Window_Flags&(1<<window_index))
+	{
+		/* These next lines  must agree with Setup_Controller_Windows for this to work */
+		bias_width = SETUP_WINDOW_BIAS_WIDTH;/* diddly - get this from parameters? */
+		box_width = Setup_Data.Window_List[window_index].X_End-Setup_Data.Window_List[window_index].X_Start+
+			bias_width;
+	}
+	else
+		box_width = -1;
+	return box_width;
+}
+
+/**
+ * Routine to return the height of the specified window. 
+ * @param window_index This is the index in the window list to return. The first window is at index zero
+ * 	and the last at (CCD_SETUP_WINDOW_COUNT-1). This index must be within this range.
+ * @return The height of the window, or -1 if this window is not in use.
+ * @see #Setup_Data
+ * @see #CCD_SETUP_WINDOW_COUNT
+ */
+int CCD_Setup_Get_Window_Height(int window_index)
+{
+	int box_height;
+
+	if((window_index < 0) || (window_index >= CCD_SETUP_WINDOW_COUNT))
+	{
+		Setup_Error_Number = 63;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Window_Height:Window Index '%d' out of range:"
+			"['%d' to '%d'] inclusive.",window_index,0,CCD_SETUP_WINDOW_COUNT-1);
+		return -1;
+	}
+	/* Note, relies on CCD_SETUP_WINDOW_ONE == (1<<0),
+	** CCD_SETUP_WINDOW_TWO	== (1<<1),
+	** CCD_SETUP_WINDOW_THREE == (1<<2) and
+	** CCD_SETUP_WINDOW_FOUR == (1<<3) */
+	if(Setup_Data.Window_Flags&(1<<window_index))
+	{
+		/* These next lines  must agree with Setup_Controller_Windows for this to work */
+		box_height = Setup_Data.Window_List[window_index].Y_End-Setup_Data.Window_List[window_index].Y_Start;
+	}
+	else
+		box_height = -1;
+	return box_height;
 }
 
 /**
@@ -1686,9 +1836,9 @@ static int Setup_Dimensions(void)
 
 /**
  * This routine sets the Setup_Data.Window_List from the passed in list of windows.
- * The windows are checked to ensure they don't overlap in either direction, and that sub-images are
- * all the same size. Only windows 
- * which are included in the window_flags parameter are checked.
+ * The windows are checked to ensure they don't overlap in the y (row) direction, and that sub-images are
+ * all the same size. Only windows which are included in the window_flags parameter are checked.
+ * If the windows are OK, Setup_Controller_Windows is called to write the windows to the SDSU controller.
  * @param window_flags Information on which of the sets of window positions supplied contain windows to be used.
  * @param window_list A list of CCD_Setup_Window_Structs defining the position of the windows. The list should
  * 	<b>always</b> contain <b>four</b> entries, one for each possible window. The window_flags parameter
@@ -1696,13 +1846,14 @@ static int Setup_Dimensions(void)
  * @return The routine returns TRUE on success and FALSE if an error occured.
  * @see #Setup_Data
  * @see #CCD_Setup_Window_Struct
+ * @see #Setup_Controller_Windows
  */
 static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct window_list[])
 {
 	int i,start_window_index,end_window_index,found;
 	int start_x_size,start_y_size,end_x_size,end_y_size;
 
-/* check non-overlapping in both directions/ all sub-images are same size. */
+/* check non-overlapping in y (row) directions all sub-images are same size. */
 	start_window_index = 0;
 	end_window_index = 0;
 	/* while there are active windows, keep checking */
@@ -1728,15 +1879,6 @@ static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct win
 	/* if we found two valid windows, check the second does not overlap the first */
 		if((start_window_index < CCD_SETUP_WINDOW_COUNT)&&(end_window_index < CCD_SETUP_WINDOW_COUNT))
 		{
-		/* is start window's X_End greater or equal to end windows X_Start? */
-			if(window_list[start_window_index].X_End >= window_list[end_window_index].X_Start)
-			{
-				Setup_Error_Number = 45;
-				sprintf(Setup_Error_String,"Setting Windows:Windows %d and %d overlap in X (%d,%d)",
-					start_window_index,end_window_index,window_list[start_window_index].X_End,
-					window_list[end_window_index].X_Start);
-				return FALSE;
-			}
 		/* is start window's Y_End greater or equal to end windows Y_Start? */
 			if(window_list[start_window_index].Y_End >= window_list[end_window_index].Y_Start)
 			{
@@ -1782,12 +1924,74 @@ static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct win
 	if(window_flags&CCD_SETUP_WINDOW_FOUR)
 		Setup_Data.Window_List[3] = window_list[3];
 	Setup_Data.Window_Flags = window_flags;
-/* diddly write parameters to window table on timing board */
+/* write parameters to window table on timing board */
+	if(!Setup_Controller_Windows())
+		return FALSE;
+	return TRUE;
+}
+
+/**
+ * Actually write the calculated Setup_Data windows to the SDSU controller, using SSS and SSP.
+ * @see #Setup_Data
+ * @see #CCD_Setup_Window_Struct
+ * @see #SETUP_WINDOW_BIAS_WIDTH
+ */
+static int Setup_Controller_Windows(void)
+{
+	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
+	int bias_width,box_width,box_height,window_count;
+	int y_offset,x_offset,bias_x_offset,i;
+
+	/* if no windows - return */
+	if(Setup_Data.Window_Flags == 0)
+		return TRUE;
+	/* setup window_list/count, for each window defined in real list */
+	window_count = 0;
+	if(Setup_Data.Window_Flags&CCD_SETUP_WINDOW_ONE)
+		window_list[window_count++] = Setup_Data.Window_List[0];
+	if(Setup_Data.Window_Flags&CCD_SETUP_WINDOW_TWO)
+		window_list[window_count++] = Setup_Data.Window_List[1];
+	if(Setup_Data.Window_Flags&CCD_SETUP_WINDOW_THREE)
+		window_list[window_count++] = Setup_Data.Window_List[2];
+	if(Setup_Data.Window_Flags&CCD_SETUP_WINDOW_FOUR)
+		window_list[window_count++] = Setup_Data.Window_List[3];
+	/* setup SSS parameters - note we know from Setup_Window_List that all boxes have the same size */
+	bias_width = SETUP_WINDOW_BIAS_WIDTH;/* diddly - get this from parameters? */
+	box_width = window_list[0].X_End-window_list[0].X_Start;
+	box_height = window_list[0].Y_End-window_list[0].Y_Start;
+	if(CCD_DSP_Command_SSS(bias_width,box_width,box_height) != CCD_DSP_DON)
+	{
+		Setup_Error_Number = 45;
+		sprintf(Setup_Error_String,"Setting Subarray Sizes failed:(%d,%d,%d).",bias_width,box_width,
+			box_height);
+		return FALSE;
+	}
+	/* send SSP for each window */
+	for(i=0; i < window_count;i++)
+	{
+		if(i == 0)
+			y_offset = window_list[i].Y_Start;
+		else
+			y_offset = window_list[i].Y_Start-window_list[i-1].Y_End;
+		x_offset = window_list[i].X_Start;
+		/* diddly 2048 + a bit - got from somewhere (2048+SETUP_WINDOW_BIAS_WIDTH(53) = 2101) */
+		bias_x_offset = 2101-window_list[i].X_End;
+		if(CCD_DSP_Command_SSP(y_offset,x_offset,bias_x_offset) != CCD_DSP_DON)
+		{
+			Setup_Error_Number = 60;
+			sprintf(Setup_Error_String,"Setting Subarray Position failed:(%d,%d,%d).",y_offset,
+				x_offset,bias_x_offset);
+			return FALSE;
+		}
+	}
 	return TRUE;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.22  2002/12/16 16:49:36  cjm
+** Removed Error routines resetting error number to zero.
+**
 ** Revision 0.21  2002/12/03 17:13:19  cjm
 ** Added CCD_Setup_Get_Vacuum_Gauge_MBar, CCD_Setup_Get_Vacuum_Gauge_ADU routines.
 **
