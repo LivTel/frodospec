@@ -1,12 +1,20 @@
 /* ccd_global.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.1 2000-01-25 14:57:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.2 2000-03-01 15:44:41 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.1 $
+ * @version $Revision: 0.2 $
  */
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
+ */
+#define _POSIX_SOURCE 1
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
+ */
+#define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -23,7 +31,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.1 2000-01-25 14:57:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.2 2000-03-01 15:44:41 cjm Exp $";
 
 /* external functions */
 /**
@@ -184,4 +192,7 @@ void CCD_Global_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.1  2000/01/25 14:57:27  cjm
+** initial revision (PCI version).
+**
 */

@@ -1,6 +1,6 @@
 /* ccd_temperature.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.2 2000-02-22 16:07:55 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.3 2000-03-01 15:44:41 cjm Exp $
 */
 
 /**
@@ -13,9 +13,16 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
-
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
+ */
+#define _POSIX_SOURCE 1
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
+ */
+#define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -26,7 +33,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.2 2000-02-22 16:07:55 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.3 2000-03-01 15:44:41 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -408,6 +415,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/02/22 16:07:55  cjm
+** Added calls to CCD_DSP_Set_Abort.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **

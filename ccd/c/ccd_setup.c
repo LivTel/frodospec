@@ -1,20 +1,26 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.7 2000-02-23 11:54:00 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.8 2000-03-01 15:44:41 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
+ */
+#define _POSIX_SOURCE 1
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
+ */
+#define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include "ccd_global.h"
 #include "ccd_dsp.h"
 #include "ccd_temperature.h"
@@ -23,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.7 2000-02-23 11:54:00 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.8 2000-03-01 15:44:41 cjm Exp $";
 
 /* #defines */
 /**
@@ -106,6 +112,7 @@ static int Setup_Error_Number = 0;
 static char Setup_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 /**
  * Data holding the current status of ccd_setup.
+ * @see #Setup_Struct
  */
 static struct Setup_Struct Setup_Data;
 
@@ -1157,6 +1164,10 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.7  2000/02/23 11:54:00  cjm
+** Removed setting reply buffer bit on startup/shutdown.
+** This is now handled by the latest astropci driver.
+**
 ** Revision 0.6  2000/02/14 17:09:35  cjm
 ** Added some get routines to get data from Setup_Data:
 ** CCD_Setup_Get_NSBin
