@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.8 2000-12-18 11:59:42 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.9 2000-12-19 12:03:58 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -44,7 +44,8 @@ CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLA
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
-SRCS 		= 	ccd_interface.c ccd_pci.c ccd_text.c ccd_global.c ccd_dsp.c ccd_temperature.c ccd_setup.c ccd_exposure.c
+SRCS 		= 	ccd_interface.c ccd_pci.c ccd_text.c ccd_global.c ccd_dsp.c \
+			ccd_filter_wheel.c ccd_temperature.c ccd_setup.c ccd_exposure.c
 HEADERS		=	$(SRCS:%.c=%.h)
 OBJS		=	$(SRCS:%.c=%.o)
 DOCS 		= 	$(SRCS:%.c=$(DOCSDIR)/%.html)
@@ -107,6 +108,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.8  2000/12/18 11:59:42  cjm
+# Fixed JNI include dependancy on ngat.jar - now on ngat_ccd.jar.
+#
 # Revision 1.7  2000/09/25 09:52:15  cjm
 # y
 # Changes to use with v1.4 SDSU DSP code.
