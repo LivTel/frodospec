@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.15 2000-12-19 17:52:47 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.16 2001-01-31 16:35:18 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.15 $
+ * @version $Revision: 0.16 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.15 2000-12-19 17:52:47 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.16 2001-01-31 16:35:18 cjm Exp $";
 
 /* #defines */
 /**
@@ -854,7 +854,7 @@ static int Setup_PCI_Board(enum CCD_SETUP_LOAD_TYPE load_type,char *filename)
 	if(!CCD_SETUP_IS_LOAD_TYPE(load_type))
 	{
 		Setup_Error_Number = 35;
-		sprintf(Setup_Error_String,"Setup_PCI_Board:PCI board has illegal load type(%d)",
+		sprintf(Setup_Error_String,"Setup_PCI_Board:PCI board has illegal load type(%d).",
 			load_type);
 		return FALSE;
 	}
@@ -866,10 +866,16 @@ static int Setup_PCI_Board(enum CCD_SETUP_LOAD_TYPE load_type,char *filename)
 	}
 	else if(load_type == CCD_SETUP_LOAD_FILENAME)
 	{
+		if(filename == NULL)
+		{
+			Setup_Error_Number = 37;
+			sprintf(Setup_Error_String,"PCI Board:DSP Filename was NULL.");
+			return FALSE;
+		}
 		if(!CCD_DSP_Download(CCD_DSP_INTERFACE_BOARD_ID,filename))
 		{
 			Setup_Error_Number = 40;
-			sprintf(Setup_Error_String,"PCI Board:Failed to download filename '%s'",
+			sprintf(Setup_Error_String,"PCI Board:Failed to download filename '%s'.",
 				filename);
 			return FALSE;
 		}
@@ -908,7 +914,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 	if(!CCD_SETUP_IS_LOAD_TYPE(load_type))
 	{
 		Setup_Error_Number = 29;
-		sprintf(Setup_Error_String,"Setup_Timing_Board:Timing board has illegal load type(%d)",
+		sprintf(Setup_Error_String,"Setup_Timing_Board:Timing board has illegal load type(%d).",
 			load_type);
 		return FALSE;
 	}
@@ -917,13 +923,19 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 		if(CCD_DSP_Command_LDA(CCD_DSP_TIM_BOARD_ID,load_application_number)!=CCD_DSP_DON)
 		{
 			Setup_Error_Number = 6;
-			sprintf(Setup_Error_String,"Timing Board:Failed to load application %d",
+			sprintf(Setup_Error_String,"Timing Board:Failed to load application %d.",
 				load_application_number);
 			return FALSE;
 		}
 	}
 	else if(load_type == CCD_SETUP_LOAD_FILENAME)
 	{
+		if(filename == NULL)
+		{
+			Setup_Error_Number = 38;
+			sprintf(Setup_Error_String,"Timing Board:DSP Filename was NULL.");
+			return FALSE;
+		}
 /* If the compile time directive has been set, check whether the timing board is in idle mode,
 ** and if so send a STP command. */
 #ifdef CCD_SETUP_TIMING_DOWNLOAD_IDLE
@@ -935,7 +947,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 			if(CCD_DSP_Command_STP()!= CCD_DSP_DON)
 			{
 				Setup_Error_Number = 7;
-				sprintf(Setup_Error_String,"Timing Board:Failed to load filename '%s':STP failed",
+				sprintf(Setup_Error_String,"Timing Board:Failed to load filename '%s':STP failed.",
 					filename);
 				return FALSE;
 			}
@@ -945,7 +957,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 		if(!CCD_DSP_Download(CCD_DSP_TIM_BOARD_ID,filename))
 		{
 			Setup_Error_Number = 8;
-			sprintf(Setup_Error_String,"Timing Board:Failed to download filename '%s'",
+			sprintf(Setup_Error_String,"Timing Board:Failed to download filename '%s'.",
 				filename);
 			return FALSE;
 		}
@@ -956,7 +968,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 			if(CCD_DSP_Command_IDL()!=CCD_DSP_DON)
 			{
 				Setup_Error_Number = 9;
-				sprintf(Setup_Error_String,"Timing Board:Failed to load filename '%s':IDL failed",
+				sprintf(Setup_Error_String,"Timing Board:Failed to load filename '%s':IDL failed.",
 					filename);
 				return FALSE;
 			}
@@ -988,7 +1000,7 @@ static int Setup_Utility_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_appli
 	if(!CCD_SETUP_IS_LOAD_TYPE(load_type))
 	{
 		Setup_Error_Number = 30;
-		sprintf(Setup_Error_String,"Setup_Utility_Board:Utility board has illegal load type(%d)",
+		sprintf(Setup_Error_String,"Setup_Utility_Board:Utility board has illegal load type(%d).",
 			load_type);
 		return FALSE;
 	}
@@ -997,17 +1009,23 @@ static int Setup_Utility_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_appli
 		if(CCD_DSP_Command_LDA(CCD_DSP_UTIL_BOARD_ID,load_application_number)!=CCD_DSP_DON)
 		{
 			Setup_Error_Number = 10;
-			sprintf(Setup_Error_String,"Utility Board:Failed to load application %d",
+			sprintf(Setup_Error_String,"Utility Board:Failed to load application %d.",
 				load_application_number);
 			return FALSE;
 		}
 	}
 	else if(load_type == CCD_SETUP_LOAD_FILENAME)
 	{
+		if(filename == NULL)
+		{
+			Setup_Error_Number = 44;
+			sprintf(Setup_Error_String,"Utility Board:DSP Filename was NULL.");
+			return FALSE;
+		}
 		if(!CCD_DSP_Download(CCD_DSP_UTIL_BOARD_ID,filename))
 		{
 			Setup_Error_Number = 11;
-			sprintf(Setup_Error_String,"Utility Board:Failed to download filename '%s'",
+			sprintf(Setup_Error_String,"Utility Board:Failed to download filename '%s'.",
 				filename);
 			return FALSE;
 		}
@@ -1300,6 +1318,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.15  2000/12/19 17:52:47  cjm
+** New filter wheel code.
+**
 ** Revision 0.14  2000/06/19 08:48:34  cjm
 ** Backup.
 **

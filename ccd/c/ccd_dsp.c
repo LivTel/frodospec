@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.31 2001-01-23 18:20:59 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.32 2001-01-31 16:35:19 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.31 $
+ * @version $Revision: 0.32 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.31 2001-01-23 18:20:59 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.32 2001-01-31 16:35:19 cjm Exp $";
 
 /* defines */
 /**
@@ -2326,6 +2326,12 @@ int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 		sprintf(DSP_Error_String,"CCD_DSP_Download:Illegal board ID '%d'.",board_id);
 		return FALSE;
 	}
+	if(filename == NULL)
+	{
+		DSP_Error_Number = 104;
+		sprintf(DSP_Error_String,"CCD_DSP_Download:Filename for board '%d' is NULL.",board_id);
+		return FALSE;
+	}
 /* depending on the board type, call a sub-routine */
 	switch(board_id)
 	{
@@ -4603,6 +4609,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.31  2001/01/23 18:20:59  cjm
+** Added check for maximum exposure length CCD_DSP_EXPOSURE_MAX_LENGTH.
+**
 ** Revision 0.30  2000/12/21 11:48:02  cjm
 ** Changed mutexing support on FWM/FWR/FWA so that getting status does not mix up
 ** filter wheel replies.
