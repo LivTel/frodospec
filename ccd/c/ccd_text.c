@@ -1,12 +1,12 @@
 /* ccd_text.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.20 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.21 2002-12-03 17:13:19 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.20 $
+ * @version $Revision: 0.21 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -36,7 +36,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.20 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.21 2002-12-03 17:13:19 cjm Exp $";
 
 /* #defines */
 /**
@@ -276,7 +276,8 @@ static struct Memory_Struct Memory_List[] =
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x8,0xcdf}, /* High voltage (+36v) power supply monitor (2051/0x803=failure) */
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x9,0xdd0}, /* Low Voltage (+15v) power supply monitor (2051/0x803=failure) */
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xa,0x245}, /* Low Voltage (-15v) power supply monitor (2051/0x803=failure) */
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xc,0xc60} /* Thermistor ADUs from dewar:3168 - -127 C (-102) */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xc,0xc60}, /* Thermistor ADUs from dewar:3168 - -127 C (-102) */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xf,0x9d2}, /* Pressure gauge ADUs: 0xb77 = 1x10^-2 mbar, 0x9d2 = 1x10^-4 mbar */
 };
 
 /**
@@ -1129,6 +1130,9 @@ static void Text_Manual_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.20  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.19  2001/03/20 11:54:22  cjm
 ** Added conditional compilation on CCD_FILTER_WHEEL_INPUT_HOME,
 ** so that the emulated Y:DIG_IN digital input word has the correct bits set as though
