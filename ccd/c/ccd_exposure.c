@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.2 2000-02-01 17:50:01 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.3 2000-02-22 16:05:21 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.2 2000-02-01 17:50:01 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.3 2000-02-22 16:05:21 cjm Exp $";
 
 /* external variables */
 
@@ -80,7 +80,9 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
 	int return_value;	/* value returned from function calls */
 
 	Exposure_Error_Number = 0;
-	/* we shouldn't be able to expose until setup has been successfully completed - check this */
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
+/* we shouldn't be able to expose until setup has been successfully completed - check this */
 	if(!CCD_Setup_Get_Setup_Complete())
 	{
 		Exposure_Error_Number = 1;
@@ -109,6 +111,7 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
 	/* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 4;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -118,15 +121,22 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
 	if(open_shutter)
 	{
 		if(!Exposure_Shutter_Control(TRUE))
+		{
+			CCD_DSP_Set_Abort(FALSE);
 			return FALSE;
+		}
 	}
 	else
 	{
 		if(!Exposure_Shutter_Control(FALSE))
+		{
+			CCD_DSP_Set_Abort(FALSE);
 			return FALSE;
+		}
 	}
 	if(CCD_DSP_Get_Abort())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 5;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -136,8 +146,6 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
 		return_value = Exposure_Readout_CCD(ncols,nrows,msecs,deinterlace_type,filename);
 	else
 		return_value = TRUE;
-	/* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
 	return(return_value);
 }
 
@@ -160,7 +168,9 @@ int CCD_Exposure_Bias(char *filename)
 	int numbytes;
 
 	Exposure_Error_Number = 0;
-	/* we shouldn't be able to expose until setup has been successfully completed - check this */
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
+/* we shouldn't be able to expose until setup has been successfully completed - check this */
 	if(!CCD_Setup_Get_Setup_Complete())
 	{
 		Exposure_Error_Number = 6;
@@ -177,6 +187,7 @@ int CCD_Exposure_Bias(char *filename)
 	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_CLR())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 7;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Clear array failed.");
 		return FALSE;
@@ -184,15 +195,15 @@ int CCD_Exposure_Bias(char *filename)
 	/* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 8;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Aborted.");
 		return FALSE;
 	} 
 	return_value = CCD_DSP_Command_RDC(ncols,nrows,numbytes,deinterlace_type,filename);
-	/* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
 	if(return_value == FALSE)
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 9;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Readout failed.");
 		return FALSE;
@@ -210,8 +221,11 @@ int CCD_Exposure_Flush_CCD(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_CLR())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 10;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Flush_CCD:Clear array failed.");
 		return FALSE;
@@ -229,8 +243,11 @@ int CCD_Exposure_Open_Shutter(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_OSH())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 11;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Open_Shutter:Open shutter failed.");
 		return FALSE;
@@ -248,8 +265,11 @@ int CCD_Exposure_Close_Shutter(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_CSH())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 12;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Close_Shutter:Close shutter failed.");
 		return FALSE;
@@ -269,8 +289,11 @@ int CCD_Exposure_Pause(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_PEX())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 13;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Pause:Pause command failed.");
 		return FALSE;
@@ -289,8 +312,11 @@ int CCD_Exposure_Resume(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_REX())
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 14;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Resume:Resume command failed.");
 		return FALSE;
@@ -393,7 +419,9 @@ int CCD_Exposure_Read_Out_CCD(char *filename)
 	int numbytes;
 
 	Exposure_Error_Number = 0;
-	/* we shouldn't be able to expose until setup has been successfully completed - check this */
+/* reset abort flag */
+	CCD_DSP_Set_Abort(FALSE);
+/* we shouldn't be able to expose until setup has been successfully completed - check this */
 	if(!CCD_Setup_Get_Setup_Complete())
 	{
 		Exposure_Error_Number = 19;
@@ -405,11 +433,10 @@ int CCD_Exposure_Read_Out_CCD(char *filename)
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
 	numbytes = nrows * ncols * CCD_GLOBAL_BYTES_PER_PIXEL;
-	CCD_DSP_Set_Abort(FALSE);
  	ret_val = CCD_DSP_Command_RDC(ncols,nrows,numbytes,deinterlace_type,filename);
-	CCD_DSP_Set_Abort(FALSE);
 	if(ret_val == FALSE)
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 20;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Read_Out_CCD:Readout failed.");
 		return FALSE;
@@ -553,6 +580,9 @@ static int Exposure_Readout_CCD(int ncols,int nrows,int msecs,enum CCD_DSP_DEINT
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/02/01 17:50:01  cjm
+** Changed references to CCD_Setup_Setup_CCD to CCD_Setup_Get_Setup_Complete.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **
