@@ -1,5 +1,5 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.3 1999-02-24 12:07:44 dev Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.4 1999-03-08 12:20:40 dev Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -21,7 +21,7 @@ class Test
 	{
 		libccd = new CCDLibrary();
 
-		libccd.CCDSetup(libccd.INTERFACE_DEVICE_TEXT);
+		libccd.CCDInitialise(libccd.INTERFACE_DEVICE_TEXT);
 		libccd.CCDTextSetPrintLevel(libccd.TEXT_PRINT_LEVEL_COMMANDS);//libccd.TEXT_PRINT_LEVEL_ALL
 		libccd.CCDInterfaceOpen();
 	}
