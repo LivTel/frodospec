@@ -1,5 +1,5 @@
 /* ccd_exposure.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.8 2003-12-08 15:03:33 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.9 2004-05-16 14:28:36 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
@@ -67,7 +67,6 @@ extern int CCD_Exposure_Close_Shutter(void);
 extern int CCD_Exposure_Pause(void);
 extern int CCD_Exposure_Resume(void);
 extern int CCD_Exposure_Abort(void);
-extern int CCD_Exposure_Abort_Readout(void);
 extern int CCD_Exposure_Read_Out_CCD(char *filename);
 
 extern int CCD_Exposure_Set_Exposure_Status(enum CCD_EXPOSURE_STATUS status);
