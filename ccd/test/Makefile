@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.2 1999-09-08 10:21:50 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.3 1999-12-10 11:03:33 cjm Exp $
 
 include ../../Makefile.common
 include ../Makefile.common
@@ -23,6 +23,9 @@ clean:
 
 tidy:
 	$(RM) $(RM_OPTIONS) $(TIDY_OPTIONS)
+
+backup: tidy
+	$(RM) $(RM_OPTIONS) $(OBJS)
 
 checkin:
 	-$(CI) $(CI_OPTIONS) $(SRCS)
