@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.46 2003-06-09 11:30:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.47 2003-12-08 15:04:10 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.46 $
+ * @version $Revision: 0.47 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.46 2003-06-09 11:30:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.47 2003-12-08 15:04:10 cjm Exp $";
 
 /* defines */
 /**
@@ -318,7 +318,9 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
 	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
 	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
@@ -393,7 +395,9 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
 	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
 	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
@@ -488,7 +492,9 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
 	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
 	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
@@ -560,13 +566,10 @@ int CCD_DSP_Command_ABR(void)
  * clocks out any stored charge on the CCD, leaving the CCD ready for an exposure.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
- * The DSP_Data's Exposure_Status is set to CCD_DSP_EXPOSURE_STATUS_CLEAR. It is <b>not</b> reset at the 
- * end of the routines, as this routine must be followed by a readout or idle command.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Clr
  * @see #DSP_Check_Reply
  * @see #DSP_Data
- * @see #CCD_DSP_EXPOSURE_STATUS_CLEAR
  */
 int CCD_DSP_Command_CLR(void)
 {
@@ -1878,7 +1881,9 @@ int CCD_DSP_Command_VON(void)
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
+		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
 	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
 	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
@@ -1945,7 +1950,9 @@ int CCD_DSP_Command_VOF(void)
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
 	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
 	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
@@ -2470,6 +2477,13 @@ static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *rep
 /* if a start time has been specified wait for it */
 	if(start_time.tv_sec > 0)
 	{
+		exposure_status = CCD_EXPOSURE_STATUS_WAIT_START;
+		if(!CCD_Exposure_Set_Exposure_Status(exposure_status))
+		{
+			DSP_Error_Number = 35;
+			sprintf(DSP_Error_String,"DSP_Send_Sex:Setting exposure status %d failed.",exposure_status);
+			return FALSE;
+		}
 		done = FALSE;
 		while(done == FALSE)
 		{
@@ -2966,6 +2980,9 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.46  2003/06/09 11:30:39  cjm
+** Added exposure status checking to VON/VOF, to stop lock-ups in readout.
+**
 ** Revision 0.45  2003/06/06 12:36:01  cjm
 ** Added VON/VOF.
 **

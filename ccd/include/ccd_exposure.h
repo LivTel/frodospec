@@ -1,5 +1,5 @@
 /* ccd_exposure.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.7 2003-03-26 15:50:00 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.8 2003-12-08 15:03:33 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
@@ -30,6 +30,7 @@
  * Return value from CCD_DSP_Get_Exposure_Status. 
  * <ul>
  * <li>CCD_EXPOSURE_STATUS_NONE means the library is not currently performing an exposure.
+ * <li>CCD_EXPOSURE_STATUS_WAIT_START means the library is waiting for the correct moment to open the shutter.
  * <li>CCD_EXPOSURE_STATUS_CLEAR means the library is currently clearing the ccd.
  * <li>CCD_EXPOSURE_STATUS_EXPOSE means the library is currently performing an exposure.
  * <li>CCD_EXPOSURE_STATUS_PRE_READOUT means the library is currently exposing, but is about
@@ -43,7 +44,7 @@
  */
 enum CCD_EXPOSURE_STATUS
 {
-	CCD_EXPOSURE_STATUS_NONE,CCD_EXPOSURE_STATUS_CLEAR,
+	CCD_EXPOSURE_STATUS_NONE,CCD_EXPOSURE_STATUS_WAIT_START,CCD_EXPOSURE_STATUS_CLEAR,
 	CCD_EXPOSURE_STATUS_EXPOSE,CCD_EXPOSURE_STATUS_PRE_READOUT,CCD_EXPOSURE_STATUS_READOUT,
 	CCD_EXPOSURE_STATUS_POST_READOUT
 };
@@ -53,8 +54,9 @@ enum CCD_EXPOSURE_STATUS
  * @see #CCD_EXPOSURE_STATUS
  */
 #define CCD_EXPOSURE_IS_STATUS(status)	(((status) == CCD_EXPOSURE_STATUS_NONE)|| \
+        ((status) == CCD_EXPOSURE_STATUS_WAIT_START)|| \
 	((status) == CCD_EXPOSURE_STATUS_CLEAR)||((status) == CCD_EXPOSURE_STATUS_EXPOSE)|| \
-        ((status) == CCD_EXPOSURE_STATUS_READOUT))
+        ((status) == CCD_EXPOSURE_STATUS_READOUT)||((status) == CCD_EXPOSURE_STATUS_POST_READOUT))
 
 extern void CCD_Exposure_Initialise(void);
 extern int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_time,int exposure_time,

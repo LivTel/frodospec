@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.25 2003-11-04 14:42:00 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.26 2003-12-08 15:04:00 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.25 $
+ * @version $Revision: 0.26 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.25 2003-11-04 14:42:00 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.26 2003-12-08 15:04:00 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -392,6 +392,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* do the clear array a few seconds before the exposure is due to start */
 	if(start_time.tv_sec > 0)
 	{
+		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_WAIT_START;
 		done = FALSE;
 		while(done == FALSE)
 		{
@@ -423,6 +424,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	}
 	if(CCD_DSP_Get_Abort())
 	{
+		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 37;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 		return FALSE;
@@ -505,7 +507,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 					if(CCD_DSP_Get_Error_Number() != 0)
 						CCD_DSP_Error();
 				}
-			}/* end if there is over Exposure_Data.Readout_Remaining_Time milliseconds of exposure time left */
+			}/* end if there is over Exposure_Data.Readout_Remaining_Time milliseconds of exposure left */
 			if((Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)&&
 			   ((exposure_time - elapsed_exposure_time) < Exposure_Data.Readout_Remaining_Time))
 			{
@@ -1884,6 +1886,9 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.25  2003/11/04 14:42:00  cjm
+** Minor MJD fixes based on errors in Linux versions of the code.
+**
 ** Revision 0.24  2003/03/26 15:44:48  cjm
 ** Added windowing code.
 **
