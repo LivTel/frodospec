@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.15 1999-12-10 10:59:05 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.16 2001-01-29 17:12:50 cjm Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -28,13 +28,13 @@ $(DOCS): $(SRCS)
 	$(JAVADOC) -d $(DOCSDIR) $(DOCFLAGS) $(SRCS)
 
 clean:
-	-$(RM) $(RM_OPTIONS) $(OBJS) $(INCDIR)/CCDLibrary.h $(TIDY_OPTIONS)
+	-$(RM) $(RM_OPTIONS) $(OBJS) $(TIDY_OPTIONS)
 
 tidy:
 	-$(RM) $(RM_OPTIONS) $(TIDY_OPTIONS)
 
 backup:
-	-$(RM) $(RM_OPTIONS) $(INCDIR)/CCDLibrary.h $(TIDY_OPTIONS)
+	-$(RM) $(RM_OPTIONS) $(TIDY_OPTIONS)
 
 checkout:
 	$(CO) $(CO_OPTIONS) $(SRCS)
@@ -43,6 +43,9 @@ checkin:
 	-$(CI) $(CI_OPTIONS) $(SRCS)
 #
 # $Log: not supported by cvs2svn $
+# Revision 0.15  1999/12/10 10:59:05  cjm
+# Added backup target.
+#
 # Revision 0.14  1999/09/15 15:57:56  cjm
 # Removed CCDLibrary.h rules - now generated from libccd Makefile.
 #
