@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.8 2000-03-08 14:32:45 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.9 2000-03-20 11:45:20 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -23,6 +23,9 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
+#ifndef _POSIX_TIMERS
+#include <sys/time.h>
+#endif
 #include "ccd_global.h"
 #include "ccd_dsp.h"
 #include "ccd_pci.h"
@@ -31,13 +34,18 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.8 2000-03-08 14:32:45 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.9 2000-03-20 11:45:20 cjm Exp $";
 
 /* #defines */
 /**
  * Number of PCI argument registers.
  */
 #define TEXT_ARGUMENT_COUNT	(5)
+
+/**
+ * The number of nanoseconds in one microsecond.
+ */
+#define TEXT_ONE_MICROSECOND_NS		(1000)
 
 /* structures */
 /**
@@ -137,7 +145,7 @@ static char Text_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 /**
  * File pointer to where the prints should be sent to.
  */
-static FILE *Text_File_Ptr = stdout;
+static FILE *Text_File_Ptr = NULL;
 /**
  * Local variable for deciding how detailed the print information is.
  */
@@ -263,14 +271,19 @@ void CCD_Text_Set_File_Pointer(FILE *fp)
 /**
  * This routine should be called at startup. 
  * In a real driver it will initialise the connection information ready for the device to be opened.
- * This routine just prints a message and initialises the Text_Data structure.
+ * This routine just prints a message and initialises the Text_Data structure. It initialises the Text_File_Ptr
+ * if it has not already been initialised by a call to CCD_Text_Set_File_Pointer.
  * @see ccd_interface.html#CCD_Interface_Initialise
  * @see #Text_Data
+ * @see #Text_File_Ptr
+ * @see #CCD_Text_Set_File_Pointer
  */
 void CCD_Text_Initialise(void)
 {
 	int i;
 
+	if(Text_File_Ptr == NULL)
+		Text_File_Ptr = stdout;
 	Text_Error_Number = 0;
 	Text_Data.Ioctl_Request = 0;
 	Text_Data.HCVR_Command = 0;
@@ -311,10 +324,6 @@ int CCD_Text_Open(void)
  */
 int CCD_Text_Command(int request,int *argument)
 {
-	char ch,command_word_count;
-	int i,j,is_command,paramater_count;
-	char board_string[4][16] = {"Host","Interface","Timing","Utility"};
-
 	Text_Error_Number = 0;
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 	{
@@ -625,6 +634,9 @@ static void Text_Get_Reply(int *argument)
 {
 	struct timespec current_time;
 	struct timespec delay_timespec;
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
 	int finished = -1;
 
 /* wait for a bit - 100th of a second - emulate time taken for reply to appear */
@@ -637,7 +649,13 @@ static void Text_Get_Reply(int *argument)
 /* set reply value */
 	if(Text_Data.HCVR_Command == CCD_PCI_HCVR_CLEAR_ARRAY)
 	{
-		clock_gettime(CLOCK_REALTIME,&(current_time));
+#ifdef _POSIX_TIMERS
+		clock_gettime(CLOCK_REALTIME,&current_time);
+#else
+		gettimeofday(&gtod_current_time,NULL);
+		current_time.tv_sec = gtod_current_time.tv_sec;
+		current_time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
+#endif
 		if((current_time.tv_sec-Text_Data.Clear_Start_Time.tv_sec)>4)
 			(*argument) = CCD_DSP_DON;
 		else
@@ -793,9 +811,18 @@ static void Text_HCVR_Read_Memory(void)
 static void Text_HCVR_Read_Exposure_Time(void)
 {
 	struct timespec current_time;
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
 	long int elapsed_time;
 
-	clock_gettime(CLOCK_REALTIME,&(current_time));
+#ifdef _POSIX_TIMERS
+	clock_gettime(CLOCK_REALTIME,&current_time);
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	current_time.tv_sec = gtod_current_time.tv_sec;
+	current_time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
+#endif
 /* if we are currently paused */
 	if(Text_Data.Pause_Start_Time.tv_sec > 0)
 	{
@@ -824,7 +851,17 @@ static void Text_HCVR_Read_Exposure_Time(void)
  */
 static void Text_HCVR_Start_Exposure(void)
 {
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
+
+#ifdef _POSIX_TIMERS
 	clock_gettime(CLOCK_REALTIME,&(Text_Data.Exposure_Start_Time));
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	Text_Data.Exposure_Start_Time.tv_sec = gtod_current_time.tv_sec;
+	Text_Data.Exposure_Start_Time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
+#endif
 /* reset pause time */
 	Text_Data.Pause_Start_Time.tv_sec = 0;
 	Text_Data.Pause_Start_Time.tv_nsec = 0;
@@ -839,7 +876,17 @@ static void Text_HCVR_Start_Exposure(void)
  */
 static void Text_HCVR_Pause_Exposure(void)
 {
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
+
+#ifdef _POSIX_TIMERS
 	clock_gettime(CLOCK_REALTIME,&(Text_Data.Pause_Start_Time));
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	Text_Data.Pause_Start_Time.tv_sec = gtod_current_time.tv_sec;
+	Text_Data.Pause_Start_Time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
+#endif
 }
 
 /**
@@ -855,9 +902,18 @@ static void Text_HCVR_Pause_Exposure(void)
 static void Text_HCVR_Resume_Exposure(void)
 {
 	struct timespec resume_time;
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
 	time_t paused_time;
 
-	clock_gettime(CLOCK_REALTIME,&(resume_time));
+#ifdef _POSIX_TIMERS
+	clock_gettime(CLOCK_REALTIME,&resume_time);
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	resume_time.tv_sec = gtod_current_time.tv_sec;
+	resume_time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
+#endif
 /* add amount of paused time to Exposure_Start_Time, so returned elapsed time is sensible */
 	paused_time = resume_time.tv_sec - Text_Data.Pause_Start_Time.tv_sec;
 	Text_Data.Exposure_Start_Time.tv_sec += paused_time;
@@ -876,11 +932,24 @@ static void Text_HCVR_Resume_Exposure(void)
  */
 static void Text_HCVR_Clear_Array(void)
 {
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
+
+#ifdef _POSIX_TIMERS
 	clock_gettime(CLOCK_REALTIME,&(Text_Data.Clear_Start_Time));
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	Text_Data.Clear_Start_Time.tv_sec = gtod_current_time.tv_sec;
+	Text_Data.Clear_Start_Time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
+#endif
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2000/03/08 14:32:45  cjm
+** Pause and resume exposure emulation added.
+**
 ** Revision 0.7  2000/03/01 10:50:06  cjm
 ** Fixed Text_Get_Reply print for CLR case.
 **

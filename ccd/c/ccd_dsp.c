@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.12 2000-03-20 10:41:30 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.13 2000-03-20 11:45:17 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.12 $
+ * @version $Revision: 0.13 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -26,6 +26,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#ifndef _POSIX_TIMERS
+#include <sys/time.h>
+#endif
 #ifdef CCD_DSP_MUTEXED
 #include <pthread.h>
 #endif
@@ -39,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.12 2000-03-20 10:41:30 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.13 2000-03-20 11:45:17 cjm Exp $";
 
 /* defines */
 /**
@@ -67,6 +70,11 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.12 2000-03-20 10:41:30 cjm Exp $";
  * The number of milliseconds in one second.
  */
 #define DSP_ONE_SECOND_MS		(1000)
+/**
+ * The number of nanoseconds in one microsecond.
+ */
+#define DSP_ONE_MICROSECOND_NS		(1000)
+
 /**
  * The default amount of time before we are due to start an exposure, that a CLEAR_ARRAY command should be sent to
  * the controller. This time is in seconds, and must be greater than the time the CLEAR_ARRAY command takes to
@@ -237,6 +245,11 @@ int CCD_DSP_Initialise(void)
 	DSP_Data.Exposure_Length = 0;
 	DSP_Data.Exposure_Start_Time.tv_sec = 0;
 	DSP_Data.Exposure_Start_Time.tv_nsec = 0;
+#ifdef _POSIX_TIMERS
+	fprintf(stdout,"CCD_DSP_Initialise:Using Posix Timers (clock_gettime)\n");
+#else
+	fprintf(stdout,"CCD_DSP_Initialise:Using Unix Timers (gettimeofday)\n");
+#endif
 	return TRUE;
 }
 
@@ -1186,6 +1199,9 @@ int CCD_DSP_Command_REX(void)
 int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 {
 	struct timespec sleep_time,current_time;
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
 	int dsp_exposure_time,remaining_exposure_time,done;
 
 	DSP_Error_Number = 0;
@@ -1207,7 +1223,13 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		done = FALSE;
 		while(done == FALSE)
 		{
+#ifdef _POSIX_TIMERS
 			clock_gettime(CLOCK_REALTIME,&current_time);
+#else
+			gettimeofday(&gtod_current_time,NULL);
+			current_time.tv_sec = gtod_current_time.tv_sec;
+			current_time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
 		/* if we've time, sleep for a second */
 			if((start_time.tv_sec - current_time.tv_sec) > DSP_Data.Start_Exposure_Clear_Time)
 			{
@@ -2127,6 +2149,9 @@ static int DSP_Send_Rex(void)
 static int DSP_Send_Sex(struct timespec start_time)
 {
 	struct timespec current_time,sleep_time;
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
 	int remaining_sec,remaining_ns,done = FALSE;
 
 /* We need to review whether this set destination call is needed.
@@ -2140,7 +2165,13 @@ static int DSP_Send_Sex(struct timespec start_time)
 		done = FALSE;
 		while(done == FALSE)
 		{
+#ifdef _POSIX_TIMERS
 			clock_gettime(CLOCK_REALTIME,&current_time);
+#else
+			gettimeofday(&gtod_current_time,NULL);
+			current_time.tv_sec = gtod_current_time.tv_sec;
+			current_time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
 			remaining_sec = start_time.tv_sec - current_time.tv_sec;
 		/* if we have over a second before start_time, sleep for a second. */
 			if(remaining_sec > 1)
@@ -2177,7 +2208,13 @@ static int DSP_Send_Sex(struct timespec start_time)
 	}/* end if */
 /* switch status to exposing and store the actual time the exposure is going to start */
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_EXPOSE;
+#ifdef _POSIX_TIMERS
 	clock_gettime(CLOCK_REALTIME,&(DSP_Data.Exposure_Start_Time));
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	DSP_Data.Exposure_Start_Time.tv_sec = gtod_current_time.tv_sec;
+	DSP_Data.Exposure_Start_Time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
 	return DSP_Send_Command(CCD_PCI_HCVR_START_EXPOSURE,NULL,0);
 }
 
@@ -3059,6 +3096,10 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.12  2000/03/20 10:41:30  cjm
+** Replaced cftime with gmtime/strftime for Linux compatibility.
+** Also tidied up some unused variables.
+**
 ** Revision 0.11  2000/03/09 16:09:28  cjm
 ** Added CCD_DSP_Command_Read_Exposure_Time.
 **
