@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.37 2001-04-17 10:01:00 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.38 2001-06-04 14:36:17 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.37 $
+ * @version $Revision: 0.38 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -18,14 +18,15 @@
  * for clock_gettime.
  */
 #define _POSIX_C_SOURCE 199309L
-#include <stdio.h>
-#include <stdlib.h>
+
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 #ifndef _POSIX_TIMERS
 #include <sys/time.h>
 #endif
@@ -42,7 +43,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.37 2001-04-17 10:01:00 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.38 2001-06-04 14:36:17 cjm Exp $";
 
 /* defines */
 /**
@@ -136,6 +137,7 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.37 2001-04-17 10:01:00 cjm Exp $";
  */
 #define DSP_AUTO_READOUT_EXPOSURE_TIME		(5000)
 
+
 /* structure */
 /**
  * Structure used to hold local data to ccd_dsp.
@@ -186,7 +188,10 @@ static char DSP_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
  * <dl>
  * <dt>Abort</dt> <dd>FALSE</dd>
  * <dt>Exposure_Status</dt> <dd>CCD_DSP_EXPOSURE_STATUS_NONE</dd>
- * <dt>Mutex</dt> <dd>PTHREAD_MUTEX_INITIALIZER</dd>
+ * <dt>Mutex</dt> <dd>If compiled in, PTHREAD_MUTEX_INITIALIZER</dd>
+ * <dt>Saved_Scheduling_Parameters</dt> <dd>If compiled in, {0}</dd>
+ * <dt>Saved_Scheduling_Algorithm</dt> <dd>If compiled in, 0</dd>
+ * <dt>Old_Priority</dt> <dd>If compiled in, 0</dd>
  * <dt>Start_Exposure_Clear_Time</dt> <dd>DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME</dd>
  * <dt>Start_Exposure_Offset_Time</dt> <dd>DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME</dd>
  * <dt>Readout_Remaining_Time</dt> <dd>DSP_DEFAULT_READOUT_REMAINING_TIME</dd>
@@ -203,7 +208,9 @@ static struct DSP_Attr_Struct DSP_Data =
 {
 	FALSE,
 	CCD_DSP_EXPOSURE_STATUS_NONE,
+#ifdef CCD_DSP_MUTEXED
 	PTHREAD_MUTEX_INITIALIZER,
+#endif
 	DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME,
 	DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME,
 	DSP_DEFAULT_READOUT_REMAINING_TIME,
@@ -361,7 +368,7 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_LDA(%d,%d) started.",
 		board_id,application_number);
 #endif
@@ -397,7 +404,7 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_LDA(%d,%d) returned %d.",
 		board_id,application_number,retval);
 #endif
@@ -438,7 +445,7 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDM(%d,%d,%d) started.",
 		board_id,mem_space,address);
 #endif
@@ -494,7 +501,7 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDM(%d,%d,%d) returned %d.",
 		board_id,mem_space,address,retval);
 #endif
@@ -591,7 +598,7 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_WRM(%d,%d,%#x,%#x) started.",
 		board_id,mem_space,address,data);
 #endif
@@ -646,7 +653,7 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_WRM(%d,%d,%#x,%#x) returned %#x.",
 		board_id,mem_space,address,data,retval);
 #endif
@@ -670,14 +677,14 @@ int CCD_DSP_Command_ABR(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_ABR() started.");
 #endif
 	if(!DSP_Send_Abr())
 		return FALSE;
 	/* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_ABR() returned %#x.",retval);
 #endif
 	return retval;
@@ -701,7 +708,7 @@ int CCD_DSP_Command_CLR(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_CLR() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -733,7 +740,7 @@ int CCD_DSP_Command_CLR(void)
 		return FALSE;
 	}
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_CLR() finished.");
 #endif
 	return CCD_DSP_DON;
@@ -756,19 +763,18 @@ int CCD_DSP_Command_CLR(void)
  */
 int CCD_DSP_Command_RDC(void)
 {
-#if DEBUG == 1
-	int debug;
+#if LOGGING > 9
+	int pci_status;
 #endif
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDC() started.");
 #endif
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
-	debug = CCD_DSP_Command_Read_PCI_Status();	
-	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-	fflush(stdout);
+#if LOGGING > 9
+	pci_status = CCD_DSP_Command_Read_PCI_Status();	
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_STATUS = %#x.",pci_status);
 #endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
@@ -797,7 +803,7 @@ int CCD_DSP_Command_RDC(void)
 		return FALSE;
 	}
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDC() finished.");
 #endif
 	return CCD_DSP_DON;
@@ -819,7 +825,7 @@ int CCD_DSP_Command_IDL(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_IDL() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -839,7 +845,7 @@ int CCD_DSP_Command_IDL(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_IDL() returned %#x.",retval);
 #endif
 	return retval;
@@ -881,7 +887,7 @@ int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDI(%d,%d,%d,%d,%s) started.",
 		ncols,nrows,deinterlace_type,send_rdi,filename);
 #endif
@@ -967,7 +973,7 @@ int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 			return FALSE;
 	}
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDI(%d,%d,%d,%d,%s) returned %#x.",
 		ncols,nrows,deinterlace_type,send_rdi,filename,retval);
 #endif
@@ -1028,7 +1034,7 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SGN(%#x,%d) started.",
 		gain,speed);
 #endif
@@ -1063,7 +1069,7 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SGN(%#x,%d) returned %#x.",
 		gain,speed,retval);
 #endif
@@ -1087,7 +1093,7 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SOS(%#x) started.",
 		amplifier);
 #endif
@@ -1114,7 +1120,7 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SOS(%#x) returned %#x.",
 		amplifier,retval);
 #endif
@@ -1136,7 +1142,7 @@ int CCD_DSP_Command_STP(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_STP() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1156,7 +1162,7 @@ int CCD_DSP_Command_STP(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_STP() returned %#x.",retval);
 #endif
 	return retval;
@@ -1177,7 +1183,7 @@ int CCD_DSP_Command_Set_NCols(int ncols)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NCols(%d) started.",ncols);
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1197,7 +1203,7 @@ int CCD_DSP_Command_Set_NCols(int ncols)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NCols(%d) returned %#x.",
 		ncols,retval);
 #endif
@@ -1219,7 +1225,7 @@ int CCD_DSP_Command_Set_NRows(int nrows)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NRows(%d) started.",nrows);
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1239,7 +1245,7 @@ int CCD_DSP_Command_Set_NRows(int nrows)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NRows(%d) returned %#x.",nrows,retval);
 #endif
 	return retval;
@@ -1260,7 +1266,7 @@ int CCD_DSP_Command_AEX(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_AEX() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1280,7 +1286,7 @@ int CCD_DSP_Command_AEX(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_AEX() returned %#x.",retval);
 #endif
 	return retval;
@@ -1369,7 +1375,7 @@ int CCD_DSP_Command_PEX(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PEX() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1389,7 +1395,7 @@ int CCD_DSP_Command_PEX(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PEX() returned %#x.",retval);
 #endif
 	return retval;
@@ -1409,7 +1415,7 @@ int CCD_DSP_Command_PON(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PON() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1429,7 +1435,7 @@ int CCD_DSP_Command_PON(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PON() returned %#x.",retval);
 #endif
 	return retval;
@@ -1447,19 +1453,18 @@ int CCD_DSP_Command_PON(void)
 int CCD_DSP_Command_POF(void)
 {
 	int retval;
-#if DEBUG == 1
-	int debug;
+#if LOGGING > 9
+	int pci_status;
 #endif
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_POF() started.");
 #endif
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
-	debug = CCD_DSP_Command_Read_PCI_Status();	
-	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-	fflush(stdout);
+#if LOGGING > 9
+	pci_status = CCD_DSP_Command_Read_PCI_Status();	
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_STATUS = %#x.",pci_status);
 #endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
@@ -1478,7 +1483,7 @@ int CCD_DSP_Command_POF(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_POF() returned %#x.",retval);
 #endif
 	return retval;
@@ -1504,7 +1509,7 @@ int CCD_DSP_Command_Read_Temperature(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Temperature() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1538,7 +1543,7 @@ int CCD_DSP_Command_Read_Temperature(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Temperature() returned %#x.",retval);
 #endif
 	return retval;
@@ -1563,7 +1568,7 @@ int CCD_DSP_Command_Set_Temperature(int adu)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Temperature(%d) started.",adu);
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1597,7 +1602,7 @@ int CCD_DSP_Command_Set_Temperature(int adu)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Temperature(%d) returned %#x.",adu,retval);
 #endif
 	return retval;
@@ -1618,7 +1623,7 @@ int CCD_DSP_Command_REX(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_REX() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1638,7 +1643,7 @@ int CCD_DSP_Command_REX(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_REX() returned %#x.",retval);
 #endif
 	return retval;
@@ -1660,6 +1665,9 @@ int CCD_DSP_Command_REX(void)
  * The DSP_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * If priority readout is compiled in,the process priority is increased over the RDI command, 
+ * by calling CCD_Global_Increase_Priority
+ * and CCD_Global_Decrease_Priority. This minimises the chance of readout failures.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @param exposure_time The amount of time in milliseconds to open the shutter for. This must be greater than zero,
@@ -1682,6 +1690,10 @@ int CCD_DSP_Command_REX(void)
  * @see #CCD_DSP_Command_RDI
  * @see #CCD_DSP_Command_Read_Exposure_Time
  * @see #DSP_Get_Reply
+ * @see ccd_global.html#CCD_Global_Increase_Priority
+ * @see ccd_global.html#CCD_Global_Decrease_Priority
+ * @see ccd_global.html#CCD_Global_Memory_Lock_All
+ * @see ccd_global.html#CCD_Global_Memory_UnLock_All
  */
 int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,int nrows,
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
@@ -1691,12 +1703,12 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 	struct timeval gtod_current_time;
 #endif
 	int dsp_exposure_time,remaining_exposure_time,done;
-#if DEBUG == 1
-	int debug;
+#if LOGGING > 9
+	int pci_status;
 #endif
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SEX(%ld,%d,%d,%d,%#x,%s) started.",
 		start_time.tv_sec,exposure_time,ncols,nrows,deinterlace_type,filename);
 #endif
@@ -1772,10 +1784,9 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 		return FALSE;
 	}
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
-	debug = CCD_DSP_Command_Read_PCI_Status();	
-	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-	fflush(stdout);
+#if LOGGING > 9
+	pci_status = CCD_DSP_Command_Read_PCI_Status();	
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_STATUS = %#x.",pci_status);
 #endif
 /* start the exposure */
 #ifdef CCD_DSP_MUTEXED
@@ -1842,17 +1853,43 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 		return FALSE;
 	}
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
+#if LOGGING > 9
 	if(exposure_time>DSP_AUTO_READOUT_EXPOSURE_TIME)
 	{
-		debug = CCD_DSP_Command_Read_PCI_Status();	
-		fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-		fflush(stdout);
+		pci_status = CCD_DSP_Command_Read_PCI_Status();	
+		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_STATUS = %#x.",pci_status);
 	}
 #endif
+/* increase process priority, if we are compiled to do so. */
+	if(!CCD_Global_Increase_Priority())
+	{
+#ifdef CCD_DSP_MUTEXED
+		if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
+			DSP_Mutex_Unlock();
+#endif
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+		DSP_Error_Number = 102;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Increasing readout priority failed.");
+		return FALSE;
+	}
+/* lock all memory, stop paging this process out to disk, if compiled to do so */
+	if(!CCD_Global_Memory_Lock_All())
+	{
+		CCD_Global_Decrease_Priority();
+#ifdef CCD_DSP_MUTEXED
+		if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
+			DSP_Mutex_Unlock();
+#endif
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+		DSP_Error_Number = 105;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Locking memory failed.");
+		return FALSE;
+	}
 /* read out the ccd. */
 	if(!CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,exposure_time>DSP_AUTO_READOUT_EXPOSURE_TIME,filename))
 	{
+		CCD_Global_Memory_UnLock_All();
+		CCD_Global_Decrease_Priority();
 #ifdef CCD_DSP_MUTEXED
 		if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
 			DSP_Mutex_Unlock();
@@ -1860,18 +1897,38 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		return FALSE;
 	}
+/* unlock locked memory, if we are compiled to do so. */
+	if(!CCD_Global_Memory_UnLock_All())
+	{
+		CCD_Global_Decrease_Priority();
+#ifdef CCD_DSP_MUTEXED
+		if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
+			DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 106;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Unlocking memory failed.");
+		return FALSE;
+	}
+/* decrease priority, if we are compiled to do so. */
+	if(!CCD_Global_Decrease_Priority())
+	{
+#ifdef CCD_DSP_MUTEXED
+		if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
+			DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 103;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Decreasing readout priority failed.");
+		return FALSE;
+	}
 #ifdef CCD_DSP_MUTEXED
 /* Unlock only if exposure time is less than 5000, otherwise we have already done this. */
 	if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
 	{
 		if(!DSP_Mutex_Unlock())
-		{
-			DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 			return FALSE;
-		}
 	}
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SEX(%ld,%d,%d,%d,%#x,%s) returned DON.",
 		start_time.tv_sec,exposure_time,ncols,nrows,deinterlace_type,filename);
 #endif
@@ -1891,19 +1948,18 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 int CCD_DSP_Command_Reset(void)
 {
 	int retval;
-#if DEBUG == 1
-	int debug;
+#if LOGGING > 9
+	int pci_status;
 #endif
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Reset() started.");
 #endif
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
-	debug = CCD_DSP_Command_Read_PCI_Status();	
-	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-	fflush(stdout);
+#if LOGGING > 9
+	pci_status = CCD_DSP_Command_Read_PCI_Status();	
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_STATUS = %#x.",pci_status);
 #endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
@@ -1922,7 +1978,7 @@ int CCD_DSP_Command_Reset(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Reset() returned %#x.",retval);
 #endif
 	return retval;
@@ -1941,11 +1997,10 @@ int CCD_DSP_Command_Flush_Reply_Buffer(void)
 {
 	int retval;
 
-#if DEBUG == 1
-	fprintf(stdout,"FLUSH_REPLY_BUFFER\n");
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"FLUSH_REPLY_BUFFER.");
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Flush_Reply_Buffer() started.");
 #endif
 	if(CCD_Interface_Command(CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER,&retval) == FALSE)
@@ -1954,7 +2009,7 @@ int CCD_DSP_Command_Flush_Reply_Buffer(void)
 		sprintf(DSP_Error_String,"CCD_DSP_Command_Flush_Reply_Buffer:Flush failed.");
 		return FALSE;
 	}
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Flush_Reply_Buffer() returned.");
 #endif
 	return TRUE;
@@ -1975,7 +2030,7 @@ int CCD_DSP_Command_Read_Controller_Status(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Controller_Status() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -1995,7 +2050,7 @@ int CCD_DSP_Command_Read_Controller_Status(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Controller_Status() returned %#x.",retval);
 #endif
 	return retval;
@@ -2016,7 +2071,7 @@ int CCD_DSP_Command_Write_Controller_Status(int bit_value)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Write_Controller_Status(%#x) started.",
 		bit_value);
 #endif
@@ -2037,7 +2092,7 @@ int CCD_DSP_Command_Write_Controller_Status(int bit_value)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Write_Controller_Status(%#x) returned %#x.",
 		bit_value,retval);
 #endif
@@ -2057,14 +2112,14 @@ int CCD_DSP_Command_PCI_PC_Reset(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_PC_Reset() started.");
 #endif
 	if(!DSP_Send_PCI_PC_Reset())
 		return FALSE;
 /* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_PC_Reset() returned %#x.",retval);
 #endif
 	return retval;
@@ -2085,7 +2140,7 @@ int CCD_DSP_Command_Read_PCI_Status(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_PCI_Status() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -2105,7 +2160,7 @@ int CCD_DSP_Command_Read_PCI_Status(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_PCI_Status() returned %#x.",retval);
 #endif
 	return retval;
@@ -2127,7 +2182,7 @@ int CCD_DSP_Command_Set_Exposure_Time(int msecs)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Exposure_Time(%d) started.",msecs);
 #endif
 /* exposure time  must be a positive/zero number */
@@ -2155,7 +2210,7 @@ int CCD_DSP_Command_Set_Exposure_Time(int msecs)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Exposure_Time(%d) returned %#x.",msecs,
 		retval);
 #endif
@@ -2177,7 +2232,7 @@ int CCD_DSP_Command_Read_Exposure_Time(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Exposure_Time() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -2197,7 +2252,7 @@ int CCD_DSP_Command_Read_Exposure_Time(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Exposure_Time() returned %d.",retval);
 #endif
 	return retval;
@@ -2217,7 +2272,7 @@ int CCD_DSP_Command_FWA(void)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWA() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
@@ -2237,7 +2292,7 @@ int CCD_DSP_Command_FWA(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWA() returned %#x.",retval);
 #endif
 	return retval;
@@ -2262,7 +2317,7 @@ int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWM(%d,%d,%d) started.",
 		wheel,direction,posn_count);
 #endif
@@ -2302,7 +2357,7 @@ int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWM(%d,%d,%d) returned %#x.",
 		wheel,direction,posn_count,retval);
 #endif
@@ -2326,7 +2381,7 @@ int CCD_DSP_Command_FWR(int wheel)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWR(%d) started.",
 		wheel);
 #endif
@@ -2354,7 +2409,7 @@ int CCD_DSP_Command_FWR(int wheel)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWR(%d) returned %#x.",
 		wheel,retval);
 #endif
@@ -2375,7 +2430,7 @@ int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 	int retval;
 
 	DSP_Error_Number = 0;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download(%#x,%s) started.",
 		board_id,filename);
 #endif
@@ -2410,7 +2465,7 @@ int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 			sprintf(DSP_Error_String,"CCD_DSP_Download:Unknown board ID '%d'.",board_id);
 			return FALSE;
 	}
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download(%#x,%s) returned %#x.",
 		board_id,filename,retval);
 #endif
@@ -2440,7 +2495,7 @@ int CCD_DSP_Get_Abort(void)
  */
 int CCD_DSP_Set_Abort(int value)
 {
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Set_Abort(%d) started.",value);
 #endif
 	if(!CCD_GLOBAL_IS_BOOLEAN(value))
@@ -2450,7 +2505,7 @@ int CCD_DSP_Set_Abort(int value)
 		return FALSE;
 	}
 	DSP_Data.Abort = value;
-#if LOGGING == 1
+#if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Set_Abort(%d) returned.",value);
 #endif
 	return TRUE;
@@ -2778,9 +2833,8 @@ static int DSP_Send_Abr(void)
 	int hcvr_command;
 
 	hcvr_command = CCD_PCI_HCVR_ABORT_READOUT;
-#if DEBUG == 1
-	fprintf(stdout,"ABORT_READOUT:SET_HCVR:value %#x\n",hcvr_command);
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"ABORT_READOUT:SET_HCVR:value %#x.",hcvr_command);
 #endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCVR,&hcvr_command))
 	{
@@ -2941,9 +2995,8 @@ static int DSP_Send_Set_NCols(int ncols)
 		return FALSE;
 #endif
 /* send command to interface */
-#if DEBUG == 1
-	fprintf(stdout,"SET_NCOLS:value:%d\n",ncols);
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_NCOLS:value:%d.",ncols);
 #endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_NCOLS,&ncols))
 	{
@@ -2977,9 +3030,8 @@ static int DSP_Send_Set_NRows(int nrows)
 		return FALSE;
 #endif
 /* send command to interface */
-#if DEBUG == 1
-	fprintf(stdout,"SET_NROWS:value:%d\n",nrows);
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_NROWS:value:%d.",nrows);
 #endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_NROWS,&nrows))
 	{
@@ -3270,9 +3322,8 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
 		return FALSE;
 #endif
 /* send command to interface */
-#if DEBUG == 1
-	fprintf(stdout,"SET_EXPTIME:value:%d\n",msecs);
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_EXPTIME:value:%d.",msecs);
 #endif
 /* We need to review whether this set destination call is needed.
 ** Acording to the Voodoo code it is, according to the DSP code it is not.
@@ -3296,9 +3347,8 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
  */
 static int DSP_Send_Read_Exposure_Time(void)
 {
-#if DEBUG == 1
-	fprintf(stdout,"READ_EXPOSURE_TIME\n");
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"READ_EXPOSURE_TIME.");
 #endif
 	return DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0);
 }
@@ -3382,9 +3432,8 @@ static int DSP_Set_Destination(enum CCD_DSP_BOARD_ID board_id,int argument_count
 	int value;
 
 	value = (argument_count << 16)|board_id;
-#if DEBUG == 1
-	fprintf(stdout,"SET_DESTINATION:value:%#x\n",value);
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_DESTINATION:value:%#x.",value);
 #endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_DESTINATION,&value))
 	{
@@ -3439,9 +3488,9 @@ static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argum
 	{
 	/* This next line only works because CCD_PCI_IOCTL_SET_ARG1 to CCD_PCI_IOCTL_SET_ARG5
 	** have contiguous numbering */
-#if DEBUG == 1
-		fprintf(stdout,"SET_ARG:index:%d:value:%#x\n",argument_index,argument_list[argument_index]);
-		fflush(stdout);
+#if LOGGING > 9
+		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_ARG:index:%d:value:%#x.",
+			argument_index,argument_list[argument_index]);
 #endif
 		if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_ARG1+argument_index,&(argument_list[argument_index])))
 		{
@@ -3454,9 +3503,8 @@ static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argum
 			return FALSE;
 	}
 /* send the command to device driver */
-#if DEBUG == 1
-		fprintf(stdout,"SET_CMDR:value:%#x\n",cmdr_command);
-		fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_CMDR:value:%#x.",cmdr_command);
 #endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_CMDR,&cmdr_command))
 	{
@@ -3502,9 +3550,9 @@ static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_cou
 /* put the argument words into data memory */
 	for(argument_index = 0;argument_index < argument_count;argument_index++)
 	{
-#if DEBUG == 1
-		fprintf(stdout,"SET_ARG:index:%d:value:%#x\n",argument_index,argument_list[argument_index]);
-		fflush(stdout);
+#if LOGGING > 9
+		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_ARG:index:%d:value:%#x.",
+			argument_index,argument_list[argument_index]);
 #endif
 	/* This next line works because CCD_PCI_IOCTL_SET_ARG1 to CCD_PCI_IOCTL_SET_ARG5
 	** have contiguous numbering */
@@ -3519,9 +3567,8 @@ static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_cou
 			return FALSE;
 	}
 /* send the command to device driver */
-#if DEBUG == 1
-		fprintf(stdout,"SET_HCVR:value:%#x\n",hcvr_command);
-		fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"SET_HCVR:value:%#x.",hcvr_command);
 #endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCVR,&hcvr_command))
 	{
@@ -3557,9 +3604,8 @@ static int DSP_Get_Reply(int expected_reply)
 {
 	int reply;
 
-#if DEBUG == 1
-	fprintf(stdout,"GET_REPLY:expected:%#x",expected_reply);
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"GET_REPLY:expected:%#x.",expected_reply);
 #endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_REPLY,&reply))
 	{
@@ -3568,9 +3614,8 @@ static int DSP_Get_Reply(int expected_reply)
 			CCD_PCI_IOCTL_GET_REPLY);
 		return FALSE;
 	}
-#if DEBUG == 1
-	fprintf(stdout,":actual:%#x\n",reply);
-	fflush(stdout);
+#if LOGGING > 9
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"GET_REPLY:actual:%#x.",reply);
 #endif
 
 	/* If the expected reply was an actual value we can't test whether this is correct or not
@@ -3709,15 +3754,14 @@ static int DSP_Download_PCI_Interface(char *filename)
 	char *value_string = NULL;
 	int host_control_reg,argument,done,word_count,address,retval;
 	int word_number = 0;
-#if DEBUG == 1
-	int debug;
+#if LOGGING > 9
+	int pci_status;
 #endif
 
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
-	debug = CCD_DSP_Command_Read_PCI_Status();	
-	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-	fflush(stdout);
+#if LOGGING > 9
+	pci_status = CCD_DSP_Command_Read_PCI_Status();	
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_STATUS = %#x.",pci_status);
 #endif
 /* try to open the file */
 	if((download_fp = fopen(filename,"r")) == NULL)
@@ -4126,7 +4170,7 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 	}
 /* calculate number of bytes in the image */
 	numbytes = ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL;
-/* start reading out image */
+/* allocate image memory */
 	exposure_data = (unsigned short *)malloc(numbytes);
 	if(exposure_data == NULL)
 	{
@@ -4134,15 +4178,8 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Memory Allocation Error(%d).",numbytes);
 		return FALSE;
 	}
-#if DEBUG == 1
-	fprintf(stdout,"Get_Reply_Data:number of bytes:%d",numbytes);
-	fflush(stdout);
-#endif
+/* read the image */
 	retval = CCD_Interface_Get_Reply_Data((char *)exposure_data,numbytes);
-#if DEBUG == 1
-	fprintf(stdout,":returned:%d\n",retval);
-	fflush(stdout);
-#endif
 	if(retval == -1)
 	{
 		if(exposure_data != NULL)
@@ -4160,6 +4197,7 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 			numbytes,retval);
 		CCD_DSP_Warning();
 	}
+/* check for abort */
 	if(DSP_Data.Abort)
 	{
 		if(exposure_data != NULL)
@@ -4190,14 +4228,14 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Aborted.");
 		return FALSE;
 	}
-	/* save the resultant image to disk */
+/* save the resultant image to disk */
 	if(!DSP_Save(filename,exposure_data,ncols,nrows))
 	{
 		if(exposure_data != NULL)
 			free(exposure_data);
 		return FALSE;
 	}
-	/* free image in memory */
+/* free image in memory */
 	if(exposure_data != NULL)
 		free(exposure_data);
 	return TRUE;
@@ -4644,6 +4682,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.37  2001/04/17 10:01:00  cjm
+** Added logging calls.
+**
 ** Revision 0.36  2001/03/12 15:15:41  cjm
 ** Added CCD_DSP_UTIL_EXPOSURE_CHECK conditional compilation flag.
 ** When set, this only allows communication with the timing board when we are not exposing.
