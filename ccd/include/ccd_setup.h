@@ -1,72 +1,49 @@
 /* ccd_setup.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.1 2000-01-25 15:03:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.2 2000-02-02 15:55:24 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
 
 #include "ccd_dsp.h"
 
-/* These #define definitions should match with those in CCDLibrary.java */
 /**
- * Setup flag passed to CCD_Setup_Setup_CCD, to reset the sdsu controller.
- * @see #CCD_Setup_Setup_CCD
+ * The number of windows the controller can put on the CCD.
+ * @see #Setup_Struct
  */
-#define CCD_SETUP_FLAG_RESET_CONTROLLER		(1<<0)
+#define CCD_SETUP_WINDOW_COUNT			(4)
+
+/* These hash definitions should match with those in CCDLibrary.java */
 /**
- * Setup flag passed to CCD_Setup_Setup_CCD, to do a hardware test.
- * @see #CCD_Setup_Setup_CCD
+ * Window flag used as part of the window_flags bit-field parameter of CCD_Setup_Dimensions to specify the
+ * first window position is to be used.
+ * @see #CCD_Setup_Dimensions
  */
-#define CCD_SETUP_FLAG_HARDWARE_TEST		(1<<1)
+#define CCD_SETUP_WINDOW_ONE	(1<<0)
 /**
- * Setup flag passed to CCD_Setup_Setup_CCD, to send an application to the timing board.
- * @see #CCD_Setup_Setup_CCD
+ * Window flag used as part of the window_flags bit-field parameter of CCD_Setup_Dimensions to specify the
+ * second window position is to be used.
+ * @see #CCD_Setup_Dimensions
  */
-#define CCD_SETUP_FLAG_TIMING_BOARD		(1<<2)
+#define CCD_SETUP_WINDOW_TWO	(1<<1)
 /**
- * Setup flag passed to CCD_Setup_Setup_CCD, to send an application to the utility board.
- * @see #CCD_Setup_Setup_CCD
+ * Window flag used as part of the window_flags bit-field parameter of CCD_Setup_Dimensions to specify the
+ * third window position is to be used.
+ * @see #CCD_Setup_Dimensions
  */
-#define CCD_SETUP_FLAG_UTILITY_BOARD		(1<<3)
+#define CCD_SETUP_WINDOW_THREE	(1<<2)
 /**
- * Setup flag passed to CCD_Setup_Setup_CCD, to turn the power on.
- * @see #CCD_Setup_Setup_CCD
+ * Window flag used as part of the window_flags bit-field parameter of CCD_Setup_Dimensions to specify the
+ * fourth window position is to be used.
+ * @see #CCD_Setup_Dimensions
  */
-#define CCD_SETUP_FLAG_POWER_ON			(1<<4)
+#define CCD_SETUP_WINDOW_FOUR	(1<<3)
 /**
- * Setup flag passed to CCD_Setup_Setup_CCD, to set a target CCD temperature.
- * @see #CCD_Setup_Setup_CCD
+ * Window flag used as part of the window_flags bit-field parameter of CCD_Setup_Dimensions to specify all the
+ * window positions are to be used.
+ * @see #CCD_Setup_Dimensions
  */
-#define CCD_SETUP_FLAG_TARGET_CCD_TEMP		(1<<5)
-/**
- * Setup flag passed to CCD_Setup_Setup_CCD, to set the CCD gain/speed.
- * @see #CCD_Setup_Setup_CCD
- */
-#define CCD_SETUP_FLAG_GAIN			(1<<6)
-/**
- * Setup flag passed to CCD_Setup_Setup_CCD, to decide whether to set the idle status.
- * @see #CCD_Setup_Setup_CCD
- */
-#define CCD_SETUP_FLAG_IDLE			(1<<7)
-/**
- * Setup flag passed to CCD_Setup_Setup_CCD, to send the CCD dimensions/binning to the boards.
- * @see #CCD_Setup_Setup_CCD
- */
-#define CCD_SETUP_FLAG_DIMENSIONS		(1<<8)
-/**
- * Setup flag passed to CCD_Setup_Setup_CCD, to decide to set the deinterlace type.
- * @see #CCD_Setup_Setup_CCD
- */
-#define CCD_SETUP_FLAG_DEINTERLACE		(1<<9)
-/**
- * Default setup flag passed to CCD_Setup_Setup_CCD, which sets up all information.
- * @see #CCD_Setup_Setup_CCD
- */
-#define CCD_SETUP_FLAG_ALL			(CCD_SETUP_FLAG_RESET_CONTROLLER|CCD_SETUP_FLAG_HARDWARE_TEST| \
-						CCD_SETUP_FLAG_TIMING_BOARD| \
-						CCD_SETUP_FLAG_UTILITY_BOARD|CCD_SETUP_FLAG_POWER_ON| \
-						CCD_SETUP_FLAG_TARGET_CCD_TEMP| \
-						CCD_SETUP_FLAG_GAIN|CCD_SETUP_FLAG_IDLE|CCD_SETUP_FLAG_DIMENSIONS| \
-						CCD_SETUP_FLAG_DEINTERLACE)
+#define CCD_SETUP_WINDOW_ALL	(CCD_SETUP_WINDOW_ONE|CCD_SETUP_WINDOW_TWO| \
+					CCD_SETUP_WINDOW_THREE|CCD_SETUP_WINDOW_FOUR)
 
 /* These enum definitions should match with those in CCDLibrary.java */
 /**
@@ -89,12 +66,34 @@ enum CCD_SETUP_LOAD_TYPE
 #define CCD_SETUP_IS_LOAD_TYPE(load_type)	(((load_type) == CCD_SETUP_LOAD_APPLICATION)|| \
 	((load_type) == CCD_SETUP_LOAD_FILENAME))
 
+/**
+ * Structure holding position information for one window on the CCD. Fields are:
+ * <dl>
+ * <dt>X_Start</dt> <dd>The pixel number of the X start position of the window (upper left corner).</dd>
+ * <dt>Y_Start</dt> <dd>The pixel number of the Y start position of the window (upper left corner).</dd>
+ * <dt>X_End</dt> <dd>The pixel number of the X end position of the window (lower right corner).</dd>
+ * <dt>Y_End</dt> <dd>The pixel number of the Y end position of the window (lower right corner).</dd>
+ * </dl>
+ * @see #CCD_Setup_Dimensions
+ */
+struct CCD_Setup_Window_Struct
+{
+	int X_Start;
+	int Y_Start;
+	int X_End;
+	int Y_End;
+};
+
 extern void CCD_Setup_Initialise(void);
-extern int CCD_Setup_Setup_CCD(int setup_flags,
+extern int CCD_Setup_Startup(
 	enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_application_number,char *timing_filename,
 	enum CCD_SETUP_LOAD_TYPE utility_load_type,int utility_application_number,char *utility_filename,
-	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle,
-	int ncols,int nrows,int nsbin,int npbin,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting);
+	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle);
+extern int CCD_Setup_Shutdown(void);
+extern int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
+	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,int window_flags,
+	struct CCD_Setup_Window_Struct window_list[]);
+extern int CCD_Setup_Filter_Wheel(int position_one,int position_two);
 extern void CCD_Setup_Abort(void);
 extern int CCD_Setup_Get_NCols(void);
 extern int CCD_Setup_Get_NRows(void);
