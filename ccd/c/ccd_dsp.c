@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.38 2001-06-04 14:36:17 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.39 2001-07-11 10:08:21 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.38 $
+ * @version $Revision: 0.39 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -39,11 +39,14 @@
 #ifdef CFITSIO
 #include "fitsio.h"
 #endif
+#ifdef SLALIB
+#include "slalib.h"
+#endif
 
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.38 2001-06-04 14:36:17 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.39 2001-07-11 10:08:21 cjm Exp $";
 
 /* defines */
 /**
@@ -283,6 +286,7 @@ static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int n
 static void DSP_TimeSpec_To_Date_String(struct timespec time,char *time_string);
 static void DSP_TimeSpec_To_Date_Obs_String(struct timespec time,char *time_string);
 static void DSP_TimeSpec_To_UtStart_String(struct timespec time,char *time_string);
+static int DSP_TimeSpec_To_Mjd(struct timespec time,int leap_second_correction,double *mjd);
 #ifdef CCD_DSP_MUTEXED
 static int DSP_Mutex_Lock(void);
 static int DSP_Mutex_Unlock(void);
@@ -4465,6 +4469,7 @@ static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int n
 	int retval=0,status=0;
 	char buff[32]; /* fits_get_errstatus returns 30 chars max */
 	char exposure_start_time_string[64];
+	double mjd;
 
 	/* try to open file */
 	retval = fits_open_file(&fp,filename,READWRITE,&status);
@@ -4521,6 +4526,20 @@ static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int n
 		fits_close_file(fp,&status);
 		DSP_Error_Number = 17;
 		sprintf(DSP_Error_String,"DSP_Save: Updating UTSTART failed(%s,%d,%s).",filename,status,buff);
+		return FALSE;
+	}
+/* update MJD keyword */
+/* note leap second correction not implemented yet (always FALSE). */
+	if(!DSP_TimeSpec_To_Mjd(DSP_Data.Exposure_Start_Time,FALSE,&mjd))
+		return FALSE;
+	retval = fits_update_key_fixdbl(fp,"MJD",mjd,6,NULL,&status);
+	if(retval)
+	{
+		fits_get_errstatus(status,buff);
+		fits_report_error(stderr,status);
+		fits_close_file(fp,&status);
+		DSP_Error_Number = 108;
+		sprintf(DSP_Error_String,"DSP_Save: Updating MJD failed(%.2f,%s,%d,%s).",mjd,filename,status,buff);
 		return FALSE;
 	}
 /* close file */
@@ -4638,6 +4657,61 @@ static void DSP_TimeSpec_To_UtStart_String(struct timespec time,char *time_strin
 	sprintf(time_string,"%s%03d",buff,milliseconds);
 }
 
+/**
+ * Routine to convert a timespec structure to a Modified Julian Date (decimal days) to put into a FITS header.
+ * This uses slaCldj to get the MJD for zero hours, and then adds hours/minutes/seconds/milliseconds 
+ * on the end as a decimal.
+ * This routine is still wrong for last second of the leap day, as gmtime will return 1st second of the next day.
+ * Also note the passed in leap_second_correction should change at midnight, when the leap second occurs.
+ * @param time The time to convert.
+ * @param leap_second_correction A number representing whether a leap second will occur. This is normally zero,
+ * 	which means no leap second will occur. It can be 1, which means the last minute of the day has 61 seconds,
+ *	i.e. there are 86401 seconds in the day. It can be -1,which means the last minute of the day has 59 seconds,
+ *	i.e. there are 86399 seconds in the day.
+ * @param mjd The address of a double to store the calculated MJD.
+ * @return The routine returns TRUE if it succeeded, FALSE if it fails. slaCldj can fail.
+ */
+static int DSP_TimeSpec_To_Mjd(struct timespec time,int leap_second_correction,double *mjd)
+{
+	struct tm *tm_time = NULL;
+	int year,month,day,retval;
+	double seconds_in_day = 86400.0;
+	double elapsed_seconds;
+	double day_fraction;
+
+/* check leap_second_correction in range */
+/* convert time to ymdhms*/
+	tm_time = gmtime(&(time.tv_sec));
+/* convert tm_time data to format suitable for slaCldj */
+	year = tm_time->tm_year+1900; /* tm_year is years since 1900 : slaCldj wants full year.*/
+	month = tm_time->tm_mon+1;/* tm_mon is 0..11 : slaCldj wants 1..12 */
+	day = tm_time->tm_mday;
+/* call slaCldj to get MJD for 0hr */
+#ifdef SLALIB
+	slaCldj(year,month,day,mjd,&retval);
+#else
+#error SLALIB not defined: needed for MJD calculation.
+#endif
+	if(retval != 0)
+	{
+		DSP_Error_Number = 107;
+		sprintf(DSP_Error_String,"DSP_TimeSpec_To_Mjd:slaCldj(%d,%d,%d) failed(%d).",year,month,day,retval);
+		return FALSE;
+	}
+/* how many seconds were in the day */
+	seconds_in_day = 86400.0;
+	seconds_in_day += (double)leap_second_correction;
+/* calculate the number of elapsed seconds in the day */
+	elapsed_seconds = (double)tm_time->tm_sec + (((double)time.tv_nsec) / 1.0E+09);
+	elapsed_seconds += ((double)tm_time->tm_min) * 60.0;
+	elapsed_seconds += ((double)tm_time->tm_hour) * 3600.0;
+/* calculate day fraction */
+	day_fraction = elapsed_seconds / seconds_in_day;
+/* add day_fraction to mjd */
+	(*mjd) += day_fraction;
+	return TRUE;
+}
+
 #ifdef CCD_DSP_MUTEXED
 /**
  * Routine to lock the controller access mutex. This will block until the mutex has been acquired,
@@ -4682,6 +4756,10 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.38  2001/06/04 14:36:17  cjm
+** Changed DEBUG to LOGGING.
+** Added Increase Priority and memory locking conditional compilation code.
+**
 ** Revision 0.37  2001/04/17 10:01:00  cjm
 ** Added logging calls.
 **
