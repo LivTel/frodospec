@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.4 2000-02-10 12:01:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.5 2000-02-10 12:07:38 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.4 2000-02-10 12:01:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.5 2000-02-10 12:07:38 cjm Exp $";
 
 /* #defines */
 /**
@@ -672,7 +672,7 @@ static int Setup_Reset_Controller(void)
 }
 
 /**
- * Internal routine that performs a hardware test on the timing and utility boards. It does this by doing 
+ * Internal routine that performs a hardware test on the PCI, timing and utility boards. It does this by doing 
  * sending TDL commands to the boards and testing the results. Currently
  * only a short hardware test is implemented, where each board is tested. This routine is called from
  * CCD_Setup_Startup.
@@ -689,9 +689,20 @@ static int Setup_Hardware_Test(void)
 	int value;			/* value sent to tdl */
 	int value_increment;		/* amount to increment value for each pass through the loop */
 	int retval;			/* return value from dsp_command */
-	int tim_errno,util_errno;	/* num of test encountered, per board */
+	int pci_errno,tim_errno,util_errno;	/* num of test encountered, per board */
 
 	value_increment = TDL_MAX_VALUE/SETUP_SHORT_TEST_COUNT;
+
+	/* test the PCI board SETUP_SHORT_TEST_COUNT times */
+	pci_errno = 0;
+	value = 0;
+	for(i=1; i<=SETUP_SHORT_TEST_COUNT; i++)
+	{
+		retval = CCD_DSP_Command_TDL(CCD_DSP_INTERFACE_BOARD_ID,value);
+		if(retval != value)
+			pci_errno++;
+		value += value_increment;
+	}
 
 	/* test the timimg board SETUP_SHORT_TEST_COUNT times */
 	tim_errno = 0;
@@ -713,6 +724,17 @@ static int Setup_Hardware_Test(void)
 		if(retval != value)
 			util_errno++;
 		value += value_increment;
+	}
+	/* if some PCI errors occured, setup an error message and determine whether it was fatal or not */
+	if(pci_errno > 0)
+	{
+		Setup_Error_Number = 36;
+		sprintf(Setup_Error_String,"Interface Board Hardware Test:Failed %d of %d times",
+			pci_errno,SETUP_SHORT_TEST_COUNT);
+		if(pci_errno < SETUP_SHORT_TEST_COUNT)
+			CCD_Setup_Warning();
+		else
+			return FALSE;
 	}
 	/* if some timing errors occured, setup an error message and determine whether it was fatal or not */
 	if(tim_errno > 0)
@@ -1097,6 +1119,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2000/02/10 12:01:19  cjm
+** Modified CCD_Setup_Shutdown with call to CCD_DSP_Command_WRM_No_Reply to switch off controller replies.
+**
 ** Revision 0.3  2000/02/02 15:58:32  cjm
 ** Changed SETUP_ATTR to struct Setup_Struct.
 **
