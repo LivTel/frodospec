@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.24 2003-03-26 15:44:48 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.25 2003-11-04 14:42:00 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.24 $
+ * @version $Revision: 0.25 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -39,11 +39,11 @@
 #endif
 #ifdef SLALIB
 #include "slalib.h"
-#endif
+#endif /* SLALIB */
 #ifdef NGATASTRO
 #include "ngat_astro.h"
 #include "ngat_astro_mjd.h"
-#endif
+#endif /* NGATASTRO */
 
 /* hash definitions */
 /**
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.24 2003-03-26 15:44:48 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.25 2003-11-04 14:42:00 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -1827,11 +1827,14 @@ static void Exposure_TimeSpec_To_UtStart_String(struct timespec time,char *time_
  */
 static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correction,double *mjd)
 {
+#ifdef SLALIB
 	struct tm *tm_time = NULL;
-	int year,month,day,retval;
+	int year,month,day;
 	double seconds_in_day = 86400.0;
 	double elapsed_seconds;
 	double day_fraction;
+#endif
+	int retval;
 
 #ifdef SLALIB
 /* check leap_second_correction in range */
@@ -1881,6 +1884,9 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.24  2003/03/26 15:44:48  cjm
+** Added windowing code.
+**
 ** Revision 0.23  2003/03/04 17:09:53  cjm
 ** Added NGAT_Astro call.
 **
