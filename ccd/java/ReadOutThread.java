@@ -1,5 +1,5 @@
-// ReadOutThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/ReadOutThread.java,v 1.6 2000-01-24 16:32:48 cjm Exp $
+// ReadOutThread.java
+// $Header: /home/cjm/cvs/frodospec/ccd/java/ReadOutThread.java,v 1.7 2003-03-26 15:52:25 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -9,14 +9,14 @@ import ngat.ccd.*;
  * This class extends thread to support the readout of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway.
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 class ReadOutThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: ReadOutThread.java,v 1.6 2000-01-24 16:32:48 cjm Exp $");
+	public final static String RCSID = new String("$Id: ReadOutThread.java,v 1.7 2003-03-26 15:52:25 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
@@ -78,12 +78,12 @@ class ReadOutThread extends Thread
 	 * @see #getReadOutException
 	 * @see #run
 	 */
-	public void abort()
+	public void abort() throws CCDLibraryNativeException
 	{
 		int exposureStatus = 0;
 
-		exposureStatus = libccd.CCDDSPGetExposureStatus();
-		if(exposureStatus == libccd.CCD_DSP_EXPOSURE_STATUS_READOUT)
+		exposureStatus = libccd.CCDExposureGetExposureStatus();
+		if(exposureStatus == libccd.CCD_EXPOSURE_STATUS_READOUT)
 			libccd.CCDExposureAbortReadout();
 	}
 
@@ -102,6 +102,9 @@ class ReadOutThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2000/01/24 16:32:48  cjm
+// Changed so that the deprecated stop method is not called.
+//
 // Revision 1.5  1999/09/17 16:58:20  cjm
 // Changed due to CCDExposureReadOutCCD returning an exception rather than a boolean.
 //

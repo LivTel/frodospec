@@ -1,5 +1,5 @@
-// Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.11 2001-01-31 17:03:27 cjm Exp $
+// Test.java
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.12 2003-03-26 15:52:25 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -8,7 +8,7 @@ import ngat.ccd.*;
 /**
  * This is the main test program.
  * @author Chris Mottram
- * @version $Revision: 0.11 $
+ * @version $Revision: 0.12 $
  */
 class Test
 {
@@ -229,7 +229,7 @@ class Test
 	 * @see ExposureThread#abort
 	 * @see ReadOutThread#abort
 	 */
-	public void abort()
+	public void abort() throws CCDLibraryNativeException
 	{
 		if(setupThread != null)
 		{
@@ -256,7 +256,7 @@ class Test
 	{
 		int reply;
 
-		if(exposureThread.getAbortExposureStatus() == libccd.CCD_DSP_EXPOSURE_STATUS_EXPOSE)
+		if(exposureThread.getAbortExposureStatus() == libccd.CCD_EXPOSURE_STATUS_EXPOSE)
 		{
 			System.out.println(this.getClass().getName()+":Exposure Aborted:"+
 				"Try to readout data? (y/n)");
@@ -406,6 +406,9 @@ class Test
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.11  2001/01/31 17:03:27  cjm
+// Added interface selection capability/changed setup to load DSP code from .lod files.
+//
 // Revision 0.10  2000/02/03 16:59:21  cjm
 // Changed for new ngat.ccd.CCLibrary interface to setup methods.
 //

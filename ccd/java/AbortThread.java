@@ -1,19 +1,19 @@
-// AbortThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/AbortThread.java,v 0.5 2000-01-24 16:32:20 cjm Exp $
+// AbortThread.java
+// $Header: /home/cjm/cvs/frodospec/ccd/java/AbortThread.java,v 0.6 2003-03-26 15:52:25 cjm Exp $
 import java.io.*;
-
+import ngat.ccd.*;
 /**
  * This class is a thread which when run, looks for a keypress on System.in, and then calls the parents
  * abort method.
  * @author Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 class AbortThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: AbortThread.java,v 0.5 2000-01-24 16:32:20 cjm Exp $");
+	public final static String RCSID = new String("$Id: AbortThread.java,v 0.6 2003-03-26 15:52:25 cjm Exp $");
 	/**
 	 * Parent class, call it's abort method if a keypress is detected.
 	 */
@@ -54,7 +54,16 @@ class AbortThread extends Thread
 			retval = -1;
 		}
 		if((retval >= 0)&&(parent != null))
-			parent.abort();
+		{
+			try
+			{
+				parent.abort();
+			}
+			catch(CCDLibraryNativeException e)
+			{
+				System.err.println(this.getClass().getName()+":run:abort failed:"+e);
+			}
+		}
 	}
 
 	/**
@@ -70,6 +79,9 @@ class AbortThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.5  2000/01/24 16:32:20  cjm
+// Fixed error which caused run method to always abort.
+//
 // Revision 0.4  2000/01/24 16:21:05  cjm
 // Modified so that the deprecated stop method is not used.
 //

@@ -1,5 +1,5 @@
 /* test.c
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.13 2002-11-28 17:57:51 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.14 2003-03-26 15:51:55 cjm Exp $
 */
 #include <stdio.h>
 #include <time.h>
@@ -21,7 +21,7 @@
  * Note the setup is performed by downloading two DSP .lod files, tim.lod and util.lod,
  * which must be present in the bin directory otherwise an error is returned.
  * @author $Author: cjm $
- * @version $Revision: 1.13 $
+ * @version $Revision: 1.14 $
  */
 
 /* hash defines */
@@ -54,7 +54,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: test.c,v 1.13 2002-11-28 17:57:51 cjm Exp $";
+static char rcsid[] = "$Id: test.c,v 1.14 2003-03-26 15:51:55 cjm Exp $";
 
 /* internal functions */
 static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *filename);
@@ -90,6 +90,7 @@ static void Test_Fits_Header_Error(int status);
 int main(int argc, char *argv[])
 {
 	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
+	char *filename_list[1];
 	struct timespec start_time;
 	int retval;
 	char *exposure_data = NULL;
@@ -170,7 +171,8 @@ int main(int argc, char *argv[])
 
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
-	if(!CCD_Exposure_Expose(TRUE,TRUE,start_time,10000,"test.fits"))
+	filename_list[0] = "test.fits";
+	if(!CCD_Exposure_Expose(TRUE,TRUE,start_time,10000,filename_list,1))
 	{
 		CCD_Global_Error();
 		exit(10);
@@ -301,6 +303,9 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.13  2002/11/28 17:57:51  cjm
+** Added rcsid.
+**
 ** Revision 1.12  2002/11/07 19:18:22  cjm
 ** Changes to make library work with SDSU version 1.7 DSP code.
 **

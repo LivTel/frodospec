@@ -1,7 +1,8 @@
 /* test_exposure.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.1 2002-11-07 19:18:22 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.2 2003-03-26 15:51:55 cjm Exp $
  */
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include "ccd_dsp.h"
 #include "ccd_dsp_download.h"
@@ -28,7 +29,7 @@
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /* hash definitions */
 /**
@@ -75,7 +76,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_exposure.c,v 1.1 2002-11-07 19:18:22 cjm Exp $";
+static char rcsid[] = "$Id: test_exposure.c,v 1.2 2003-03-26 15:51:55 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -163,7 +164,7 @@ static enum COMMAND_ID Command = COMMAND_ID_NONE;
  */
 static int Exposure_Length = 0;
 /**
- * Filename to store resultant fits image in
+ * Filename to store resultant fits image in. Unwindowed only - windowed get more complex.
  */
 static char *Filename = NULL;
 
@@ -202,7 +203,10 @@ static void Test_Fits_Header_Error(int status);
 int main(int argc, char *argv[])
 {
 	struct timespec start_time;
+	char buff[256];
 	char command_buffer[256];
+	char *filename_list[CCD_SETUP_WINDOW_COUNT];
+	int filename_count,i;
 	int retval;
 	int value,bit_value;
 
@@ -259,10 +263,41 @@ int main(int argc, char *argv[])
 	}
 	fprintf(stdout,"CCD_Setup_Dimensions completed\n");
 /* save fits headers */
-	if(!Test_Save_Fits_Headers(Exposure_Length,Size_X/Bin_X,Size_Y/Bin_Y,Filename))
+	if(Window_Flags > 0 )
 	{
-		fprintf(stdout,"Saving FITS headers failed.\n");
-		return 4;
+		filename_count = 0;
+		if(strchr(Filename,'.') != NULL)
+			Filename[strchr(Filename,'.')-Filename] = '\0';
+		for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
+		{
+			/* relies on values in CCD_SETUP_WINDOW_ONE... */
+			if(Window_Flags & (1<<i))
+			{
+				sprintf(buff,"%sw%d.fits",Filename,i);
+				filename_list[filename_count] = strdup(buff);
+				/* binning? */
+				if(!Test_Save_Fits_Headers(Exposure_Length,CCD_Setup_Get_Window_Width(i),
+							   CCD_Setup_Get_Window_Height(i),
+							   filename_list[filename_count]))
+				{
+					fprintf(stdout,"Saving FITS window headers (%s,%d,%d) failed.\n",
+						filename_list[filename_count],CCD_Setup_Get_Window_Width(i),
+						CCD_Setup_Get_Window_Height(i));
+					return 4;
+				}
+				filename_count++;
+			}/* end if window active */
+		}/* end for */
+	}
+	else
+	{
+		filename_list[0] = Filename;
+		filename_count = 1;
+		if(!Test_Save_Fits_Headers(Exposure_Length,Size_X/Bin_X,Size_Y/Bin_Y,Filename))
+		{
+			fprintf(stdout,"Saving FITS headers failed.\n");
+			return 4;
+		}
 	}
 /* do command */
 	start_time.tv_sec = 0;
@@ -275,11 +310,13 @@ int main(int argc, char *argv[])
 			break;
 		case COMMAND_ID_DARK:
 			fprintf(stdout,"Calling CCD_Exposure_Expose with open_shutter FALSE.\n");
-			retval = CCD_Exposure_Expose(TRUE,FALSE,start_time,Exposure_Length,Filename);
+			retval = CCD_Exposure_Expose(TRUE,FALSE,start_time,Exposure_Length,
+						     filename_list,filename_count);
 			break;
 		case COMMAND_ID_EXPOSURE:
 			fprintf(stdout,"Calling CCD_Exposure_Expose with open_shutter TRUE.\n");
-			retval = CCD_Exposure_Expose(TRUE,TRUE,start_time,Exposure_Length,Filename);
+			retval = CCD_Exposure_Expose(TRUE,TRUE,start_time,Exposure_Length,
+						     filename_list,filename_count);
 			break;
 		case COMMAND_ID_NONE:
 			fprintf(stdout,"Please select a command to execute (-bias | -dark | -expose).\n");
@@ -836,4 +873,7 @@ static void Test_Fits_Header_Error(int status)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2002/11/07 19:18:22  cjm
+** Initial revision
+**
 */
