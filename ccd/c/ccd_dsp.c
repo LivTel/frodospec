@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.17 2000-05-10 16:51:02 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.18 2000-05-22 16:28:12 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.17 $
+ * @version $Revision: 0.18 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.17 2000-05-10 16:51:02 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.18 2000-05-22 16:28:12 cjm Exp $";
 
 /* defines */
 /**
@@ -220,7 +220,9 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 #error CCD_GLOBAL_BYTES_PER_PIXEL uses illegal value.
 #endif
 static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows);
-static void DSP_TimeSpec_To_String(struct timespec time,char *time_string);
+static void DSP_TimeSpec_To_Date_String(struct timespec time,char *time_string);
+static void DSP_TimeSpec_To_Date_Obs_String(struct timespec time,char *time_string);
+static void DSP_TimeSpec_To_UtStart_String(struct timespec time,char *time_string);
 #ifdef CCD_DSP_MUTEXED
 static int DSP_Mutex_Lock(void);
 static int DSP_Mutex_Unlock(void);
@@ -3010,18 +3012,43 @@ static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int n
 		sprintf(DSP_Error_String,"DSP_Save: File write failed(%s,%d,%s).",filename,status,buff);
 		return FALSE;
 	}
-/* update DATE-OBS keyword */
-	DSP_TimeSpec_To_String(DSP_Data.Exposure_Start_Time,exposure_start_time_string);
-	retval = fits_update_key(fp,TSTRING,"DATE-OBS",exposure_start_time_string,NULL,&status);
+/* update DATE keyword */
+	DSP_TimeSpec_To_Date_String(DSP_Data.Exposure_Start_Time,exposure_start_time_string);
+	retval = fits_update_key(fp,TSTRING,"DATE",exposure_start_time_string,NULL,&status);
 	if(retval)
 	{
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		fits_close_file(fp,&status);
 		DSP_Error_Number = 68;
+		sprintf(DSP_Error_String,"DSP_Save: Updating DATE failed(%s,%d,%s).",filename,status,buff);
+		return FALSE;
+	}
+/* update DATE-OBS keyword */
+	DSP_TimeSpec_To_Date_Obs_String(DSP_Data.Exposure_Start_Time,exposure_start_time_string);
+	retval = fits_update_key(fp,TSTRING,"DATE-OBS",exposure_start_time_string,NULL,&status);
+	if(retval)
+	{
+		fits_get_errstatus(status,buff);
+		fits_report_error(stderr,status);
+		fits_close_file(fp,&status);
+		DSP_Error_Number = 12;
 		sprintf(DSP_Error_String,"DSP_Save: Updating DATE-OBS failed(%s,%d,%s).",filename,status,buff);
 		return FALSE;
 	}
+/* update UTSTART keyword */
+	DSP_TimeSpec_To_UtStart_String(DSP_Data.Exposure_Start_Time,exposure_start_time_string);
+	retval = fits_update_key(fp,TSTRING,"UTSTART",exposure_start_time_string,NULL,&status);
+	if(retval)
+	{
+		fits_get_errstatus(status,buff);
+		fits_report_error(stderr,status);
+		fits_close_file(fp,&status);
+		DSP_Error_Number = 17;
+		sprintf(DSP_Error_String,"DSP_Save: Updating UTSTART failed(%s,%d,%s).",filename,status,buff);
+		return FALSE;
+	}
+/* close file */
 	retval = fits_close_file(fp,&status);
 	if(retval)
 	{
@@ -3082,13 +3109,30 @@ static int DSP_Save(char *filename,unsigned short *exposure_data,int ncols,int n
 #endif
 
 /**
+ * Routine to convert a timespec structure to a DATE sytle string to put into a FITS header.
+ * This uses gmtime and strftime to format the string. The resultant string is of the form:
+ * <b>CCYY-MM-DD</b>, which is equivalent to %Y-%m-%d passed to strftime.
+ * @param time The time to convert.
+ * @param time_string The string to put the time representation in. The string must be at least
+ * 	12 characters long.
+ */
+static void DSP_TimeSpec_To_Date_String(struct timespec time,char *time_string)
+{
+	struct tm *tm_time = NULL;
+
+	tm_time = gmtime(&(time.tv_sec));
+	strftime(time_string,12,"%Y-%m-%d",tm_time);
+}
+
+/**
  * Routine to convert a timespec structure to a DATE-OBS sytle string to put into a FITS header.
  * This uses gmtime and strftime to format most of the string, and tags the milliseconds on the end.
+ * The resultant form of the string is <b>CCYY-MM-DDTHH:MM:SS.sss</b>.
  * @param time The time to convert.
  * @param time_string The string to put the time representation in. The string must be at least
  * 	24 characters long.
  */
-static void DSP_TimeSpec_To_String(struct timespec time,char *time_string)
+static void DSP_TimeSpec_To_Date_Obs_String(struct timespec time,char *time_string)
 {
 	struct tm *tm_time = NULL;
 	char buff[32];
@@ -3096,6 +3140,25 @@ static void DSP_TimeSpec_To_String(struct timespec time,char *time_string)
 
 	tm_time = gmtime(&(time.tv_sec));
 	strftime(buff,32,"%Y-%m-%dT%H:%M:%S.",tm_time);
+	milliseconds = (((double)time.tv_nsec)/((double)DSP_ONE_MILLISECOND_NS));
+	sprintf(time_string,"%s%03d",buff,milliseconds);
+}
+
+/**
+ * Routine to convert a timespec structure to a UTSTART sytle string to put into a FITS header.
+ * This uses gmtime and strftime to format most of the string, and tags the milliseconds on the end.
+ * @param time The time to convert.
+ * @param time_string The string to put the time representation in. The string must be at least
+ * 	14 characters long.
+ */
+static void DSP_TimeSpec_To_UtStart_String(struct timespec time,char *time_string)
+{
+	struct tm *tm_time = NULL;
+	char buff[16];
+	int milliseconds;
+
+	tm_time = gmtime(&(time.tv_sec));
+	strftime(buff,16,"%H:%M:%S.",tm_time);
 	milliseconds = (((double)time.tv_nsec)/((double)DSP_ONE_MILLISECOND_NS));
 	sprintf(time_string,"%s%03d",buff,milliseconds);
 }
@@ -3144,6 +3207,10 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.17  2000/05/10 16:51:02  cjm
+** Added DSP_Byte_Swap.
+** Tidied RDC command (numbytes).
+**
 ** Revision 0.16  2000/05/10 11:06:49  cjm
 ** Removed perror.
 **
