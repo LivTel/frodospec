@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.7 2000-05-10 14:37:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.8 2000-05-23 10:34:46 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.7 2000-05-10 14:37:52 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.8 2000-05-23 10:34:46 cjm Exp $";
 
 /* external variables */
 
@@ -220,12 +220,11 @@ int CCD_Exposure_Bias(char *filename)
 		sprintf(Exposure_Error_String,"Exposure Bias failed:Setup was not complete");
 		return FALSE;
 	}
-	/* get information from setup that we need to do an exposure */
+/* get information from setup that we need to do an exposure */
 	ncols = CCD_Setup_Get_NCols();
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
-
-	/* clear the ccd */
+/* clear the ccd */
 	if(!CCD_DSP_Command_CLR())
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -233,14 +232,18 @@ int CCD_Exposure_Bias(char *filename)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Clear array failed.");
 		return FALSE;
 	}
-	/* if we have aborted - stop here */
+/* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort())
 	{
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 8;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Aborted.");
 		return FALSE;
-	} 
+	}
+/* Bias frames do not call start exposure and hence the exposure start time is not set
+** It is saved in the FITS file however, so set it manually here. */
+	CCD_DSP_Set_Exposure_Start_Time();
+/* read out ccd and save to filename */
 	return_value = CCD_DSP_Command_RDC(ncols,nrows,deinterlace_type,filename);
 	if(return_value == FALSE)
 	{
@@ -590,6 +593,9 @@ static int Exposure_Shutter_Control(int value)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.7  2000/05/10 14:37:52  cjm
+** Removed number of bytes parameter from CCD_DSP_Command_RDC.
+**
 ** Revision 0.6  2000/04/13 13:17:36  cjm
 ** Added current time to error routines.
 **
