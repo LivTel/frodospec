@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.1 2000-02-08 18:12:33 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.2 2000-03-08 18:27:35 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -6,12 +6,18 @@ include			../Makefile.common
 INCDIR = $(CCD_SRC_HOME)/include
 DOCSDIR = $(CCD_DOC_HOME)/cdocs
 
+#Do we want MUTEX protected locking around controller command communication?
+MUTEXCFLAGS = -DCCD_DSP_MUTEXED=1
+#MUTEXCFLAGS = 
+
 # Do we wish to link with CFITSIO routines?
-CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) -DCFITSIO=1 -I$(CFITSIOINCDIR) -L$(LT_LIB_HOME)
+FITSCFLAGS = -DCFITSIO=1 -I$(CFITSIOINCDIR) -L$(LT_LIB_HOME)
 CFITSIOLIB = -lcfitsio
 
-# CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
+# FITSCFLAGS =
 # CFITSIOLIB =
+
+CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLAGS) $(MUTEXCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
@@ -76,6 +82,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2000/02/08 18:12:33  cjm
+# Initial revision
+#
 #
 
 # DO NOT DELETE
