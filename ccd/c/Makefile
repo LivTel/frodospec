@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.12 2001-03-19 18:38:42 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.13 2001-04-05 09:07:26 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -61,9 +61,15 @@ CFITSIOLIB = -lcfitsio
 #DEBUGCFLAGS = -DDEBUG=1
 DEBUGCFLAGS = -DDEBUG=0
 
+# Do we want to enable logging?
+# no logging
+#LOGGINGCFLAGS = -DLOGGING=0
+# some logging
+LOGGINGCFLAGS = -DLOGGING=1
+
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLAGS) $(MUTEXCFLAGS) \
 	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(UTILEXPOSURECHECKFLAGS) $(BYTESWAPCFLAGS) \
-	$(FILTERWHEELINPUTHOMECFLAGS) $(DEBUGCFLAGS)
+	$(FILTERWHEELINPUTHOMECFLAGS) $(DEBUGCFLAGS) $(LOGGINGCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
@@ -131,6 +137,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.12  2001/03/19 18:38:42  cjm
+# Added FILTERWHEELINPUTHOMECFLAGS.
+#
 # Revision 1.11  2001/03/12 15:14:06  cjm
 # Added UTILEXPOSURECHECKFLAGS.
 #
