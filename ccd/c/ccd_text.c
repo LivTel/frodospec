@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.17 2001-01-30 12:37:30 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.18 2001-02-09 19:35:27 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.17 $
+ * @version $Revision: 0.18 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.17 2001-01-30 12:37:30 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.18 2001-02-09 19:35:27 cjm Exp $";
 
 /* #defines */
 /**
@@ -249,7 +249,11 @@ static struct Text_Command_Struct Text_Manual_Command_List[] =
  */
 static struct Memory_Struct Memory_List[] =
 {
-	{CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,1}
+	{CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,1},
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_X,0,0}, /* FWR/FWM - clear move/reset bits */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0,15}, 	/* set Y:DIG_IN first four bits, both wheels in detents
+								** and home positions */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x3d,0} /* FILTER_WHEEL_POS_MOVE - 0 */
 };
 
 /**
@@ -1017,6 +1021,9 @@ static void Text_HCVR_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.17  2001/01/30 12:37:30  cjm
+** Added filter wheel manual command set.
+**
 ** Revision 0.16  2000/09/25 09:51:28  cjm
 ** Changes to use with v1.4 SDSU DSP code.
 **
