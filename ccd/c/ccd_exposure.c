@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.4 2000-02-28 19:13:01 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.5 2000-03-13 12:30:17 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.4 2000-02-28 19:13:01 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.5 2000-03-13 12:30:17 cjm Exp $";
 
 /* external variables */
 
@@ -228,7 +228,6 @@ int CCD_Exposure_Bias(char *filename)
 	numbytes = nrows * ncols * CCD_GLOBAL_BYTES_PER_PIXEL;
 
 	/* clear the ccd */
-	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_CLR())
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -583,6 +582,9 @@ static int Exposure_Shutter_Control(int value)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2000/02/28 19:13:01  cjm
+** Backup.
+**
 ** Revision 0.3  2000/02/22 16:05:21  cjm
 ** Changed call structure to CCD_DSP_Set_Abort.
 **
