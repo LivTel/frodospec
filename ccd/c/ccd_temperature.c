@@ -1,6 +1,6 @@
 /* ccd_temperature.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.9 2002-12-16 16:49:36 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.10 2004-03-03 15:43:49 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.9 2002-12-16 16:49:36 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.10 2004-03-03 15:43:49 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -213,6 +213,7 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[],int n,float vu,float vl,
  * The temperature is calculated from the adu by calling Temperature_Temperature. 
  * If the voltage is out of range an error is returned.
  * @param temperature The address of a variable to hold the calculated temperature to be returned.
+ * 	The returned temperature is in degrees centigrade.
  * @return TRUE if the operation was successfull and the temperature returned was sensible, FALSE
  * 	if a failure occured or the temperature returned was not sensible.
  * @see #TEMPERATURE_MAX_CHECKS
@@ -356,6 +357,7 @@ int CCD_Temperature_Get_Utility_Board_ADU(int *adu)
  * is called to get an ADU value for the
  * target_temperature and this is then written to the utility board using a 
  * write memory command using CCD_DSP_Command_WRM.
+ * @param target_temperature The temperature we want the CCD cooled to, in degrees centigrade.
  * @return TRUE if the target temperature was set, FALSE if an error occured.
  * @see #TEMPERATURE_REQUIRED_ADU_ADDRESS
  * @see ccd_dsp.html#CCD_DSP_Command_WRM
@@ -492,7 +494,7 @@ void CCD_Temperature_Error_String(char *error_string)
  * @param adu_per_volt The number of ADU's per volt.
  * @param adu_offset The offset to add to the ADU.
  * @param adu The adu we want the temperature for.
- * @return The temperature.
+ * @return The temperature in degrees centigrade.
  */
 static float Temperature_Temperature(float temp_coeff[], int n,float vu, float vl,float adu_per_volt,int adu_offset,
 	float adu)
@@ -593,6 +595,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.9  2002/12/16 16:49:36  cjm
+** Removed Error routines resetting error number to zero.
+**
 ** Revision 0.8  2002/11/07 19:13:39  cjm
 ** Changes to make library work with SDSU version 1.7 DSP code.
 **
