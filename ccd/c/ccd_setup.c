@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.10 2000-04-13 13:06:59 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.11 2000-05-25 08:44:46 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.10 $
+ * @version $Revision: 0.11 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.10 2000-04-13 13:06:59 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.11 2000-05-25 08:44:46 cjm Exp $";
 
 /* #defines */
 /**
@@ -65,6 +65,7 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.10 2000-04-13 13:06:59 cjm Exp $";
  *	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.</dd>
+ * <dt>Gain</dt> <dd>The gain setting used to configure the CCD electronics.</dd>
  * <dt>Window_Flags</dt> <dd>The window flags for this setup. Determines which of the four possible windows
  * 	are in use for this setup.</dd>
  * <dt>Window_List</dt> <dd>A list of window positions on the CCD. Theere are a maximum of CCD_SETUP_WINDOW_COUNT
@@ -89,6 +90,7 @@ struct Setup_Struct
 	int NSBin;
 	int NPBin;
 	enum CCD_DSP_DEINTERLACE_TYPE DeInterlace_Type;
+	enum CCD_DSP_GAIN Gain;
 	int Window_Flags;
 	struct CCD_Setup_Window_Struct Window_List[CCD_SETUP_WINDOW_COUNT];
 	int Filter_Wheel_Position_List[SETUP_FILTER_WHEEL_POSITION_COUNT];
@@ -124,8 +126,8 @@ static int Setup_Power_On(void);
 static int Setup_Power_Off(void);
 static int Setup_Gain(enum CCD_DSP_GAIN gain,int speed);
 static int Setup_Idle(int idle);
-static int Setup_Binning(void);
-static int Setup_DeInterlace(void);
+static int Setup_Binning(int nsbin,int npbin);
+static int Setup_DeInterlace(enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
 static int Setup_Dimensions(void);
 
 /* external functions */
@@ -143,6 +145,7 @@ void CCD_Setup_Initialise(void)
 	Setup_Data.NSBin = 0;
 	Setup_Data.NPBin = 0;
 	Setup_Data.DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
+	Setup_Data.Gain = CCD_DSP_GAIN_ONE;
 	Setup_Data.Window_Flags = 0;
 	for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
 	{
@@ -317,6 +320,7 @@ int CCD_Setup_Shutdown(void)
 	Setup_Data.NSBin = 0;
 	Setup_Data.NPBin = 0;
 	Setup_Data.DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
+	Setup_Data.Gain = CCD_DSP_GAIN_ONE;
 	Setup_Data.Window_Flags = 0;
 	for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
 	{
@@ -396,44 +400,16 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 		return FALSE;
 	}
 	Setup_Data.NCols = ncols;
-	if(nsbin <= 0)
-	{
-		Setup_Data.Setup_In_Progress = FALSE;
-		Setup_Error_Number = 26;
-		sprintf(Setup_Error_String,"CCD_Setup_Dimensions:Illegal value:Horizontal Binning '%d'",
-			nsbin);
-		return FALSE;
-	}
-	Setup_Data.NSBin = nsbin;
-	if(npbin <= 0)
-	{
-		Setup_Data.Setup_In_Progress = FALSE;
-		Setup_Error_Number = 27;
-		sprintf(Setup_Error_String,"CCD_Setup_Dimensions:Illegal value:Vertical Binning '%d'",
-			npbin);
-		return FALSE;
-	}
-	Setup_Data.NPBin = npbin;
 
-	if(!Setup_Binning())
+	if(!Setup_Binning(nsbin,npbin))
 	{
-		/* Setup_Binning only sends back 1 of 2 results */
 		Setup_Data.Setup_In_Progress = FALSE;
 		CCD_DSP_Set_Abort(FALSE);
 		return FALSE; 
 	}
 
 /* do de-interlacing */
-	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
-	{
-		Setup_Data.Setup_In_Progress = FALSE;
-		Setup_Error_Number = 28;
-		sprintf(Setup_Error_String,"CCD_Setup_Dimensions:Illegal value:"
-			"DeInterlace Type '%d'",deinterlace_type);
-		return FALSE;
-	}
-	Setup_Data.DeInterlace_Type = deinterlace_type;
-	if(!Setup_DeInterlace())
+	if(!Setup_DeInterlace(deinterlace_type))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
 		CCD_DSP_Set_Abort(FALSE);
@@ -663,6 +639,20 @@ int CCD_Setup_Get_NPBin(void)
 enum CCD_DSP_DEINTERLACE_TYPE CCD_Setup_Get_DeInterlace_Type(void)
 {
 	return Setup_Data.DeInterlace_Type;
+}
+
+/**
+ * Routine to return the current gain value used by the CCD Camera.
+ * @return The current gain value, one of
+ * 	<a href="ccd_dsp.html#CCD_DSP_GAIN">CCD_DSP_GAIN</a>:
+ * 	CCD_DSP_GAIN_ONE, CCD_DSP_GAIN_TWO,
+ * 	CCD_DSP_GAIN_FOUR and CCD_DSP_GAIN_NINE.
+ * @see #Setup_Data
+ * @see ccd_dsp.html#CCD_DSP_GAIN
+ */
+enum CCD_DSP_GAIN CCD_Setup_Get_Gain(void)
+{
+	return Setup_Data.Gain;
 }
 
 /**
@@ -991,9 +981,9 @@ static int Setup_Power_Off(void)
 
 /**
  * Internal routine to setup the gain and speed of the SDSU CCD Controller. This routine is called from
- * CCD_Setup_Startup.
+ * CCD_Setup_Startup. The gain used is the one setup in Setup_Data.Gain (setup in CCD_Setup_Startup).
  * @return returns TRUE if the operation succeeded, FALSE if it failed.
- * @param gain The gain to set the video controllers on the SDSU CCD Controller to. One of 
+ * @param gain Specifies the gain to use for the CCD video processors. Acceptable values are
  * 	<a href="ccd_dsp.html#CCD_DSP_GAIN">CCD_DSP_GAIN</a>:
  * 	CCD_DSP_GAIN_ONE, CCD_DSP_GAIN_TWO,
  * 	CCD_DSP_GAIN_FOUR and CCD_DSP_GAIN_NINE.
@@ -1005,23 +995,24 @@ static int Setup_Gain(enum CCD_DSP_GAIN gain,int speed)
 {
 	int ret_val;
 
-	if(!CCD_GLOBAL_IS_BOOLEAN(speed))
-	{
-		Setup_Error_Number = 31;
-		sprintf(Setup_Error_String,"Setting Gain to %d(speed:%d) failed",gain,speed);
-		return FALSE;
-	}
 	if(!CCD_DSP_IS_GAIN(gain))
 	{
 		Setup_Error_Number = 34;
-		sprintf(Setup_Error_String,"Setting Gain to %d(speed:%d) failed",gain,speed);
+		sprintf(Setup_Error_String,"Setup_Gain:Gain '%d' has illegal value.",gain);
 		return FALSE;
 	}
-	ret_val = CCD_DSP_Command_SGN(gain,speed);
+	Setup_Data.Gain = gain;
+	if(!CCD_GLOBAL_IS_BOOLEAN(speed))
+	{
+		Setup_Error_Number = 31;
+		sprintf(Setup_Error_String,"Setup_Gain:Gain Speed %d  (gain = %d)  has illegal value.",speed,gain);
+		return FALSE;
+	}
+	ret_val = CCD_DSP_Command_SGN(Setup_Data.Gain,speed);
 	if(ret_val!=CCD_DSP_DON)
 	{
 		Setup_Error_Number = 13;
-		sprintf(Setup_Error_String,"Setting Gain to %d(speed:%d) failed",gain,speed);
+		sprintf(Setup_Error_String,"Setup_Gain:Setting Gain to %d(speed:%d) failed",gain,speed);
 	}
 	return (ret_val==CCD_DSP_DON);
 }
@@ -1066,16 +1057,35 @@ static int Setup_Idle(int idle)
 }
 
 /**
- * Internal routine to set up the binning configuration for the SDSU CCD Controller. This routines writes the
+ * Internal routine to set up the binning configuration for the SDSU CCD Controller. This routine checks
+ * the binning values and saves them in Setup_Data, writes the
  * binning values to the controller boards, and re-calculates the stored columns and rows values to allow for
  * binning e.g. NCols = NCols/NSBin. This routine is called from CCD_Setup_Dimensions.
+ * @param nsbin The amount of binning applied to pixels in columns. This parameter will change internally ncols.
+ * @param npbin The amount of binning applied to pixels in rows.This parameter will change internally nrows.
  * @return Returns TRUE if the operation succeeds, FALSE if it fails.
  * @see #CCD_Setup_Dimensions
+ * @see #Setup_Data
  * @see ccd_dsp.html#CCD_DSP_Command_WRM
  */
-static int Setup_Binning(void)
+static int Setup_Binning(int nsbin,int npbin)
 {
-	/* will be sending the FINAL image size to the boards, so calculate them now */
+	if(nsbin <= 0)
+	{
+		Setup_Error_Number = 26;
+		sprintf(Setup_Error_String,"Setup_Binning:Illegal value:Horizontal Binning '%d'",nsbin);
+		return FALSE;
+	}
+	Setup_Data.NSBin = nsbin;
+	if(npbin <= 0)
+	{
+		Setup_Error_Number = 27;
+		sprintf(Setup_Error_String,"Setup_Binning:Illegal value:Vertical Binning '%d'",npbin);
+		return FALSE;
+	}
+	Setup_Data.NPBin = npbin;
+
+/* will be sending the FINAL image size to the boards, so calculate them now */
 	Setup_Data.NCols = Setup_Data.NCols/Setup_Data.NSBin;
 	Setup_Data.NRows = Setup_Data.NRows/Setup_Data.NPBin;
 
@@ -1100,11 +1110,25 @@ static int Setup_Binning(void)
  * This routine re-calculates the stored columns and rows values to allow for the deinterlace type. Some deinterlace
  * types require an even number of rows and/or columns. The routine prints a warning if the rows or columns are
  * changed. This routine is called from CCD_Setup_Dimensions.
+ * @param deinterlace_type The algorithm to use for deinterlacing the resulting data. The data needs to be
+ * 	deinterlaced if the CCD is read out from multiple readouts. One of
+ * 	<a href="ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
+ * 	CCD_DSP_DEINTERLACE_SINGLE,
+ * 	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
+ * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL,
+ * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
  * @return Returns TRUE if the operation succeeds, FALSE if it fails.
  * @see #CCD_Setup_Dimensions
  */
-static int Setup_DeInterlace(void)
+static int Setup_DeInterlace(enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
 {
+	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
+	{
+		Setup_Error_Number = 28;
+		sprintf(Setup_Error_String,"Setup_DeInterlace:Illegal value:DeInterlace Type '%d'",deinterlace_type);
+		return FALSE;
+	}
+	Setup_Data.DeInterlace_Type = deinterlace_type;
 	switch(Setup_Data.DeInterlace_Type)
 	{
 		case CCD_DSP_DEINTERLACE_SINGLE:		/* Single readout */
@@ -1179,6 +1203,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.10  2000/04/13 13:06:59  cjm
+** Added current time to error routines.
+**
 ** Revision 0.10  2000/04/13 13:04:46  cjm
 ** Changed error routine to print out current time.
 **
