@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.11 2000-05-25 08:44:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.12 2000-05-26 08:56:09 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.11 $
+ * @version $Revision: 0.12 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.11 2000-05-25 08:44:46 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.12 2000-05-26 08:56:09 cjm Exp $";
 
 /* #defines */
 /**
@@ -667,6 +667,33 @@ int CCD_Setup_Get_Window_Flags(void)
 }
 
 /**
+ * Routine to return one of the windows setup on the CCD chip. Use CCD_Setup_Get_Window_Flags to
+ * determine whether the window is in use.
+ * @param window_index This is the index in the window list to return. The first window is at index zero
+ * 	and the last at (CCD_SETUP_WINDOW_COUNT-1). This index must be within this range.
+ * @param window An address of a structure to hold the window data. This is filled with the
+ * 	requested window data.
+ * @return This routine returns TRUE if the window_index is in range and the window data is filled in,
+ * 	FALSE if the window_index is out of range (an error is setup).
+ * @see #CCD_SETUP_WINDOW_COUNT
+ * @see #CCD_Setup_Window_Struct
+ * @see #CCD_Setup_Get_Window_Flags
+ * @see #Setup_Data
+ */
+int CCD_Setup_Get_Window(int window_index,struct CCD_Setup_Window_Struct *window)
+{
+	if((window_index < 0) || (window_index >= CCD_SETUP_WINDOW_COUNT))
+	{
+		Setup_Error_Number = 1;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Window:Window Index '%d' out of range:"
+			"['%d' to '%d'] inclusive.",window_index,0,CCD_SETUP_WINDOW_COUNT-1);
+		return FALSE;
+	}
+	(*window) = Setup_Data.Window_List[window_index];
+	return TRUE;
+}
+
+/**
  * Routine that returns the position number of a filter wheel.
  * @param wheel_number The wheel number to get the position of: less then SETUP_FILTER_WHEEL_POSITION_COUNT.
  * @param position The address of a integer memory location to store the position of the wheel.
@@ -1203,6 +1230,11 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.11  2000/05/25 08:44:46  cjm
+** Gain settings now held in Setup_Data so that CCD_Setup_Get_Gain
+** can return the current gain.
+** Some changes to internal routines (parameter checking now in them where applicable).
+**
 ** Revision 0.10  2000/04/13 13:06:59  cjm
 ** Added current time to error routines.
 **
