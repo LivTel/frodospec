@@ -1,14 +1,24 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.3 2000-02-22 16:05:21 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.4 2000-02-28 19:13:01 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
+ * for time.
+ */
+#define _POSIX_SOURCE 1
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
+ * for time.
+ */
+#define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -16,6 +26,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <time.h>
 #include "ccd_exposure.h"
 #include "ccd_dsp.h"
 #include "ccd_setup.h"
@@ -23,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.3 2000-02-22 16:05:21 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.4 2000-02-28 19:13:01 cjm Exp $";
 
 /* external variables */
 
@@ -39,8 +50,6 @@ static char Exposure_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 
 /* internal functions */
 static int Exposure_Shutter_Control(int value);
-static int Exposure_Readout_CCD(int ncols,int nrows,int msecs,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,
-	char *filename);
 
 /* external functions */
 /**
@@ -54,30 +63,41 @@ void CCD_Exposure_Initialise(void)
 
 /**
  * Routine to perform an exposure.
- * <dl>
- * <dd>It checks to ensure CCD Setup has been successfully completed using CCD_Setup_Get_Setup_Complete.</dd>
- * <dd>It gets the number of rows,columns and the deinterlace type from setup.</dd>
- * <dd>If open_shutter is TRUE is sets the shutter to open.</dd>
- * <dd>If readout_ccd is TRUE it performs the exposure by calling 
- * 	<a href="ccd_dsp.html#CCD_DSP_Command_SEX">CCD_DSP_Command_SEX</a> to do the exposure.</dd>
- * </dl>
+ * <ul>
+ * <li>It checks to ensure CCD Setup has been successfully completed using CCD_Setup_Get_Setup_Complete.
+ * <li>The controller is told whether to open the shutter or not during the exposure, depending on the value
+ * 	of the open_shutter parameter.
+ * <li>The length of exposure is sent to the controller.
+ * <li>The exposure is performed by calling 
+ * 	<a href="ccd_dsp.html#CCD_DSP_Command_SEX">CCD_DSP_Command_SEX</a> to do the exposure.
+ * <li>If readout_ccd is TRUE the exposure is read out by calling 
+ * 	<a href="ccd_dsp.html#CCD_DSP_Command_RDC">CCD_DSP_Command_RDC</a>.
+ * </ul>
  * If the exposure is aborted at any stage the routine returns.
  * @param open_shutter TRUE if the shutter is to be opened over the duration of the exposure, FALSE if the
  * 	shutter should remain closed. The shutter may not want to be opened if a calibration image is
  * 	being taken.
  * @param readout_ccd TRUE if the CCD is to be read out, FALSE if it is not.
- * @param msecs The time to do the exposure in milliseconds.
+ * @param start_time The time to start the exposure. If both the fields in the <i>struct timespec</i> are zero,
+ * 	the exposure can be started at any convenient time.
+ * @param exposure_time The length of time to open the shutter for in milliseconds.
  * @param filename The filename to save the exposure into.
  * @return Returns TRUE if the exposure succeeds and the file is saved, returns FALSE if an error
  *	occurs or the exposure is aborted.
+ * @see #Exposure_Shutter_Control
  * @see ccd_setup.html#CCD_Setup_Get_Setup_Complete
+ * @see ccd_setup.html#CCD_Setup_Get_NCols
+ * @see ccd_setup.html#CCD_Setup_Get_NRows
+ * @see ccd_setup.html#CCD_Setup_Get_DeInterlace_Type
+ * @see ccd_dsp.html#CCD_DSP_Command_Set_Exposure_Time
+ * @see ccd_dsp.html#CCD_DSP_Command_SEX
+ * @see ccd_dsp.html#CCD_DSP_Command_RDC
  */
-int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filename)
+int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_time,int exposure_time,char *filename)
 {
 	int ncols;
 	int nrows;
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
-	int return_value;	/* value returned from function calls */
 
 	Exposure_Error_Number = 0;
 /* reset abort flag */
@@ -86,29 +106,28 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
 	if(!CCD_Setup_Get_Setup_Complete())
 	{
 		Exposure_Error_Number = 1;
-		sprintf(Exposure_Error_String,"Exposure failed:Setup was not complete");
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Exposure failed:Setup was not complete");
 		return FALSE;
 	}
-	/* check paramater ranges */
+/* check paramater ranges */
 	if((!CCD_GLOBAL_IS_BOOLEAN(open_shutter))||(!CCD_GLOBAL_IS_BOOLEAN(readout_ccd)))
 	{
 		Exposure_Error_Number = 2;
-		sprintf(Exposure_Error_String,"Exposure failed:Illegal value:open_shutter = %d,readout_ccd = %d",
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:open_shutter = %d,readout_ccd = %d",
 			open_shutter,readout_ccd);
 		return FALSE;
 	}
-	if(msecs <= 0)
+	if(exposure_time <= 0)
 	{
 		Exposure_Error_Number = 3;
-		sprintf(Exposure_Error_String,"Exposure failed:Illegal value:msecs = %d",msecs);
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:exposure_time = %d",exposure_time);
 		return FALSE;
 	}
-	/* get information from setup that we need to do an exposure */
+/* get information from setup that we need to do an exposure */
 	ncols = CCD_Setup_Get_NCols();
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
-
-	/* if we have aborted - stop here */
+/* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort())
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -116,23 +135,12 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
 	}
-	/* setup the shutter control bit - which determines whether the SEX command has
-	** control to open and close the shutter at the appropriate times */
-	if(open_shutter)
+/* setup the shutter control bit - which determines whether the SEX command has
+** control to open and close the shutter at the appropriate times */
+	if(!Exposure_Shutter_Control(open_shutter))
 	{
-		if(!Exposure_Shutter_Control(TRUE))
-		{
-			CCD_DSP_Set_Abort(FALSE);
-			return FALSE;
-		}
-	}
-	else
-	{
-		if(!Exposure_Shutter_Control(FALSE))
-		{
-			CCD_DSP_Set_Abort(FALSE);
-			return FALSE;
-		}
+		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
 	}
 	if(CCD_DSP_Get_Abort())
 	{
@@ -141,12 +149,48 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
 	}
-	/* whether or not to actually perform the exposure */
+/* write the time to memory so that SEX can read it */
+	if(!CCD_DSP_Command_Set_Exposure_Time(exposure_time))
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 23;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Setting exposure time failed.");
+		return FALSE;
+	}
+	if(CCD_DSP_Get_Abort())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 25;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
+		return FALSE;
+	}
+/* Send the command to start the exposure, and monitor for completion. */
+	if(!CCD_DSP_Command_SEX(start_time,exposure_time))
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 24;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed.");
+		return FALSE;
+	}
+	if(CCD_DSP_Get_Abort())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 26;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
+		return FALSE;
+	}
+/* Read out the ccd. */
 	if(readout_ccd)
-		return_value = Exposure_Readout_CCD(ncols,nrows,msecs,deinterlace_type,filename);
-	else
-		return_value = TRUE;
-	return(return_value);
+	{
+		if(!CCD_DSP_Command_RDC(ncols,nrows,nrows*ncols*CCD_GLOBAL_BYTES_PER_PIXEL,deinterlace_type,filename))
+		{
+			CCD_DSP_Set_Abort(FALSE);
+			Exposure_Error_Number = 27;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:RDC command failed.");
+			return FALSE;
+		}
+	}
+	return TRUE;
 }
 
 /**
@@ -155,7 +199,7 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filenam
  * clear command to clear the array, followed immediately by a 
  * read-out command to read the array into a FITS file.
  * @param filename The filename to save the resultant data (in FITS format) to.
- * @return The routine returns TRUE if the operation was completed successfully, FALSE if ir failed.
+ * @return The routine returns TRUE if the operation was completed successfully, FALSE if it failed.
  * @see ccd_dsp.html#CCD_DSP_Command_CLR
  * @see ccd_dsp.html#CCD_DSP_Command_RDC
  */
@@ -537,49 +581,11 @@ static int Exposure_Shutter_Control(int value)
 	return TRUE;
 }
 
-/**
- * Internal exposure routine to actually perform the exposure. Called from
- * <a href="#CCD_Exposure_Expose">CCD_Exposure_Expose</a> to actually perform the exposure, by calling
- * <a href="ccd_dsp.html#CCD_DSP_Command_SEX">CCD_DSP_Command_SEX</a> to perform a SEX command.
- * @param ncols The number of columns on the CCD.
- * @param nrows The number of rows on the CCD.
- * @param msecs The number of milliseconds to expose for.
- * @param deinterlace_type What sort of deinterlacing to perform. Depends on how the CCD is setup to readout. One of
- * 	<a href="ccd_setup.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
- *	CCD_DSP_DEINTERLACE_SINGLE,
- *	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
- * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
- * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
- * @param filename The filename to save the exposure to.
- * @return Returns TRUE if the exposure actually succeeds, returns FALSE if the exposure fails or is Aborted.
- */
-static int Exposure_Readout_CCD(int ncols,int nrows,int msecs,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,
-	char *filename)
-{
-	int numbytes;
-
-	/* write the time to memory so that SEX can read it */
-	if(!CCD_DSP_Command_Set_Exposure_Time(msecs))
-	{
-		Exposure_Error_Number = 23;
-		sprintf(Exposure_Error_String,"Exposure_Readout_CCD:Setting exposure time failed.");
-		return FALSE;
-	}
-	/* calculate how many bytes the image will be */
-	numbytes = nrows * ncols * CCD_GLOBAL_BYTES_PER_PIXEL;
-
-	/* Send the command to start the exposure and to read out the ccd. */
-	if(!CCD_DSP_Command_SEX(ncols,nrows,numbytes,msecs,deinterlace_type,filename))
-	{
-		Exposure_Error_Number = 24;
-		sprintf(Exposure_Error_String,"Exposure_Readout_CCD:SEX command failed.");
-		return FALSE;
-	}
-	return TRUE;
-}
-
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.3  2000/02/22 16:05:21  cjm
+** Changed call structure to CCD_DSP_Set_Abort.
+**
 ** Revision 0.2  2000/02/01 17:50:01  cjm
 ** Changed references to CCD_Setup_Setup_CCD to CCD_Setup_Get_Setup_Complete.
 **
