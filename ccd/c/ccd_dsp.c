@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.42 2002-12-03 17:13:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.43 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.42 $
+ * @version $Revision: 0.43 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.42 2002-12-03 17:13:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.43 2002-12-16 16:49:36 cjm Exp $";
 
 /* defines */
 /**
@@ -317,7 +317,8 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
 		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-       if (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT)
+	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -391,7 +392,8 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
 		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-       if (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT)
+	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -485,7 +487,8 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
 		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-       if(CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT)
+	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -1519,8 +1522,9 @@ int CCD_DSP_Command_RET(void)
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	/* no test in this mode - we can still call RET when exposing. */
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-       if (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT)
-       {
+	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
+	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
 #endif
@@ -1774,7 +1778,6 @@ void CCD_DSP_Error(void)
 	if(DSP_Error_Number == 0)
 		sprintf(DSP_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_DSP:Error(%d) : %s\n",time_string,DSP_Error_Number,DSP_Error_String);
-	DSP_Error_Number = 0;
 }
 
 /**
@@ -1797,7 +1800,6 @@ void CCD_DSP_Error_String(char *error_string)
 		sprintf(DSP_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_DSP:Error(%d) : %s\n",time_string,
 		DSP_Error_Number,DSP_Error_String);
-	DSP_Error_Number = 0;
 }
 
 /**
@@ -1815,7 +1817,6 @@ void CCD_DSP_Warning(void)
 	if(DSP_Error_Number == 0)
 		sprintf(DSP_Error_String,"Logic Error:No Warning defined");
 	fprintf(stderr,"%s CCD_DSP:Warning(%d) : %s\n",time_string,DSP_Error_Number,DSP_Error_String);
-	DSP_Error_Number = 0;
 }
 
 /* ----------------------------------------------------------------
@@ -2631,6 +2632,12 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.42  2002/12/03 17:13:19  cjm
+** Added DSP_Manual_Command_To_String routine, for better error messages.
+** Made a note of error codes that are used in the Java layer, to stop
+** the error log filling with Exposure status in READOUT errors
+** (which are not serious to the Ccs).
+**
 ** Revision 0.41  2002/11/08 12:13:19  cjm
 ** CCD_DSP_Command_SEX now changes the exposure status to READOUT immediately,
 ** if the exposure length is small enough.
