@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.16 2001-02-05 14:30:09 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.17 2001-02-09 18:30:40 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.16 $
+ * @version $Revision: 0.17 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.16 2001-02-05 14:30:09 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.17 2001-02-09 18:30:40 cjm Exp $";
 
 /* external variables */
 
@@ -110,7 +110,7 @@ int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Exposure failed:Setup was not complete");
 		return FALSE;
 	}
-/* check paramater ranges */
+/* check parameter ranges */
 	if(!CCD_GLOBAL_IS_BOOLEAN(open_shutter))
 	{
 		Exposure_Error_Number = 2;
@@ -648,6 +648,10 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.16  2001/02/05 14:30:09  cjm
+** Added checks to CCD_Exposure_Bias to STP/IDL called
+** only when Idling was configured at startup.
+**
 ** Revision 0.15  2001/01/23 18:21:27  cjm
 ** Added check for maximum exposure length CCD_DSP_EXPOSURE_MAX_LENGTH.
 **
