@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.21 2002-11-08 12:13:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.22 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.21 $
+ * @version $Revision: 0.22 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -115,7 +115,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.21 2002-11-08 12:13:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.22 2002-12-16 16:49:36 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -399,7 +399,6 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				       "CCD_Exposure_Expose():Waiting for exposure start time (%ld,%ld).",
 				       current_time.tv_sec,start_time.tv_sec);
 #endif
-
 		/* if we've time, sleep for a second */
 			if((start_time.tv_sec - current_time.tv_sec) > Exposure_Data.Start_Exposure_Clear_Time)
 			{
@@ -499,9 +498,10 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 						CCD_DSP_Error();
 				}
 			}/* end if there is over Exposure_Data.Readout_Remaining_Time milliseconds of exposure time left */
-			if((exposure_time - elapsed_exposure_time) < Exposure_Data.Readout_Remaining_Time)
+			if((Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)&&
+			   ((exposure_time - elapsed_exposure_time) < Exposure_Data.Readout_Remaining_Time))
 			{
-				/* Here we change the Exposure status to READOUT, when there
+				/* Here we change the Exposure status to PRE_READOUT, when there
 				** is less than Exposure_Data.Readout_Remaining_Time milliseconds of 
 				** exposure time left. 
 				** The exposure status is checked in WRM,RDM,TDL and RET commands, 
@@ -509,14 +509,14 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				** We switch to exposure readout Exposure_Data.Readout_Remaining_Time milliseconds 
 				** early as we sleep for a second at the bottom of the loop, and the HSTR status
 				** may change before we check it again. */
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
+				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_PRE_READOUT;
 #if LOGGING > 4
 				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 						      "CCD_Exposure_Expose():Exposure Status "
-						      "changed to READOUT %d milliseconds before readout starts.",
+						      "changed to PRE_READOUT %d milliseconds before readout starts.",
 						      (exposure_time - elapsed_exposure_time));
 #endif
-			}/* end if theer  is less than Exposure_Data.Readout_Remaining_Time milliseconds 
+			}/* end if there  is less than Exposure_Data.Readout_Remaining_Time milliseconds 
 			 ** of exposure time left */
 		}/* end if HSTR status is not readout */
 		if(status == CCD_EXPOSURE_HSTR_READOUT)
@@ -525,7 +525,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 				       "CCD_Exposure_Expose():HSTR Status is READOUT.");
 #endif
-			/* is this the first time through the loop we have detected  readout mode? */
+			/* is this the first time through the loop we have detected readout mode? */
 			if(Exposure_Data.Exposure_Status != CCD_EXPOSURE_STATUS_READOUT)
 			{
 				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
@@ -615,6 +615,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Failed to get reply data.");
 		return FALSE;
 	}
+	Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_POST_READOUT;
 /* byte swap to get into right order */
 #ifdef CCD_EXPOSURE_BYTE_SWAP
 #if LOGGING > 4
@@ -783,6 +784,8 @@ int CCD_Exposure_Resume(void)
  * If the exposure status is CCD_EXPOSURE_STATUS_READOUT CCD_Exposure_Abort_Readout should be called instead. 
  * This routine executes a AEX command, and sets the Abort 
  * flag to true by calling CCD_DSP_Set_Abort(TRUE).
+ * @return Returns TRUE if the abort succeeds  returns FALSE if an error occurs.
+ * @see #Exposure_Data
  * @see #CCD_Exposure_Expose
  * @see #CCD_Exposure_Abort_Readout
  * @see #CCD_Exposure_Get_Exposure_Status
@@ -791,31 +794,25 @@ int CCD_Exposure_Resume(void)
  * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_EXPOSURE_STATUS
  */
-void CCD_Exposure_Abort(void)
+int CCD_Exposure_Abort(void)
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() started.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() started with exposure status %d.",
+		       Exposure_Data.Exposure_Status);
 #endif
-	if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)
+	if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
 	{
-		if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
-		{
-			Exposure_Error_Number = 15;
-			sprintf(Exposure_Error_String,"CCD_Exposure_Abort:AEX command failed.");
-			CCD_Exposure_Warning();
-		}
+		Exposure_Error_Number = 15;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Abort:AEX command failed.");
+		return FALSE;
 	}
-	else
-	{
-		Exposure_Error_Number = 16;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Abort:Exposure Status was not expose");
-		CCD_Exposure_Warning();
-	}
+	/* diddly - should we be doing this here? */
 	CCD_DSP_Set_Abort(TRUE);
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() finished.");
 #endif
+	return TRUE;
 }
 
 /**
@@ -826,6 +823,7 @@ void CCD_Exposure_Abort(void)
  * This routine calls the CCD_DSP_Command_ABR 
  * command routine to tell the SDSU CCD Controller to stop the readout,
  * and sets the Abort flag to true by calling CCD_DSP_Set_Abort(TRUE).
+ * @return Returns TRUE if the abort succeeds  returns FALSE if an error occurs.
  * @see #Exposure_Data
  * @see #CCD_Exposure_Expose
  * @see #CCD_Exposure_Abort
@@ -833,31 +831,26 @@ void CCD_Exposure_Abort(void)
  * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_EXPOSURE_STATUS
  */
-void CCD_Exposure_Abort_Readout(void)
+int CCD_Exposure_Abort_Readout(void)
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort_Readout() started.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
+			      "CCD_Exposure_Abort_Readout() started with exposure status %d.",
+			      Exposure_Data.Exposure_Status);
 #endif
-	if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT)
+	if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
 	{
-		if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
-		{
-			Exposure_Error_Number = 17;
-			sprintf(Exposure_Error_String,"CCD_Exposure_Abort_Readout:ABR command failed.");
-			CCD_Exposure_Warning();
-		}
+		Exposure_Error_Number = 17;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Abort_Readout:ABR command failed.");
+		return FALSE;
 	}
-	else
-	{
-		Exposure_Error_Number = 18;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Abort:Exposure Status was not readout");
-		CCD_Exposure_Warning();
-	}
+	/* diddly - should we be doing this here? */
 	CCD_DSP_Set_Abort(TRUE);
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort_Readout() finished.");
 #endif
+	return TRUE;
 }
 
 /**
@@ -902,13 +895,7 @@ int CCD_Exposure_Set_Exposure_Status(enum CCD_EXPOSURE_STATUS status)
 
 /**
  * This routine gets the current value of Exposure Status.
- * Exposure_Status is defined in Exposure_Data and is one of:
- * <ul>
- * <li>CCD_EXPOSURE_STATUS_NONE - no exposure in progress
- * <li>CCD_EXPOSURE_STATUS_CLEAR - the camera is clearing
- * <li>CCD_EXPOSURE_STATUS_EXPOSE - the camera is exposing
- * <li>CCD_EXPOSURE_STATUS_READOUT - the ccd is reading out
- * </ul>
+ * Exposure_Status is defined in Exposure_Data.
  * @return The current status of exposure.
  * @see #CCD_EXPOSURE_STATUS
  * @see #Exposure_Data
@@ -1050,7 +1037,6 @@ void CCD_Exposure_Error(void)
 	if(Exposure_Error_Number == 0)
 		sprintf(Exposure_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_Exposure:Error(%d) : %s\n",time_string,Exposure_Error_Number,Exposure_Error_String);
-	Exposure_Error_Number = 0;
 }
 
 /**
@@ -1073,7 +1059,6 @@ void CCD_Exposure_Error_String(char *error_string)
 		sprintf(Exposure_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_Exposure:Error(%d) : %s\n",time_string,
 		Exposure_Error_Number,Exposure_Error_String);
-	Exposure_Error_Number = 0;
 }
 
 /**
@@ -1091,7 +1076,6 @@ void CCD_Exposure_Warning(void)
 	if(Exposure_Error_Number == 0)
 		sprintf(Exposure_Error_String,"Logic Error:No Warning defined");
 	fprintf(stderr,"%s CCD_Exposure:Warning(%d) : %s\n",time_string,Exposure_Error_Number,Exposure_Error_String);
-	Exposure_Error_Number = 0;
 }
 
 /* ----------------------------------------------------------------
@@ -1651,6 +1635,10 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.21  2002/11/08 12:13:19  cjm
+** CCD_DSP_Command_SEX now changes the exposure status to READOUT immediately,
+** if the exposure length is small enough.
+**
 ** Revision 0.20  2002/11/07 19:13:39  cjm
 ** Changes to make library work with SDSU version 1.7 DSP code.
 **
