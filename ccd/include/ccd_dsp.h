@@ -1,5 +1,5 @@
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.25 2004-08-02 16:35:21 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.26 2004-11-04 15:53:12 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -122,7 +122,7 @@ enum CCD_DSP_DEINTERLACE_TYPE
  * Macro to check whether the deinterlace type is a legal value.
  */
 #define CCD_DSP_IS_DEINTERLACE_TYPE(type)	(((type) == CCD_DSP_DEINTERLACE_SINGLE)|| \
-	((type) == CCD_DSP_DEINTERLACE_SPLIT_PARALLEL)||((type) == CCD_DSP_DEINTERLACE_SPLIT_PARALLEL)|| \
+	((type) == CCD_DSP_DEINTERLACE_FLIP)||((type) == CCD_DSP_DEINTERLACE_SPLIT_PARALLEL)|| \
         ((type) == CCD_DSP_DEINTERLACE_SPLIT_SERIAL)||((type) == CCD_DSP_DEINTERLACE_SPLIT_QUAD))
 
 /* These enum definitions should match with those in CCDLibrary.java */
