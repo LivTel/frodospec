@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.2 1999-02-24 12:07:44 dev Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.3 1999-03-03 14:46:56 dev Exp $ 
 
 
 INCDIR = ../include
@@ -20,7 +20,7 @@ CCDLibrary.class: CCDLibrary.java
 CCDLibraryDouble.class: CCDLibraryDouble.java
 	javac CCDLibraryDouble.java
 
-Test.class: Test.java CCDLibrary.class ExposureThread.class AbortThread.class SetupThread.class
+Test.class: Test.java CCDLibrary.class ExposureThread.class AbortThread.class SetupThread.class ReadOutThread.class
 	javac Test.java
 
 ExposureThread.class: ExposureThread.java CCDLibrary.class
@@ -32,10 +32,16 @@ AbortThread.class: AbortThread.java CCDLibrary.class
 SetupThread.class: SetupThread.java CCDLibrary.class
 	javac SetupThread.java
 
+ReadOutThread.class: ReadOutThread.java CCDLibrary.class
+	javac ReadOutThread.java
+
 $(DOCSDIR)/CCDLibrary.html $(DOCSDIR)/CCDLibraryDouble.html $(DOCSDIR)/SetupThread.html \
-$(DOCSDIR)/ExposureThread.html: CCDLibrary.java CCDLibraryDouble.java SetupThread.java ExposureThread.java
+$(DOCSDIR)/ExposureThread.html $(DOCSDIR)/ReadOutThread.html: CCDLibrary.java CCDLibraryDouble.java \
+SetupThread.java ExposureThread.java ReadOutThread.java
 	javadoc -d $(DOCSDIR) $(DOCFLAGS) *.java
 
 clean:
 	rm -f $(OBJS) *.bak *.BAK *~ #*#
 
+checkout:
+	$(CO)   -l $(SRCS)
