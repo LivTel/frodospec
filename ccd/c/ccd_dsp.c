@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.8 2000-03-01 15:31:36 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.9 2000-03-02 09:48:11 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@ extern int cftime(char *, char *, const time_t *);
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.8 2000-03-01 15:31:36 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.9 2000-03-02 09:48:11 cjm Exp $";
 
 /* defines */
 /**
@@ -815,7 +815,6 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		return FALSE;
 	}
-	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_EXPOSE;
 /* start the exposure */
 	if(!DSP_Send_Sex(start_time))
 	{
@@ -1641,13 +1640,13 @@ static int DSP_Send_Sex(struct timespec start_time)
 					remaining_sec--;
 					remaining_ns += DSP_ONE_SECOND_NS;
 				}
+				done = TRUE;
 				if(remaining_sec > -1)
 				{
 					sleep_time.tv_sec = remaining_sec;
 					sleep_time.tv_nsec = remaining_ns;
 					nanosleep(&sleep_time,NULL);
 				}
-				done = TRUE;
 			}
 			else
 				done = TRUE;
@@ -1656,7 +1655,8 @@ static int DSP_Send_Sex(struct timespec start_time)
 				done = TRUE;
 		}/* end while */
 	}/* end if */
-/* store the actual time the exposure is going to start */
+/* switch status to exposing and store the actual time the exposure is going to start */
+	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_EXPOSE;
 	clock_gettime(CLOCK_REALTIME,&(DSP_Data.Exposure_Start_Time));
 	return DSP_Send_Command(CCD_PCI_HCVR_START_EXPOSURE,NULL,0);
 }
@@ -2499,6 +2499,9 @@ static void DSP_TimeSpec_To_String(struct timespec time,char *time_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2000/03/01 15:31:36  cjm
+** Added exposure timing code.
+**
 ** Revision 0.7  2000/02/28 19:13:01  cjm
 ** Backup.
 **
