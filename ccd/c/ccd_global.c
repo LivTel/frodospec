@@ -1,11 +1,11 @@
 /* ccd_global.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.5 2000-06-13 17:14:13 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.6 2000-12-19 16:23:56 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -28,11 +28,12 @@
 #include "ccd_exposure.h"
 #include "ccd_temperature.h"
 #include "ccd_setup.h"
+#include "ccd_filter_wheel.h"
 
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.5 2000-06-13 17:14:13 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.6 2000-12-19 16:23:56 cjm Exp $";
 
 /* external functions */
 /**
@@ -50,6 +51,7 @@ static char rcsid[] = "$Id: ccd_global.c,v 0.5 2000-06-13 17:14:13 cjm Exp $";
  * @see ccd_dsp.html#CCD_DSP_Initialise
  * @see ccd_exposure.html#CCD_Exposure_Initialise
  * @see ccd_setup.html#CCD_Setup_Initialise
+ * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Initialise
  */
 void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
 {
@@ -61,6 +63,8 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
 		CCD_DSP_Error();
 	CCD_Exposure_Initialise();
 	CCD_Setup_Initialise();
+	if(!CCD_Filter_Wheel_Initialise())
+		CCD_Filter_Wheel_Error();
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_Global_Initialise:%s.\n",rcsid);
 }
@@ -71,6 +75,8 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
  * <b>Note</b> you cannot call both CCD_Global_Error and CCD_Global_Error_String to print the error string and 
  * get a string copy of it, only one of the error routines can be called after libccd has generated an error.
  * A second call to one of these routines will generate a 'Error not found' error!.
+ * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Get_Error_Number
+ * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Error
  * @see ccd_setup.html#CCD_Setup_Get_Error_Number
  * @see ccd_setup.html#CCD_Setup_Error
  * @see ccd_exposure.html#CCD_Exposure_Get_Error_Number
@@ -88,6 +94,11 @@ void CCD_Global_Error(void)
 {
 	int found = FALSE;
 
+	if(CCD_Filter_Wheel_Get_Error_Number() != 0)
+	{
+		found = TRUE;
+		CCD_Filter_Wheel_Error();
+	}
 	if(CCD_Setup_Get_Error_Number() != 0)
 	{
 		found = TRUE;
@@ -143,6 +154,8 @@ void CCD_Global_Error(void)
  * A second call to one of these routines will generate a 'Error not found' error!.
  * @param error_string A character buffer big enough to store the longest possible error message. It is
  * recomended that it is at least 1024 bytes in size.
+ * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Get_Error_Number
+ * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Error_String
  * @see ccd_setup.html#CCD_Setup_Get_Error_Number
  * @see ccd_setup.html#CCD_Setup_Error_String
  * @see ccd_exposure.html#CCD_Exposure_Get_Error_Number
@@ -159,6 +172,10 @@ void CCD_Global_Error(void)
 void CCD_Global_Error_String(char *error_string)
 {
 	strcpy(error_string,"");
+	if(CCD_Filter_Wheel_Get_Error_Number() != 0)
+	{
+		CCD_Filter_Wheel_Error_String(error_string);
+	}
 	if(CCD_Setup_Get_Error_Number() != 0)
 	{
 		CCD_Setup_Error_String(error_string);
@@ -220,6 +237,9 @@ void CCD_Global_Get_Current_Time_String(char *time_string,int string_length)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.5  2000/06/13 17:14:13  cjm
+** Changes to make Ccs agree with voodoo.
+**
 ** Revision 0.4  2000/04/13 12:57:55  cjm
 ** Added CCD_Global_Get_Current_Time_String.
 **
