@@ -1,11 +1,11 @@
 /* ccd_global.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.7 2001-04-17 09:37:55 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.8 2001-06-04 14:41:05 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -15,12 +15,46 @@
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
  */
 #define _POSIX_C_SOURCE 199309L
+/**
+ * This hash define is needed to make header files include X/Open UNIX entensions.
+ * This allows us to use BSD/SVr4 function calls even when  _POSIX_C_SOURCE is defined.
+ * We conditionally use <b>getpriority</b> and <b>setpriority</b> in this module 
+ * (CCD_GLOBAL_READOUT_PRIORITY dependant).
+ * If these lines are not included, the fact that _POSIX_C_SOURCE is defined
+ * causes struct timeval not to be defined in time.h, and then resource.h complains about this (under Solaris).
+ */
+#define _XOPEN_SOURCE		(1)
+/**
+ * This hash define is needed to make header files include X/Open UNIX entensions.
+ * This allows us to use BSD/SVr4 function calls even when  _POSIX_C_SOURCE is defined.
+ * We conditionally use <b>getpriority</b> and <b>setpriority</b> in this module 
+ * (CCD_GLOBAL_READOUT_PRIORITY dependant).
+ * If these lines are not included, the fact that _POSIX_C_SOURCE is defined
+ * causes struct timeval not to be defined in time.h, and then resource.h complains about this (under Solaris).
+ */
+#define _XOPEN_SOURCE_EXTENDED 	(1)
+
 #include <stdio.h>
 #include <errno.h>
+#include <limits.h>
 #include <sys/types.h>
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
+#include <unistd.h>
+#if CCD_GLOBAL_READOUT_PRIORITY == 0
+/* include nothing for normal priority readout */
+#elif CCD_GLOBAL_READOUT_PRIORITY == 1
+#include <sched.h>
+#elif CCD_GLOBAL_READOUT_PRIORITY == 2
+#include <sys/time.h>
+#include <sys/resource.h>
+#else
+#error "ccd_global.c:CCD_GLOBAL_READOUT_PRIORITY has an illegal value - please define to 0/1/2."
+#endif /* CCD_GLOBAL_READOUT_PRIORITY */
+#ifdef CCD_GLOBAL_READOUT_MLOCK
+#include <sys/mman.h>
+#endif /* CCD_GLOBAL_READOUT_MLOCK */
 #include "ccd_global.h"
 #include "ccd_pci.h"
 #include "ccd_text.h"
@@ -31,15 +65,51 @@
 #include "ccd_setup.h"
 #include "ccd_filter_wheel.h"
 
+/* hash definitions */
 /**
- * Revision Control System identifier.
+ * This is used when increasing process priority during readout. We find the maximum priority the
+ * scheduler we intend to use supports, and then set our process priority to the maximum priority minus
+ * this value. This means that there are higher process priorities than the one are process is set to,
+ * so we can (theoretically) interrupt the process if neccessary.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.7 2001-04-17 09:37:55 cjm Exp $";
+#define GLOBAL_PRIORITY_OFFSET			(5)
+#ifndef PAGESIZE
+/**
+ * Horrible bodge definition. If PAGESIZE is not defined in limits.h, we define it here
+ * using sysconf to retrieve it's value. This means extra function calls that we don't want.
+ */
+#define PAGESIZE	(sysconf(_SC_PAGESIZE))
+#endif
+/**
+ * Macro to round an address down to the start of a page of memory. Uses PAGESIZE in limits.h.
+ * Based on macro in <i>Programming for the real world, POSIX.4</i>,P 197.
+ * @param v A memory address.
+ * @return The memory address is returned, rounded down to the start of the page.
+ * @see #PAGESIZE
+ */
+#define GLOBAL_ROUND_DOWN_TO_PAGE(v)	((unsigned long)(v) & ~(PAGESIZE-1))
+/**
+ * Macro to round an address up to a start of a page of memory. Uses PAGESIZE in limits.h.
+ * Based on macro in <i>Programming for the real world, POSIX.4</i>,P 197.
+ * @param v A memory address, or length of a buffer.
+ * @return The memory address/size is returned, rounded up to the start of a page.
+ * @see #PAGESIZE
+ */
+#define GLOBAL_ROUND_UP_TO_PAGE(v)		(((unsigned long)(v) + PAGESIZE -1)& ~(PAGESIZE-1))
 
 /* data types */
 /**
  * Data type holding local data to ccd_global. This consists of the following:
  * <dl>
+ * <dt>Saved_Scheduling_Parameters</dt><dd>This field only exists if the data is compiled with 
+ * 	CCD_GLOBAL_READOUT_PRIORITY = 1. This saves the current scheduling parameters before they are changed
+ * 	for reading out data, if we are using POSIX.4 scheduling parameters.</dd>
+ * <dt>Saved_Scheduling_Algorithm</dt><dd>This field only exists if the data is compiled with 
+ * 	CCD_GLOBAL_READOUT_PRIORITY = 1. This saves the current scheduling algorithm before it is changed
+ * 	for reading out data, if we are using POSIX.4 scheduling parameters.</dd>
+ * <dt>Old_Priority</dt><dd>This field only exists if the data is compiled with 
+ * 	CCD_GLOBAL_READOUT_PRIORITY = 2. This saves the current process priority before it is changed
+ * 	for reading out data, if we are using BSD/SVr4 process management.</dd>
  * <dt>Global_Log_Handler</dt> <dd>Function pointer to the routine that will log messages passed to it.</dd>
  * <dt>Global_Log_Filter</dt> <dd>Function pointer to the routine that will filter log messages passed to it.
  * 		The funtion will return TRUE if the message should be logged, and FALSE if it shouldn't.</dd>
@@ -55,6 +125,12 @@ static char rcsid[] = "$Id: ccd_global.c,v 0.7 2001-04-17 09:37:55 cjm Exp $";
  */
 struct Global_Struct
 {
+#if CCD_GLOBAL_READOUT_PRIORITY == 1
+	struct sched_param Saved_Scheduling_Parameters;
+	int Saved_Scheduling_Algorithm;
+#elif CCD_GLOBAL_READOUT_PRIORITY == 2
+	int Old_Priority;
+#endif
 	void (*Global_Log_Handler)(int level,char *string);
 	int (*Global_Log_Filter)(int level,char *string);
 	int Global_Log_Filter_Level;
@@ -62,10 +138,41 @@ struct Global_Struct
 
 /* internal data */
 /**
+ * Revision Control System identifier.
+ */
+static char rcsid[] = "$Id: ccd_global.c,v 0.8 2001-06-04 14:41:05 cjm Exp $";
+/**
+ * Variable holding error code of last operation performed by ccd_dsp.
+ */
+static int Global_Error_Number = 0;
+/**
+ * Internal variable holding description of the last error that occured.
+ */
+static char Global_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
+/**
  * The instance of Global_Struct that contains local data for this module.
+ * This is statically initialised to the following:
+ * <dl>
+ * <dt>Saved_Scheduling_Parameters</dt> <dd>If compiled in, {0}</dd>
+ * <dt>Saved_Scheduling_Algorithm</dt> <dd>If compiled in, 0</dd>
+ * <dt>Old_Priority</dt> <dd>If compiled in, 0</dd>
+ * <dt>Global_Log_Handler</dt> <dd>NULL</dd>
+ * <dt>Global_Log_Filter</dt> <dd>NULL</dd>
+ * <dt>Global_Log_Filter_Level</dt> <dd>0</dd>
+ * </dl>
  * @see #Global_Struct
  */
-static struct Global_Struct Global_Data = {NULL,NULL,0};
+static struct Global_Struct Global_Data = 
+{
+#if CCD_GLOBAL_READOUT_PRIORITY == 1
+	{0},
+	0,
+#elif CCD_GLOBAL_READOUT_PRIORITY == 2
+	0,
+#endif
+	NULL,NULL,0
+};
+
 /**
  * General buffer used for string formatting during logging.
  * @see #CCD_GLOBAL_ERROR_STRING_LENGTH
@@ -107,6 +214,22 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
 		CCD_Filter_Wheel_Error();
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_Global_Initialise:%s.\n",rcsid);
+#if CCD_GLOBAL_READOUT_PRIORITY == 0
+	fprintf(stdout,"CCD_Global_Initialise:Process at normal priority during image readout.\n");
+#elif CCD_GLOBAL_READOUT_PRIORITY == 1
+	fprintf(stdout,"CCD_Global_Initialise:Process at realtime priority (POSIX.4/SCHED_FIFO)"
+		" during image readout.\n");
+#elif CCD_GLOBAL_READOUT_PRIORITY == 2
+	fprintf(stdout,"CCD_Global_Initialise:Process at higher priority (BSD/SVr4) during image readout.\n");
+#else
+#error "ccd_global.c:CCD_GLOBAL_READOUT_PRIORITY has an illegal value - please define to 0/1/2."
+#endif
+#ifdef CCD_GLOBAL_READOUT_MLOCK
+	fprintf(stdout,"CCD_Global_Initialise:Readout memory locked:cannot be swapped to disc.\n");
+#else
+	fprintf(stdout,"CCD_Global_Initialise:Readout memory unlocked:can be swapped to disc.\n");
+#endif
+	fflush(stdout);
 }
 
 /**
@@ -129,9 +252,13 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
  * @see ccd_interface.html#CCD_Interface_Error
  * @see ccd_pci.html#CCD_PCI_Get_Error_Number
  * @see ccd_pci.html#CCD_PCI_Error
+ * @see #CCD_Global_Get_Current_Time_String
+ * @see #Global_Error_Number
+ * @see #Global_Error_String
  */
 void CCD_Global_Error(void)
 {
+	char time_string[32];
 	int found = FALSE;
 
 	if(CCD_Filter_Wheel_Get_Error_Number() != 0)
@@ -179,6 +306,14 @@ void CCD_Global_Error(void)
 		fprintf(stderr,"\t\t\t");
 		CCD_Text_Error();
 	}
+	if(Global_Error_Number != 0)
+	{
+		found = TRUE;
+		fprintf(stderr,"\t\t\t");
+		CCD_Global_Get_Current_Time_String(time_string,32);
+		fprintf(stderr,"%s CCD_Global:Error(%d) : %s\n",time_string,Global_Error_Number,Global_Error_String);
+		Global_Error_Number = 0;
+	}
 	if(!found)
 	{
 		fprintf(stderr,"Error:CCD_Global_Error:Error not found\n");
@@ -208,9 +343,14 @@ void CCD_Global_Error(void)
  * @see ccd_interface.html#CCD_Interface_Error_String
  * @see ccd_pci.html#CCD_PCI_Get_Error_Number
  * @see ccd_pci.html#CCD_PCI_Error_String
+ * @see #CCD_Global_Get_Current_Time_String
+ * @see #Global_Error_Number
+ * @see #Global_Error_String
  */
 void CCD_Global_Error_String(char *error_string)
 {
+	char time_string[32];
+
 	strcpy(error_string,"");
 	if(CCD_Filter_Wheel_Get_Error_Number() != 0)
 	{
@@ -248,6 +388,13 @@ void CCD_Global_Error_String(char *error_string)
 	{
 		strcat(error_string,"\t\t\t");
 		CCD_Text_Error_String(error_string);
+	}
+	if(Global_Error_Number != 0)
+	{
+		CCD_Global_Get_Current_Time_String(time_string,32);
+		sprintf(error_string+strlen(error_string),"%s CCD_Global:Error(%d) : %s\n",time_string,
+			Global_Error_Number,Global_Error_String);
+		Global_Error_Number = 0;
 	}
 	if(strlen(error_string) == 0)
 	{
@@ -398,8 +545,325 @@ int CCD_Global_Log_Filter_Level_Bitwise(int level,char *string)
 	return ((level & Global_Data.Global_Log_Filter_Level) > 0);
 }
 
+/**
+ * This routine increases the scheduling/priority
+ * of this process. It is called whilst reading out images from the camera, and this reduces the 
+ * chance of this process being interrupted during a readout, which can cause the readout to fail.
+ * The process scheduling/priority is only changed if CCD_GLOBAL_READOUT_PRIORITY is defined to be 
+ * non-zero.
+ * @return The routine returns TRUE if it succeeds, FALSE if it fails.
+ * @see #Global_Data
+ * @see #CCD_Global_Decrease_Priority
+ * @see #GLOBAL_PRIORITY_OFFSET
+ */
+int CCD_Global_Increase_Priority(void)
+{
+#if CCD_GLOBAL_READOUT_PRIORITY == 1
+	struct sched_param scheduling_parameters;
+#endif
+	int scheduling_errno,retval;
+
+#if CCD_GLOBAL_READOUT_PRIORITY == 0
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_PRIORITY is 0 (normal priority).");
+#endif /* LOGGING */
+#elif CCD_GLOBAL_READOUT_PRIORITY == 1
+#ifdef _POSIX_PRIORITY_SCHEDULING
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_PRIORITY is 1 (POSIX.4 sched).");
+#endif /* LOGGING */
+/* get current priority and save */
+	Global_Data.Saved_Scheduling_Algorithm = sched_getscheduler(0);
+	if(Global_Data.Saved_Scheduling_Algorithm < 0)
+	{
+		scheduling_errno = errno;
+		Global_Error_Number = 1;
+		sprintf(Global_Error_String,"CCD_Global_Increase_Priority:"
+			"Failed to get scheduling algorithm. (%d)",scheduling_errno);
+		return FALSE;
+	}
+	retval = sched_getparam(0,&Global_Data.Saved_Scheduling_Parameters);
+	if(retval < 0)
+	{
+		scheduling_errno = errno;
+		Global_Error_Number = 2;
+		sprintf(Global_Error_String,"CCD_Global_Increase_Priority:"
+			"Failed to get scheduling parameters. (%d)",scheduling_errno);
+		return FALSE;
+	}
+#if LOGGING > 3
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_GLOBAL,"Current scheduling:scheduler=%d,priority=%d.",
+		Global_Data.Saved_Scheduling_Algorithm,Global_Data.Saved_Scheduling_Parameters.sched_priority);
+#endif /* LOGGING */
+/* increase priority to maximum */
+	scheduling_parameters = Global_Data.Saved_Scheduling_Parameters;
+	retval = sched_get_priority_max(SCHED_FIFO);
+	if(retval < 0)
+	{
+		scheduling_errno = errno;
+		Global_Error_Number = 3;
+		sprintf(Global_Error_String,"CCD_Global_Increase_Priority:"
+			"Failed to get scheduler max priority.(%d,SCHED_FIFO)",scheduling_errno);
+		return FALSE;
+	}
+	scheduling_parameters.sched_priority = retval-GLOBAL_PRIORITY_OFFSET;
+#if LOGGING > 3
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_GLOBAL,"Setting scheduling to:scheduler=SCHED_FIFO,priority=%d.",
+		scheduling_parameters.sched_priority);
+#endif /* LOGGING */
+	retval = sched_setscheduler(0,SCHED_FIFO,&scheduling_parameters);
+	if(retval < 0)
+	{
+		scheduling_errno = errno;
+		Global_Error_Number = 4;
+		sprintf(Global_Error_String,"CCD_Global_Increase_Priority: Failed to set scheduler.(%d,%d)",
+			scheduling_errno,scheduling_parameters.sched_priority);
+		return FALSE;
+	}
+#else
+#error "ccd_global.c:CCD_Global_Increase_Priority:"
+	"compiled with CCD_GLOBAL_READOUT_PRIORITY but POSIX.4 PRIORITY_SCHEDULING Support not present"
+#endif /* _POSIX_PRIORITY_SCHEDULING defined */
+#elif CCD_GLOBAL_READOUT_PRIORITY == 2
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_PRIORITY is 2 (SVr4/BSD priority).");
+#endif /* LOGGING */
+/* get current priority into old_Priority of our process (0) */
+	Global_Data.Old_Priority = getpriority(PRIO_PROCESS,0);
+#if LOGGING > 3
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_GLOBAL,"Current priority=%d.",Global_Data.Old_Priority);
+#endif /* LOGGING */
+/* set to highest priority */
+	retval = setpriority(PRIO_PROCESS,0,-20);
+	if(retval == -1)
+	{
+		scheduling_errno = errno;
+		Global_Error_Number = 5;
+		sprintf(Global_Error_String,"CCD_Global_Increase_Priority: Failed to set priority(-20,%d).",
+			scheduling_errno);
+		return FALSE;
+	}
+#if LOGGING > 3
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_GLOBAL,"Set priority=%d.",getpriority(PRIO_PROCESS,0));
+#endif /* LOGGING */
+#endif /* CCD_GLOBAL_READOUT_PRIORITY */
+	return TRUE;
+}
+
+/**
+ * This routine resets the scheduling/priority
+ * of this process, using values saved during CCD_Global_Increase_Priority. 
+ * The process scheduling/priority is only changed if CCD_GLOBAL_READOUT_PRIORITY is defined to be 
+ * non-zero.
+ * @return The routine returns TRUE if it succeeds, FALSE if it fails.
+ * @see #Global_Data
+ * @see #CCD_Global_Increase_Priority
+ */
+int CCD_Global_Decrease_Priority(void)
+{
+	int scheduling_errno,retval;
+
+#if CCD_GLOBAL_READOUT_PRIORITY == 1
+#ifdef _POSIX_PRIORITY_SCHEDULING
+#if LOGGING > 3
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_GLOBAL,"Resetting scheduling to:scheduler=%d,priority=%d.",
+		Global_Data.Saved_Scheduling_Algorithm,Global_Data.Saved_Scheduling_Parameters.sched_priority);
+#endif /* LOGGING */
+	retval = sched_setscheduler(0,Global_Data.Saved_Scheduling_Algorithm,
+		&Global_Data.Saved_Scheduling_Parameters);
+	if(retval < 0)
+	{
+		scheduling_errno = errno;
+		Global_Error_Number = 6;
+		sprintf(Global_Error_String,"CCD_Global_Decrease_Priority:"
+			"Failed to reset scheduler.(%d,%d,%d)",
+			scheduling_errno,Global_Data.Saved_Scheduling_Algorithm,
+			Global_Data.Saved_Scheduling_Parameters.sched_priority);
+		return FALSE;
+	}
+#else
+#error "ccd_global.c:CCD_Global_Decrease_Priority:"
+	"compiled with CCD_GLOBAL_READOUT_PRIORITY but POSIX.4 PRIORITY_SCHEDULING Support not present"
+#endif /* _POSIX_PRIORITY_SCHEDULING defined. */
+#elif CCD_GLOBAL_READOUT_PRIORITY == 2
+/* set back to old priority */
+	retval = setpriority(PRIO_PROCESS,0,Global_Data.Old_Priority);
+	if(retval == -1)
+	{
+		scheduling_errno = errno;
+		Global_Error_Number = 7;
+		sprintf(Global_Error_String,"CCD_Global_Decrease_Priority: Failed to set priority(%d,%d).",
+			scheduling_errno,Global_Data.Old_Priority);
+		return FALSE;
+	}
+#if LOGGING > 3
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_GLOBAL,"Reset priority=%d.",getpriority(PRIO_PROCESS,0));
+#endif /* LOGGING */
+#endif /* CCD_GLOBAL_READOUT_PRIORITY */
+	return TRUE;
+}
+
+/**
+ * This routine locks the
+ * image data memory passed in into physical memory, to stop it being paged out during readout.
+ * The memory is locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
+ * supports _POSIX_MEMLOCK_RANGE. The actual address range locked is done in complete pages, for
+ * portability considerations.
+ * @param image_data A pointer to the image data.
+ * @param image_data_size The size of the image data.
+ * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
+ * @see #GLOBAL_ROUND_DOWN_TO_PAGE
+ * @see #GLOBAL_ROUND_UP_TO_PAGE
+ */
+int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size)
+{
+	int mlock_errno,retval;
+
+#ifdef CCD_GLOBAL_READOUT_MLOCK
+#ifdef _POSIX_MEMLOCK_RANGE
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_MLOCK is defined: locking readout memory.");
+#endif /* LOGGING */
+	retval = mlock((unsigned short *)GLOBAL_ROUND_DOWN_TO_PAGE(image_data),
+		GLOBAL_ROUND_UP_TO_PAGE(image_data_size));
+	if(retval == -1)
+	{
+		mlock_errno = errno;
+		Global_Error_Number = 8;
+		sprintf(Global_Error_String,"CCD_Global_Memory_Lock:"
+			"Failed to mlock image data (%p(%p),%d(%d),%d).",
+			image_data,GLOBAL_ROUND_DOWN_TO_PAGE(image_data),image_data_size,
+			GLOBAL_ROUND_UP_TO_PAGE(image_data_size),mlock_errno);
+		return FALSE;
+
+	}
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_MLOCK:readout memory locked.");
+#endif /* LOGGING */
+#else
+#error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK_RANGE Support not present."
+#endif /* _POSIX_MEMLOCK_RANGE */
+#endif /* CCD_GLOBAL_READOUT_MLOCK */
+	return TRUE;
+}
+
+/**
+ * This routine un-locks the image data memory passed in, which was locked in CCD_Global_Memory_Lock.
+ * The memory is un-locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
+ * supports _POSIX_MEMLOCK_RANGE.
+ * @param image_data A pointer to the image data.
+ * @param image_data_size The size of the image data.
+ * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
+ * @see #GLOBAL_ROUND_DOWN_TO_PAGE
+ * @see #GLOBAL_ROUND_UP_TO_PAGE
+ */
+int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size)
+{
+	int munlock_errno,retval;
+
+#ifdef CCD_GLOBAL_READOUT_MLOCK
+#ifdef _POSIX_MEMLOCK_RANGE
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_MLOCK is defined:unlocking readout memory.");
+#endif /* LOGGING */
+	retval = munlock((unsigned short *)GLOBAL_ROUND_DOWN_TO_PAGE(image_data),
+		GLOBAL_ROUND_UP_TO_PAGE(image_data_size));
+	if(retval == -1)
+	{
+		munlock_errno = errno;
+		Global_Error_Number = 9;
+		sprintf(Global_Error_String,"CCD_Global_Memory_UnLock:"
+			"Failed to munlock image data (%p(%p),%d(%d),%d).",
+			image_data,GLOBAL_ROUND_DOWN_TO_PAGE(image_data),
+			image_data_size,GLOBAL_ROUND_UP_TO_PAGE(image_data_size),munlock_errno);
+		return FALSE;
+	}
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_EXPOSURE_READOUT_MLOCK:readout memory is unlocked.");
+#endif /* LOGGING */
+#else
+#error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK_RANGE Support not present."
+#endif /* _POSIX_MEMLOCK_RANGE */
+#endif /* CCD_GLOBAL_READOUT_MLOCK */
+	return TRUE;
+}
+
+/**
+ * This routine locks all the processes memory, to stop it being paged out during readout.
+ * The memory is locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
+ * supports _POSIX_MEMLOCK. 
+ * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
+ * @see #CCD_Global_Memory_UnLock_All
+ */
+int CCD_Global_Memory_Lock_All(void)
+{
+	int mlock_errno,retval;
+
+#ifdef CCD_GLOBAL_READOUT_MLOCK
+#ifdef _POSIX_MEMLOCK
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_MLOCK is defined: locking all memory.");
+#endif /* LOGGING */
+	retval = mlockall(MCL_CURRENT|MCL_FUTURE);
+	if(retval == -1)
+	{
+		mlock_errno = errno;
+		Global_Error_Number = 10;
+		sprintf(Global_Error_String,"CCD_Global_Memory_Lock_All:Failed to mlockall(%d).",
+			mlock_errno);
+		return FALSE;
+
+	}
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_MLOCK:all memory locked.");
+#endif /* LOGGING */
+#else
+#error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK Support not present."
+#endif /* _POSIX_MEMLOCK */
+#endif /* CCD_GLOBAL_READOUT_MLOCK */
+	return TRUE;
+}
+
+/**
+ * This routine un-locks the all the processes memory, which was locked in CCD_Global_Memory_Lock_All.
+ * The memory is un-locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
+ * supports _POSIX_MEMLOCK.
+ * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
+ * @see #CCD_Global_Memory_Lock_All
+ */
+int CCD_Global_Memory_UnLock_All(void)
+{
+	int munlock_errno,retval;
+
+#ifdef CCD_GLOBAL_READOUT_MLOCK
+#ifdef _POSIX_MEMLOCK
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_READOUT_MLOCK is defined:unlocking all memory.");
+#endif /* LOGGING */
+	retval = munlockall();
+	if(retval == -1)
+	{
+		munlock_errno = errno;
+		Global_Error_Number = 11;
+		sprintf(Global_Error_String,"CCD_Global_Memory_UnLock_All:Failed to munlockall(%d).",
+			munlock_errno);
+		return FALSE;
+	}
+#if LOGGING > 3
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_GLOBAL,"CCD_GLOBAL_EXPOSURE_READOUT_MLOCK:all memory is unlocked.");
+#endif /* LOGGING */
+#else
+#error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK Support not present."
+#endif /* _POSIX_MEMLOCK */
+#endif /* CCD_GLOBAL_READOUT_MLOCK */
+	return TRUE;
+}
+
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.7  2001/04/17 09:37:55  cjm
+** Added logging code.
+**
 ** Revision 0.6  2000/12/19 16:23:56  cjm
 ** Added filter wheel module calls.
 **
