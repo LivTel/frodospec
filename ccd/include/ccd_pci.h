@@ -1,5 +1,5 @@
 /* ccd_pci.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.3 2000-06-19 08:48:51 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.4 2000-09-25 09:52:00 cjm Exp $
 */
 
 #ifndef CCD_PCI_H
@@ -50,11 +50,10 @@
 /**
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.
- * This command makes the PCI board issue a manual command to another board, using arguments already set up.
- * This enables the software to send low-level DSP commands direct to the relevant board. (e.g. SGN).
+ * This command resets the PCI boards program counter, to stop it locking up.
  * @see #CCD_PCI_IOCTL_SET_HCVR
  */
-#define CCD_PCI_HCVR_MANUAL_COMMAND 		(0x8081)
+#define CCD_PCI_HCVR_PCI_PC_RESET 		(0x8081)
 /**
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.
@@ -215,7 +214,7 @@
  * @see #CCD_PCI_IOCTL_SET_HCVR
  * @see #CCD_PCI_HCVR_READ_IMAGE
  */
-#define CCD_PCI_HCVR_READ_ARRAY 		(0x80A7)
+#define CCD_PCI_HCVR_READ_ARRAY               (0x80A7)
 /**
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.

@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.15 2000-07-06 09:33:43 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.16 2000-09-25 09:51:28 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.15 $
+ * @version $Revision: 0.16 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.15 2000-07-06 09:33:43 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.16 2000-09-25 09:51:28 cjm Exp $";
 
 /* #defines */
 /**
@@ -46,6 +46,24 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.15 2000-07-06 09:33:43 cjm Exp $";
  * The number of nanoseconds in one microsecond.
  */
 #define TEXT_ONE_MICROSECOND_NS		(1000)
+
+/**
+ * The default value to set the Controller_Status to. This is the default value of the timing boards
+ * CONFIG (controller configuration) word in the DSP code.
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_CCD_REV3B
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_TIM_REV4B
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_UTILITY_REV3
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_SHUTTER
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_NONLINEAR_TEMP_CONV
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_SUBARRAY
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_BINNING
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_SERIAL_SPLIT
+ */
+#define TEXT_DEFAULT_CONTROLLER_CONFIG	(CCD_DSP_CONTROLLER_CONFIG_BIT_CCD_REV3B| \
+	CCD_DSP_CONTROLLER_CONFIG_BIT_TIM_REV4B|CCD_DSP_CONTROLLER_CONFIG_BIT_UTILITY_REV3| \
+	CCD_DSP_CONTROLLER_CONFIG_BIT_SHUTTER|CCD_DSP_CONTROLLER_CONFIG_BIT_NONLINEAR_TEMP_CONV| \
+	CCD_DSP_CONTROLLER_CONFIG_BIT_SUBARRAY|CCD_DSP_CONTROLLER_CONFIG_BIT_BINNING| \
+	CCD_DSP_CONTROLLER_CONFIG_BIT_SERIAL_SPLIT)
 
 /* structures */
 /**
@@ -171,7 +189,7 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
 	{CCD_PCI_HCVR_WRITE_CONTROLLER_STATUS,"Write Controller Status",0,Text_HCVR_Write_Controller_Status},
 	{CCD_PCI_HCVR_RESET_CONTROLLER,"Reset Controller",CCD_DSP_SYR,NULL},
 	{CCD_PCI_HCVR_LOAD_APPLICATION,"Load Application",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_MANUAL_COMMAND,"Manual Command",CCD_DSP_DON,NULL},
+	{CCD_PCI_HCVR_PCI_PC_RESET,"Reset PCI board Program Counter",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_READ_PCI_STATUS,"Read PCI Status",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_TEST_DATA_LINK,"Test Data Link",0,Text_HCVR_Test_Data_Link},
 	{CCD_PCI_HCVR_READ_MEMORY,"Read Memory",0,Text_HCVR_Read_Memory},
@@ -301,7 +319,7 @@ void CCD_Text_Initialise(void)
 	for(i=0;i<TEXT_ARGUMENT_COUNT;i++)
 		Text_Data.Argument_List[i] = 0;
 	Text_Data.Reply = -1;
-	Text_Data.Controller_Status = 0;
+	Text_Data.Controller_Status = TEXT_DEFAULT_CONTROLLER_CONFIG;
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 		fprintf(Text_File_Ptr,"CCD_Text_Initialise\n");
 /* print some compile time information to stdout */
@@ -393,6 +411,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_ARG2:
 			fprintf(Text_File_Ptr,"Request:Set Argument 2:");
@@ -404,6 +423,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_ARG3:
 			fprintf(Text_File_Ptr,"Request:Set Argument 3:");
@@ -415,6 +435,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_ARG4:
 			fprintf(Text_File_Ptr,"Request:Set Argument 4:");
@@ -426,6 +447,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_ARG5:
 			fprintf(Text_File_Ptr,"Request:Set Argument 5:");
@@ -437,6 +459,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_ARGS:
 			fprintf(Text_File_Ptr,"Request:Set Argument S?:");
@@ -450,7 +473,14 @@ int CCD_Text_Command(int request,int *argument)
 			break;
 		case CCD_PCI_IOCTL_SET_HCTR:
 			fprintf(Text_File_Ptr,"Request:Set HCTR (Host Interface Control Register):");
-			Text_Data.HCTR_Register = *argument;
+			if(argument != NULL)
+			{
+				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
+					fprintf(Text_File_Ptr,"%#x:",(*argument));
+				Text_Data.HCTR_Register = *argument;
+			}
+			else
+				fprintf(Text_File_Ptr,"NULL Argument:");
 			break;
 		case CCD_PCI_IOCTL_SET_HCVR:
 			fprintf(Text_File_Ptr,"Request:Set HCVR (Host Command Vector Register):");
@@ -471,6 +501,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_NCOLS:
 			fprintf(Text_File_Ptr,"Request:Set Number of Columns:");
@@ -482,6 +513,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_NROWS:
 			fprintf(Text_File_Ptr,"Request:Set Number of Rows:");
@@ -493,6 +525,7 @@ int CCD_Text_Command(int request,int *argument)
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
+			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_IMAGE_BUFFERS:
 			fprintf(Text_File_Ptr,"Request:Set address of the image data buffers:");
@@ -788,6 +821,7 @@ static void Text_Destination(int destination_number)
 
 	Text_Data.Destination = destination_number&0xFFFF;
 	Text_Data.Argument_Count = (destination_number>>16)&0xFFFF;
+	Text_Data.Reply = CCD_DSP_DON;
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
 		fprintf(Text_File_Ptr,":%s:Number of Arguments:%d:",Board_Name_List[Text_Data.Destination],
 			Text_Data.Argument_Count);
@@ -980,6 +1014,9 @@ static void Text_HCVR_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.15  2000/07/06 09:33:43  cjm
+** Changed GET_REPLY time delay.
+**
 ** Revision 0.14  2000/06/19 08:48:34  cjm
 ** Backup.
 **

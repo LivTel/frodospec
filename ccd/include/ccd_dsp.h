@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.15 2000-07-11 10:43:08 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.16 2000-09-25 09:52:00 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -191,12 +191,33 @@ enum CCD_DSP_AMPLIFIER
 #define CCD_DSP_SOS		(0x534f53)	/* SOS */
 
 /**
- * This hash definition represents one of the bits present in the controller status word,
- * which is retrieved using READ_CONTROLLER_STATUS and set using WRITE_CONTROLLER_STATUS.
+ * This hash definition represents one of the bits present in the controller status word, which is on
+ * the timing board in X memory at location 0.
+ * This is retrieved using READ_MEMORY and set using WRITE_MEMORY.
  * When set, this bit means START_EXPOSURE commands sent to the controller will open the shutter.
  */
 #define CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT	(1 << 11)
 
+/**
+ * This hash definition represents one of the bits present in the timing board controller configuration word.
+ * This is retrieved using READ_CONTROLLER_STATUS and set using WRITE_CONTROLLER_STATUS.
+ */
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_CCD_REV3B			(0x0)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_CCD_GENI			(0x1)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_IR_REV4C			(0x2)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_IR_COADDER		(0x3)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_TIM_REV4B			(0x0)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_TIM_GENI			(0x8)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_UTILITY_REV3		(0x20)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_SHUTTER			(0x80)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_NONLINEAR_TEMP_CONV	(0x100)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_LINEAR_TEMP_CONV		(0x200)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_SUBARRAY			(0x400)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_BINNING			(0x800)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_SERIAL_SPLIT		(0x1000)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_PARALLEL			(0x2000)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_BOTH_READOUTS		(0x3000)
+#define CCD_DSP_CONTROLLER_CONFIG_BIT_MPP_CAPABLE		(0x4000)
 
 extern int CCD_DSP_Initialise(void);
 /* Boot commands */
@@ -217,7 +238,7 @@ extern int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier);
 extern int CCD_DSP_Command_STP(void);
 extern int CCD_DSP_Command_Set_NCols(int ncols);
 extern int CCD_DSP_Command_Set_NRows(int nrows);
-/* utility board commands */
+
 extern int CCD_DSP_Command_AEX(void);
 extern int CCD_DSP_Command_CSH(void);
 extern int CCD_DSP_Command_OSH(void);
@@ -233,6 +254,7 @@ extern int CCD_DSP_Command_Reset(void);
 extern int CCD_DSP_Command_Flush_Reply_Buffer(void);
 extern int CCD_DSP_Command_Read_Controller_Status(void);
 extern int CCD_DSP_Command_Write_Controller_Status(int bit_value);
+extern int CCD_DSP_Command_PCI_PC_Reset(void);
 extern int CCD_DSP_Command_Read_PCI_Status(void);
 extern int CCD_DSP_Command_Set_Exposure_Time(int msecs);
 extern int CCD_DSP_Command_Read_Exposure_Time(void);

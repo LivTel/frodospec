@@ -1,6 +1,6 @@
 /* ccd_temperature.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.4 2000-04-13 13:09:30 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.5 2000-09-25 09:51:28 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -33,7 +33,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.4 2000-04-13 13:09:30 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.5 2000-09-25 09:51:28 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -112,7 +112,7 @@ static char rcsid[] = "$Id: ccd_temperature.c,v 0.4 2000-04-13 13:09:30 cjm Exp 
  * The number of times to read the SDSU CCD Controller to determine the temperature.
  * @see #CCD_Temperature_Get
  */
-#define TEMPERATURE_MAX_CHECKS  		10
+#define TEMPERATURE_MAX_CHECKS  		30
 
 /**
  * How close the calculated temperature has to be to the target temperature when calculating an ADU count
@@ -424,6 +424,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2000/04/13 13:09:30  cjm
+** Added current time to error routines.
+**
 ** Revision 0.4  2000/04/13 13:03:14  cjm
 ** Changed error routine to print current time.
 **

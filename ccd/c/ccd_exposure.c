@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.13 2000-07-14 16:25:44 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.14 2000-09-25 09:51:28 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.13 $
+ * @version $Revision: 0.14 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.13 2000-07-14 16:25:44 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.14 2000-09-25 09:51:28 cjm Exp $";
 
 /* external variables */
 
@@ -211,8 +211,6 @@ int CCD_Exposure_Bias(char *filename)
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
 /* if debugging, get PCI/timing board status and print */
 #if DEBUG == 1
-	debug = CCD_DSP_Command_Read_Controller_Status();	
-	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
 	debug = CCD_DSP_Command_Read_PCI_Status();	
 	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
 	fflush(stdout);
@@ -382,12 +380,26 @@ void CCD_Exposure_Abort(void)
 	Exposure_Error_Number = 0;
 	if(CCD_DSP_Get_Exposure_Status() == CCD_DSP_EXPOSURE_STATUS_EXPOSE)
 	{
-		if(!CCD_DSP_Command_AEX())
+		if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
 		{
 			Exposure_Error_Number = 15;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Abort:AEX command failed.");
 			CCD_Exposure_Warning();
 		}
+		if(CCD_DSP_Command_PCI_PC_Reset() != CCD_DSP_DON)
+		{
+			Exposure_Error_Number = 26;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Abort:PCI board PC reset command failed.");
+			CCD_Exposure_Warning();
+		}
+#ifndef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+		if(!CCD_DSP_Command_Flush_Reply_Buffer())
+		{
+			Exposure_Error_Number = 27;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Abort:Flushing reply buffer failed.");
+			CCD_Exposure_Warning();
+		}
+#endif
 	}
 	else
 	{
@@ -418,12 +430,26 @@ void CCD_Exposure_Abort_Readout(void)
 	Exposure_Error_Number = 0;
 	if(CCD_DSP_Get_Exposure_Status() == CCD_DSP_EXPOSURE_STATUS_READOUT)
 	{
-		if(!CCD_DSP_Command_ABR())
+		if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
 		{
 			Exposure_Error_Number = 17;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Abort_Readout:ABR command failed.");
 			CCD_Exposure_Warning();
 		}
+		if(CCD_DSP_Command_PCI_PC_Reset() != CCD_DSP_DON)
+		{
+			Exposure_Error_Number = 30;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Abort_Readout:PCI board PC reset command failed.");
+			CCD_Exposure_Warning();
+		}
+#ifndef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+		if(!CCD_DSP_Command_Flush_Reply_Buffer())
+		{
+			Exposure_Error_Number = 31;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Abort:Flushing reply buffer failed.");
+			CCD_Exposure_Warning();
+		}
+#endif
 	}
 	else
 	{
@@ -563,13 +589,13 @@ void CCD_Exposure_Warning(void)
  * 	current state throughout the exposure.
  * @return Returns TRUE if the operation succeeded, FALSE if it fails.
  * @see #CCD_Exposure_Expose
- * @see ccd_dsp.html#CCD_DSP_Command_Read_Controller_Status
- * @see ccd_dsp.html#CCD_DSP_Command_Write_Controller_Status
+ * @see ccd_dsp.html#CCD_DSP_Command_RDM
+ * @see ccd_dsp.html#CCD_DSP_Command_WRM
  * @see ccd_dsp.html#CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT
  */
 static int Exposure_Shutter_Control(int open_shutter)
 {
-	int controller_status;
+	int current_status;
 #if DEBUG == 1
 	int debug;
 #endif
@@ -584,27 +610,25 @@ static int Exposure_Shutter_Control(int open_shutter)
 	}
 /* if debugging, get PCI/timing board status and print */
 #if DEBUG == 1
-	debug = CCD_DSP_Command_Read_Controller_Status();	
-	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
 	debug = CCD_DSP_Command_Read_PCI_Status();	
 	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
 	fflush(stdout);
 #endif
 /* get current controller status */
-	controller_status = CCD_DSP_Command_Read_Controller_Status();
-	if((controller_status == 0)&&(CCD_DSP_Get_Error_Number() != 0))
+	current_status = CCD_DSP_Command_RDM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0);
+	if((current_status == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		Exposure_Error_Number = 28;
-		sprintf(Exposure_Error_String,"Exposure_Shutter_Control: Reading controller status failed.");
+		sprintf(Exposure_Error_String,"Exposure_Shutter_Control: Reading timing status failed.");
 		return FALSE;
 	}
 /* set or clear open shutter bit */
 	if(open_shutter)
-		controller_status |= CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT;
+		current_status |= CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT;
 	else
-		controller_status &= ~(CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT);
+		current_status &= ~(CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT);
 /* write new controller status value */
-	if(CCD_DSP_Command_Write_Controller_Status(controller_status) != CCD_DSP_DON)
+	if(CCD_DSP_Command_WRM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0,current_status) != CCD_DSP_DON)
 	{
 		Exposure_Error_Number = 22;
 		sprintf(Exposure_Error_String,"Exposure_Shutter_Control: Writing shutter bit failed.");
@@ -615,6 +639,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.13  2000/07/14 16:25:44  cjm
+** Backup.
+**
 ** Revision 0.12  2000/07/11 10:42:24  cjm
 ** Removed CCD_Exposure_Flush_CCD.
 **
