@@ -1,9 +1,19 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.5 2000-02-23 11:56:18 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.6 2000-02-28 19:13:15 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
-
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
+ * for struct timespec.
+ */
+#define _POSIX_SOURCE 1
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
+ * for struct timespec.
+ */
+#define _POSIX_C_SOURCE 199309L
+#include <time.h>
 #include "ccd_global.h"
 
 /**
@@ -174,8 +184,7 @@ extern int CCD_DSP_Command_POF(void);
 extern int CCD_DSP_Command_REX(void);
 extern int CCD_DSP_Command_Read_Temperature(void);
 extern int CCD_DSP_Command_Set_Temperature(int adu);
-extern int CCD_DSP_Command_SEX(int ncols,int nrows,int numbytes,int msecs,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename);
+extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time);
 extern int CCD_DSP_Command_Reset(void);
 extern int CCD_DSP_Command_Set_Util_Options(int bit_value);
 extern int CCD_DSP_Command_Set_Exposure_Time(int msecs);
@@ -183,6 +192,8 @@ extern int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename);
 extern int CCD_DSP_Get_Abort(void);
 extern int CCD_DSP_Set_Abort(int value);
 extern enum CCD_DSP_EXPOSURE_STATUS CCD_DSP_Get_Exposure_Status(void);
+extern struct timespec CCD_DSP_Get_Exposure_Start_Time(void);
+extern int CCD_DSP_Get_Exposure_Length(void);
 extern int CCD_DSP_Get_Error_Number(void);
 extern void CCD_DSP_Error(void);
 extern void CCD_DSP_Error_String(char *error_string);

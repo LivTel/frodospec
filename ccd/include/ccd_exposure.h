@@ -1,13 +1,24 @@
 /* ccd_exposure.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.1 2000-01-25 15:03:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.2 2000-02-28 19:13:15 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
-
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
+ * for time.
+ */
+#define _POSIX_SOURCE 1
+/**
+ * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
+ * for time.
+ */
+#define _POSIX_C_SOURCE 199309L
+#include <time.h>
 #include "ccd_global.h"
 
 extern void CCD_Exposure_Initialise(void);
-extern int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filename);
+extern int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_time,int exposure_time,
+	char *filename);
 extern int CCD_Exposure_Bias(char *filename);
 extern int CCD_Exposure_Flush_CCD(void);
 extern int CCD_Exposure_Open_Shutter(void);
