@@ -1,5 +1,5 @@
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.24 2003-06-06 12:38:45 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.25 2004-08-02 16:35:21 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -105,6 +105,8 @@ enum CCD_DSP_GAIN
  * <ul>
  * <li>CCD_DSP_DEINTERLACE_SINGLE - This setting does no deinterlacing, 
  * 	as the CCD was read out from a single readout.
+ * <li>CCD_DSP_DEINTERLACE_FLIP - This setting flips the output image in X, if the CCD was readout from the
+ *     "wrong" amplifier, i.e. to ensure east is to the left.
  * <li>CCD_DSP_DEINTERLACE_SPLIT_PARALLEL - This setting deinterlaces split parallel readout.
  * <li>CCD_DSP_DEINTERLACE_SPLIT_SERIAL - This setting deinterlaces split serial readout.
  * <li>CCD_DSP_DEINTERLACE_SPLIT_QUAD - This setting deinterlaces split quad readout.
@@ -112,7 +114,7 @@ enum CCD_DSP_GAIN
  */
 enum CCD_DSP_DEINTERLACE_TYPE
 {
-	CCD_DSP_DEINTERLACE_SINGLE,CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
+	CCD_DSP_DEINTERLACE_SINGLE,CCD_DSP_DEINTERLACE_FLIP,CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL,CCD_DSP_DEINTERLACE_SPLIT_QUAD
 };
 
@@ -120,8 +122,8 @@ enum CCD_DSP_DEINTERLACE_TYPE
  * Macro to check whether the deinterlace type is a legal value.
  */
 #define CCD_DSP_IS_DEINTERLACE_TYPE(type)	(((type) == CCD_DSP_DEINTERLACE_SINGLE)|| \
-	((type) == CCD_DSP_DEINTERLACE_SPLIT_PARALLEL)||((type) == CCD_DSP_DEINTERLACE_SPLIT_SERIAL)|| \
-	((type) == CCD_DSP_DEINTERLACE_SPLIT_QUAD))
+	((type) == CCD_DSP_DEINTERLACE_SPLIT_PARALLEL)||((type) == CCD_DSP_DEINTERLACE_SPLIT_PARALLEL)|| \
+        ((type) == CCD_DSP_DEINTERLACE_SPLIT_SERIAL)||((type) == CCD_DSP_DEINTERLACE_SPLIT_QUAD))
 
 /* These enum definitions should match with those in CCDLibrary.java */
 /**

@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.29 2004-06-03 16:23:23 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.30 2004-08-02 16:34:58 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.29 $
+ * @version $Revision: 0.30 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.29 2004-06-03 16:23:23 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.30 2004-08-02 16:34:58 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -1419,6 +1419,7 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
  * 	in this memory area.
  * @param deinterlace_type The type of deinterlacing to perform. One of CCD_DSP_DEINTERLACE_TYPE:
  * 	CCD_DSP_DEINTERLACE_SINGLE,
+ * 	CCD_DSP_DEINTERLACE_FLIP,
  * 	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
@@ -1444,6 +1445,30 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 		{
 			return TRUE;
 		} /*end single readout*/
+		/* Flip the output image in X so east is to the left. */
+		case CCD_DSP_DEINTERLACE_FLIP:
+		{
+			int x,y;
+			unsigned short int tempval;
+
+			/* for each row */
+			for(y=0;y<nrows;y++)
+			{
+				/* for the first half of the columns.
+				** Note the middle column will be missed, this is OK as it
+				** does not need to be flipped if it is in the middle */
+				for(x=0;x<(ncols/2);x++)
+				{
+					/* Copy image[x,y] to tempval */
+					tempval = *(old_iptr+(y*ncols)+x);
+					/* Copy image[ncols-(x+1),y] to image[x,y] */
+					*(old_iptr+(y*ncols)+x) = *(old_iptr+(y*ncols)+(ncols-(x+1)));
+					/* Copy tempval = image[ncols-(x+1),y] */
+					*(old_iptr+(y*ncols)+(ncols-(x+1))) = tempval;
+				}
+			}
+			return TRUE;
+		} /*end single readout, flipped */
 		/* SPLIT PARALLEL READOUT */
 		case CCD_DSP_DEINTERLACE_SPLIT_PARALLEL:
 		{
@@ -1871,6 +1896,12 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.29  2004/06/03 16:23:23  cjm
+** Calling ABR when exposure status is READOUT seems to cause occasional lockups.
+** So we now only abort when exposing.
+** If we abort when in readout mode, the software will wait until it exits the
+** exposure/readout loop to catch the abort.
+**
 ** Revision 0.28  2004/05/16 15:34:11  cjm
 ** Added CCD_EXPOSURE_STATUS_NONE set if ABR failed.
 **
