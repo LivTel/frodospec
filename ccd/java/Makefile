@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.10 1999-08-23 14:21:59 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.11 1999-09-08 10:03:09 cjm Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -40,9 +40,12 @@ checkout:
 	$(CO) $(CO_OPTIONS) $(SRCS)
 
 checkin:
-	$(CI) $(SRCS)
+	-$(CI) $(CI_OPTIONS) $(SRCS)
 #
 # $Log: not supported by cvs2svn $
+# Revision 0.10  1999/08/23 14:21:59  cjm
+# Fixed new rule for CCDLibrary.h header file.
+#
 # Revision 0.9  1999/08/23 14:04:16  cjm
 # Fixed docs rule
 #
