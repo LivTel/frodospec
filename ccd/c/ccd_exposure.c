@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.10 2000-06-19 08:48:34 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.11 2000-06-20 12:53:07 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.10 $
+ * @version $Revision: 0.11 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.10 2000-06-19 08:48:34 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.11 2000-06-20 12:53:07 cjm Exp $";
 
 /* external variables */
 
@@ -72,16 +72,12 @@ void CCD_Exposure_Initialise(void)
  * <li>The length of exposure is sent to the controller.
  * <li>The exposure is performed by calling 
  * 	<a href="ccd_dsp.html#CCD_DSP_Command_SEX">CCD_DSP_Command_SEX</a> to do the exposure.
- * <li>If readout_ccd is TRUE the exposure is read out by calling 
- * 	<a href="ccd_dsp.html#CCD_DSP_Command_RDI">CCD_DSP_Command_RDI</a>. If the exposure length was greater than
- * 	5 seconds, the send_rdi parameter is TRUE otherwise it is FALSE. This is because the SEX command
- * 	will automatically send the RDI command (with our DSP code) if the exposure length is 5 seconds or less.
+ *	This then read outs the exposure and saves it to disk.
  * </ul>
  * If the exposure is aborted at any stage the routine returns.
  * @param open_shutter TRUE if the shutter is to be opened over the duration of the exposure, FALSE if the
  * 	shutter should remain closed. The shutter may not want to be opened if a calibration image is
  * 	being taken.
- * @param readout_ccd TRUE if the CCD is to be read out, FALSE if it is not.
  * @param start_time The time to start the exposure. If both the fields in the <i>struct timespec</i> are zero,
  * 	the exposure can be started at any convenient time.
  * @param exposure_time The length of time to open the shutter for in milliseconds.
@@ -95,9 +91,8 @@ void CCD_Exposure_Initialise(void)
  * @see ccd_setup.html#CCD_Setup_Get_DeInterlace_Type
  * @see ccd_dsp.html#CCD_DSP_Command_Set_Exposure_Time
  * @see ccd_dsp.html#CCD_DSP_Command_SEX
- * @see ccd_dsp.html#CCD_DSP_Command_RDI
  */
-int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_time,int exposure_time,char *filename)
+int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure_time,char *filename)
 {
 	int ncols;
 	int nrows;
@@ -114,11 +109,11 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_t
 		return FALSE;
 	}
 /* check paramater ranges */
-	if((!CCD_GLOBAL_IS_BOOLEAN(open_shutter))||(!CCD_GLOBAL_IS_BOOLEAN(readout_ccd)))
+	if(!CCD_GLOBAL_IS_BOOLEAN(open_shutter))
 	{
 		Exposure_Error_Number = 2;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:open_shutter = %d,readout_ccd = %d",
-			open_shutter,readout_ccd);
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:open_shutter = %d.",
+			open_shutter);
 		return FALSE;
 	}
 	if(exposure_time <= 0)
@@ -169,30 +164,12 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_t
 		return FALSE;
 	}
 /* Send the command to start the exposure, and monitor for completion. */
-	if(!CCD_DSP_Command_SEX(start_time,exposure_time))
+	if(!CCD_DSP_Command_SEX(start_time,exposure_time,ncols,nrows,deinterlace_type,filename))
 	{
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 24;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed.");
 		return FALSE;
-	}
-	if(CCD_DSP_Get_Abort())
-	{
-		CCD_DSP_Set_Abort(FALSE);
-		Exposure_Error_Number = 26;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
-		return FALSE;
-	}
-/* Read out the ccd. */
-	if(readout_ccd)
-	{
-		if(!CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,exposure_time>5000,filename))
-		{
-			CCD_DSP_Set_Abort(FALSE);
-			Exposure_Error_Number = 27;
-			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:RDC command failed.");
-			return FALSE;
-		}
 	}
 	return TRUE;
 }
@@ -631,6 +608,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.10  2000/06/19 08:48:34  cjm
+** Backup.
+**
 ** Revision 0.9  2000/06/13 17:14:13  cjm
 ** Changes to make Ccs agree with voodoo.
 **

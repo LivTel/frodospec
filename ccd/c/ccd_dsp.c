@@ -1,12 +1,12 @@
  /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.23 2000-06-19 08:48:34 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.24 2000-06-20 12:53:07 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.23 $
+ * @version $Revision: 0.24 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.23 2000-06-19 08:48:34 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.24 2000-06-20 12:53:07 cjm Exp $";
 
 /* defines */
 /**
@@ -378,6 +378,8 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
  * it's value.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The routine checks that the exposure status is non-zero if we are reading from the utility board, 
+ * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -427,6 +429,19 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+/* At the moment, we can only read memory on the utility board when we are not exposing,
+** otherwise the SDSU boards lock up... */
+	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
+		(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 64;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_RDM failed:Exposure Status non zero (%d) when"
+			"reading from the utility board.",DSP_Data.Exposure_Status);
+		return FALSE;
+	}
 	if(!DSP_Send_Rdm(board_id,mem_space,address))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -448,6 +463,8 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  * This ensures the host computer can communicate with the board.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The routine checks that the exposure status is non-zero if we are writing to the utility board, 
+ * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -472,6 +489,19 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+/* At the moment, we can only TDL on the utility board when we are not exposing,
+** otherwise the SDSU boards lock up... */
+	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
+		(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 65;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_TDL failed:Exposure Status non zero (%d) when"
+			"testing the utility board.",DSP_Data.Exposure_Status);
+		return FALSE;
+	}
 	if(!DSP_Send_Tdl(board_id,data))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -493,6 +523,8 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
  * This sets the value of a word of memory, it's location specified by board,memory space and address.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The routine checks that the exposure status is non-zero if we are writing to the utility board, 
+ * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -537,6 +569,19 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+/* At the moment, we can only write memory on the utility board when we are not exposing,
+** otherwise the SDSU boards lock up... */
+	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
+		(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 91;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM failed:Exposure Status non zero (%d) when"
+			"writing to the utility board.",DSP_Data.Exposure_Status);
+		return FALSE;
+	}
 	if(!DSP_Send_Wrm(board_id,mem_space,address,data))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -1223,10 +1268,13 @@ int CCD_DSP_Command_POF(void)
  * read memory command for address 0x0c in Y memory space. The reply memory is then read.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The routine checks that the exposure status is non-zero, as setting temperature involves a write to the 
+ * utility board which cannot be undertaken during an exposure.
  * @return The adu counts held on the utility board. If an error occurs, zero is returned. Use 
  * 	CCD_DSP_Get_Error_Number to determine whether zero is returned from the board or is an error.
  * @see #DSP_Send_Read_Temperature
  * @see #DSP_Get_Reply
+ * @see #DSP_Data
  * @see #DSP_ACTUAL_VALUE
  */
 int CCD_DSP_Command_Read_Temperature(void)
@@ -1238,6 +1286,18 @@ int CCD_DSP_Command_Read_Temperature(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+/* At the moment, we can only read the temperature when we are not exposing,
+** otherwise the SDSU boards lock up... */
+	if(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE)
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 92;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_Read_Temperature failed:Exposure Status non zero (%d).",
+			DSP_Data.Exposure_Status);
+		return FALSE;
+	}
 	if(!DSP_Send_Read_Temperature())
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -1260,9 +1320,12 @@ int CCD_DSP_Command_Read_Temperature(void)
  * write memory command for address 0x1c in Y memory space. The reply memory is then read to ensure DON is returned.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The routine checks that the exposure status is non-zero, as setting temperature involves a write to the 
+ * utility board which cannot be undertaken during an exposure.
  * @param The target adu counts for the desired temperature.
  * @return The routine returnd DON if the command suceeded, FALSE if it failed.
  * @see #DSP_Send_Set_Temperature
+ * @see #DSP_Data
  * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_Set_Temperature(int adu)
@@ -1274,6 +1337,18 @@ int CCD_DSP_Command_Set_Temperature(int adu)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
+/* At the moment, we can only read the temperature when we are not exposing,
+** otherwise the SDSU boards lock up... */
+	if(DSP_Data.Exposure_Status != CCD_DSP_EXPOSURE_STATUS_NONE)
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		DSP_Error_Number = 93;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_Set_Temperature failed:Exposure Status non zero (%d).",
+			DSP_Data.Exposure_Status);
+		return FALSE;
+	}
 	if(!DSP_Send_Set_Temperature(adu))
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -1333,6 +1408,10 @@ int CCD_DSP_Command_REX(void)
  * <li>A command is sent to the controller to open the shutter and start the exposure (DSP_Send_Sex). 
  * <li>The routine then enters a loop reading the exposure time (using CCD_DSP_Command_Read_Exposure_Time),
  * 	until the time nears for the shutter to close (DSP_Data.Readout_Remaining_Time) and readout to take place.
+ * <li><a href="ccd_dsp.html#CCD_DSP_Command_RDI">CCD_DSP_Command_RDI</a> is called to read out the exposure. 
+ * 	If the exposure length was greater than
+ * 	5 seconds, the send_rdi parameter is TRUE otherwise it is FALSE. This is because the SEX command
+ * 	will automatically send the RDI command (with our DSP code) if the exposure length is 5 seconds or less.
  * </ul>
  * The DSP_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
@@ -1340,14 +1419,26 @@ int CCD_DSP_Command_REX(void)
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @param exposure_time The amount of time in milliseconds to open the shutter for. This must be greater than zero.
+ * @param ncols The number of columns in the image. This must be a positive non-zero integer.
+ * @param nrows The number of rows in the image to be readout from the CCD. This must be a positive non-zero integer.
+ * @param deinterlace_type The algorithm to use for deinterlacing the resulting data. The data needs to be
+ * 	deinterlaced if the CCD is read out from multiple readouts. One of 
+ * 	<a href="ccd_setup.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
+ *	CCD_DSP_DEINTERLACE_SINGLE,
+ *	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
+ * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
+ * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
+ * @param filename The filename to save the exposure into.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Data
  * @see #DSP_Send_Sex
  * @see #CCD_DSP_Command_CLR
+ * @see #CCD_DSP_Command_RDI
  * @see #CCD_DSP_Command_Read_Exposure_Time
  * @see #DSP_Get_Reply
  */
-int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
+int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,int nrows,
+	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
 {
 	struct timespec sleep_time,current_time;
 #ifndef _POSIX_TIMERS
@@ -1361,6 +1452,26 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 	{
 		DSP_Error_Number = 19;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Illegal exposure_time '%d'.",exposure_time);
+		return FALSE;
+	}
+/* number of columns must be a positive number */
+	if(ncols <= 0)
+	{
+		DSP_Error_Number = 96;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Illegal ncols '%d'.",ncols);
+		return FALSE;
+	}
+/* number of rows must be a positive number */
+	if(nrows <= 0)
+	{
+		DSP_Error_Number = 97;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Illegal nrows '%d'.",nrows);
+		return FALSE;
+	}
+	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
+	{
+		DSP_Error_Number = 98;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Illegal deinterlace type '%d'.",deinterlace_type);
 		return FALSE;
 	}
 /* initialise variables */
@@ -1460,8 +1571,14 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Aborted.");
 		return FALSE;
 	}
-/* reset status to none, until readout command is sent */
-	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+/* read out the ccd. */
+	if(!CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,exposure_time>5000,filename))
+	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+		DSP_Error_Number = 99;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:RDI command failed.");
+		return FALSE;
+	}
 	return CCD_DSP_DON;
 }
 
@@ -3520,7 +3637,7 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 		/* allocate enough memory to store the deinterlaced image */
 			if((new_iptr = (unsigned short *)malloc(ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL)) == NULL)
 			{
-		 		DSP_Error_Number = 49;
+		 		DSP_Error_Number = 94;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Memory Allocation Error(%d,%d),"
 					"image not deinterlaced.",ncols,nrows);
 				return FALSE;
@@ -3560,7 +3677,7 @@ static int DSP_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 		/* allocate enough memory to store the deinterlaced image */
 			if((new_iptr = (unsigned short *)malloc(ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL)) == NULL)
 			{
-		 		DSP_Error_Number = 49;
+		 		DSP_Error_Number = 95;
 				sprintf(DSP_Error_String,"DSP_DeInterlace:Memory Allocation Error(%d,%d),"
 					"image not deinterlaced.",ncols,nrows);
 				return FALSE;
@@ -3832,6 +3949,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.23  2000/06/19 08:48:34  cjm
+** Backup.
+**
 ** Revision 0.22  2000/06/14 13:29:27  cjm
 ** Further DSP_DeInterlace enhancements - don't allocate new_iptr unless it's
 ** nessassary.

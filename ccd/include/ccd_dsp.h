@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.13 2000-06-19 08:48:51 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.14 2000-06-20 12:53:37 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -227,7 +227,8 @@ extern int CCD_DSP_Command_POF(void);
 extern int CCD_DSP_Command_REX(void);
 extern int CCD_DSP_Command_Read_Temperature(void);
 extern int CCD_DSP_Command_Set_Temperature(int adu);
-extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time);
+extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,int nrows,
+	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename);
 extern int CCD_DSP_Command_Reset(void);
 extern int CCD_DSP_Command_Flush_Reply_Buffer(void);
 extern int CCD_DSP_Command_Read_Controller_Status(void);

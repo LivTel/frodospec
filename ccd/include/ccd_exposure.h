@@ -1,5 +1,5 @@
 /* ccd_exposure.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.2 2000-02-28 19:13:15 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.3 2000-06-20 12:53:37 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
@@ -17,8 +17,7 @@
 #include "ccd_global.h"
 
 extern void CCD_Exposure_Initialise(void);
-extern int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_time,int exposure_time,
-	char *filename);
+extern int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure_time,char *filename);
 extern int CCD_Exposure_Bias(char *filename);
 extern int CCD_Exposure_Flush_CCD(void);
 extern int CCD_Exposure_Open_Shutter(void);
