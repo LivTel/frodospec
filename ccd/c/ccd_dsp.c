@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.10 2000-03-09 15:01:25 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.11 2000-03-09 16:09:28 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.10 $
+ * @version $Revision: 0.11 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -45,7 +45,7 @@ extern int cftime(char *, char *, const time_t *);
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.10 2000-03-09 15:01:25 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.11 2000-03-09 16:09:28 cjm Exp $";
 
 /* defines */
 /**
@@ -195,6 +195,7 @@ static int DSP_Send_Sex(struct timespec start_time);
 static int DSP_Send_Reset(void);
 static int DSP_Send_Set_Util_Options(int bit_value);
 static int DSP_Send_Set_Exposure_Time(int msecs);
+static int DSP_Send_Read_Exposure_Time(void);
 
 static int DSP_Clear_Reply_Memory(void);
 static int DSP_Set_Destination(enum CCD_DSP_BOARD_ID board_id,int argument_count);
@@ -1172,9 +1173,9 @@ int CCD_DSP_Command_REX(void)
  * This routine executes the Start EXposure (SEX) command on a SDSU Controller board.
  * <ul>
  * <li>A sleep is executed until it is nearly (DSP_Data.Start_Exposure_Clear_Time) time to start the exposure.
- * <li>The array is cleared.
- * <li>A command is sent to the controller to open the shutter and start the exposure. 
- * <li>The routine then enters a loop reading the exposure time,
+ * <li>The array is cleared using CCD_DSP_Command_CLR.
+ * <li>A command is sent to the controller to open the shutter and start the exposure (DSP_Send_Sex). 
+ * <li>The routine then enters a loop reading the exposure time (using CCD_DSP_Command_Read_Exposure_Time),
  * 	until the time nears for the shutter to close (DSP_Data.Readout_Remaining_Time) and readout to take place.
  * </ul>
  * The DSP_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
@@ -1186,8 +1187,9 @@ int CCD_DSP_Command_REX(void)
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Data
  * @see #DSP_Send_Sex
+ * @see #CCD_DSP_Command_CLR
+ * @see #CCD_DSP_Command_Read_Exposure_Time
  * @see #DSP_Get_Reply
- * @see ccd_pci.html#CCD_PCI_HCVR_READ_EXPOSURE_TIME
  */
 int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 {
@@ -1274,25 +1276,15 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		sleep_time.tv_nsec = 0;
 		nanosleep(&sleep_time,NULL);
 	/* get elapsed time from utility board */
-#ifdef CCD_DSP_MUTEXED
-		if(!DSP_Mutex_Lock())
-			CCD_DSP_Warning();
-#endif
-		if(!DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0))
-		{
-			CCD_DSP_Warning();
-			dsp_exposure_time += DSP_ONE_SECOND_MS;
+		dsp_exposure_time = CCD_DSP_Command_Read_Exposure_Time();
+		if(dsp_exposure_time != 0)
 			remaining_exposure_time = exposure_time-dsp_exposure_time;
-		}
 		else
 		{
-			dsp_exposure_time = DSP_Get_Reply(DSP_ACTUAL_VALUE);
-			remaining_exposure_time = exposure_time-dsp_exposure_time;
+			remaining_exposure_time -= DSP_ONE_SECOND_MS;
+			if(DSP_Error_Number != 0)
+				CCD_DSP_Error();
 		}
-#ifdef CCD_DSP_MUTEXED
-		if(!DSP_Mutex_Unlock())
-			CCD_DSP_Warning();
-#endif
 	}/* end while exposing */
 	if(DSP_Data.Abort)
 	{
@@ -1416,6 +1408,41 @@ int CCD_DSP_Command_Set_Exposure_Time(int msecs)
 	}
 /* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
+}
+
+/**
+ * Routine to get the amount of time the utility board has had the shutter open for, i.e. the
+ * amount of time an exposure has been underway. 
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @return If an error has occured or an exposure is not taking place, FALSE is returned. Otherwise
+ * 	the amount of time an exposure has been underway is returned, in milliseconds.
+ * @see #DSP_Send_Read_Exposure_Time
+ * @see #DSP_Get_Reply
+ */
+int CCD_DSP_Command_Read_Exposure_Time(void)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Read_Exposure_Time())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+/* get reply - the exposure time in milliseconds should be returned */
+	retval = DSP_Get_Reply(DSP_ACTUAL_VALUE);
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
@@ -2233,6 +2260,17 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
 }
 
 /**
+ * Internal DSP command to get the time an exposure has been underway. 
+ * @return Returns TRUE if the command was sent without error, FALSE otherwise.
+ * @see #DSP_Send_Command
+ * @see ccd_pci.html#CCD_PCI_HCVR_READ_EXPOSURE_TIME
+ */
+static int DSP_Send_Read_Exposure_Time(void)
+{
+	return DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0);
+}
+
+/**
  * Internal command to clear the reply memory. This sets all the reply memory to -1.
  * @return Returns true if clearing the reply memory succeeded, false if it failed.
  * @see ccd_interface.html#CCD_Interface_Command
@@ -3043,6 +3081,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.10  2000/03/09 15:01:25  cjm
+** Initial mutex implementation.
+**
 ** Revision 0.9  2000/03/02 09:48:11  cjm
 ** Moved Exposure_Status EXPOSE to after wait for start_time of exposure.
 **

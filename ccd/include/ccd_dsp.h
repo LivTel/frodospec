@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.8 2000-03-08 18:26:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.9 2000-03-09 16:09:31 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -178,6 +178,7 @@ extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time);
 extern int CCD_DSP_Command_Reset(void);
 extern int CCD_DSP_Command_Set_Util_Options(int bit_value);
 extern int CCD_DSP_Command_Set_Exposure_Time(int msecs);
+extern int CCD_DSP_Command_Read_Exposure_Time(void);
 extern int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename);
 extern int CCD_DSP_Get_Abort(void);
 extern int CCD_DSP_Set_Abort(int value);
