@@ -1,5 +1,5 @@
 // ExposureThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.9 2000-01-24 16:33:10 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.10 2000-03-01 16:12:37 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -9,14 +9,14 @@ import ngat.ccd.*;
  * This class extends thread to support the exposure of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway.
  * @author Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 class ExposureThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.9 2000-01-24 16:33:10 cjm Exp $");
+	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.10 2000-03-01 16:12:37 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
@@ -91,7 +91,7 @@ class ExposureThread extends Thread
 		exposeException = null;
 		try
 		{
-			libccd.CCDExposureExpose(open_shutter,readout_ccd,msecs,filename);
+			libccd.CCDExposureExpose(open_shutter,readout_ccd,-1L,msecs,filename);
 		}
 		catch(CCDLibraryNativeException e)
 		{
@@ -165,6 +165,9 @@ class ExposureThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.9  2000/01/24 16:33:10  cjm
+// Changed so that the deprecated stop method was not called.
+//
 // Revision 0.8  1999/09/17 17:21:59  cjm
 // Fixed Javadoc comments.
 //
