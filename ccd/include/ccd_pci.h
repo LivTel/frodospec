@@ -1,5 +1,5 @@
 /* ccd_pci.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.1 2000-01-25 15:03:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.2 2000-06-13 17:15:02 cjm Exp $
 */
 
 #ifndef CCD_PCI_H
@@ -17,6 +17,22 @@
 /* The next block of hash definitions are PCI interface meta commands for passing to the HCVR
 ** Host Command Vector Register */
 /* Should this be an enum ? */
+/**
+ * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
+ * ioctl request.
+ * This command reads the controller status word (located at X:STATUS on the timing board for the LT DSP code).
+ * @see #CCD_PCI_IOCTL_SET_HCVR
+ */
+#define CCD_PCI_HCVR_READ_CONTROLLER_STATUS	(0x8079)
+/**
+ * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
+ * ioctl request.
+ * This command writes the controller status word (argument 1) to X:STATUS on the timing board and the PCI
+ * copy (X:TIM_STAT). If the utility board is the timing master, the shutter control bit is written to the
+ * utility board.
+ * @see #CCD_PCI_IOCTL_SET_HCVR
+ */
+#define CCD_PCI_HCVR_WRITE_CONTROLLER_STATUS	(0x807B)
 /**
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.
@@ -79,13 +95,6 @@
  * @see #CCD_PCI_IOCTL_SET_ARG
  */
 #define CCD_PCI_HCVR_WRITE_MEMORY 		(0x8089)
-/**
- * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
- * ioctl request.
- * This command is used to indicate a PCI DSP file download is to follow.
- * @see #CCD_PCI_IOCTL_SET_HCVR
- */
-#define CCD_PCI_HCVR_PCI_DOWNLOAD 		(0x808B)
 /**
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.
@@ -225,6 +234,13 @@
  * @see #CCD_PCI_IOCTL_SET_HCVR
  */
 #define CCD_PCI_HCVR_READ_ARRAY_TEMPERATURE 	(0x80AF)
+/**
+ * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
+ * ioctl request.
+ * This command tells the PCI DSP to ready itself to receive a download program from the host.
+ * @see #CCD_PCI_IOCTL_SET_HCVR
+ */
+#define CCD_PCI_HCVR_PCI_DOWNLOAD 		(0x802F)
 
 /* The next block of hash definitions are PCI ioctl request numbers */
 /* Should this be an enum ? */
@@ -336,9 +352,21 @@
 #define CCD_PCI_IOCTL_SET_UTIL_OPTIONS 		(0x123)
 /**
  * ioctl request code for the SDSU controller PCI interface.
+ * Flushes the reply buffer.
+ */
+#define CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER	(0x124)
+/**
+ * ioctl request code for the SDSU controller PCI interface.
  * Clears the PCI reply buffer. It is initialised to -1.
+ * @deprecated Use CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER instead?
+ * @see #CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER
  */
 #define CCD_PCI_IOCTL_CLEAR_REPLY 		(0x301)
+/**
+ * ioctl request code for the SDSU controller PCI interface.
+ * Used to Abort readout in the device driver.
+ */
+#define CCD_PCI_IOCTL_ABORT_READ 		(0x302)
 
 /* external routines */
 extern void CCD_PCI_Initialise(void);

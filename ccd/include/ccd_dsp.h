@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.11 2000-05-23 10:33:26 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.12 2000-06-13 17:15:02 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -60,6 +60,7 @@ enum CCD_DSP_MEM_SPACE
 	((mem_space) == CCD_DSP_MEM_SPACE_X)||((mem_space) == CCD_DSP_MEM_SPACE_Y)|| \
 	((mem_space) == CCD_DSP_MEM_SPACE_R))
 
+/* These enum definitions should match with those in CCDLibrary.java */
 /**
  * These are allowable paramaters for the gains (Gen two only).  Please
  * note that unlike the other commmands listed in this file, the hex numbers
@@ -127,25 +128,75 @@ enum CCD_DSP_DEINTERLACE_TYPE
 	((type) == CCD_DSP_DEINTERLACE_SPLIT_PARALLEL)||((type) == CCD_DSP_DEINTERLACE_SPLIT_SERIAL)|| \
 	((type) == CCD_DSP_DEINTERLACE_SPLIT_QUAD))
 
-/* Various CCD_DSp routine return these values to indicate success/failure */
+/* These enum definitions should match with those in CCDLibrary.java */
+/**
+ * Enum with values identifying which output amplifier to select for reading out the CCD.
+ * Used with the CCD_DSP_SOS (select output source) manual command.
+ * <ul>
+ * <li>CCD_DSP_AMPLIFIER_LEFT selects the left amplifier.
+ * <li>CCD_DSP_AMPLIFIER_RIGHT selects the right amplifier.
+ * <li>CCD_DSP_AMPLIFIER_BOTH selects both amplifiers.
+ * </ul>
+ * @see #CCD_DSP_SOS
+ * @see #CCD_DSP_Command_SOS
+ */
+enum CCD_DSP_AMPLIFIER
+{
+	CCD_DSP_AMPLIFIER_LEFT =0x5f5f4c, 	/* Ascii __L */
+	CCD_DSP_AMPLIFIER_RIGHT=0x5f5f52, 	/* Ascii __R */
+	CCD_DSP_AMPLIFIER_BOTH =0x5f4c52  	/* Ascii _LR */
+};
+
+/**
+ * Macro to check whether the amplifier is a legal value to passed into the <a href="#CCD_DSP_SOS">SOS</a> command.
+ */
+#define CCD_DSP_IS_AMPLIFIER(amplifier)	(((amplifier) == CCD_DSP_AMPLIFIER_LEFT)|| \
+	((amplifier) == CCD_DSP_AMPLIFIER_RIGHT)||((amplifier) == CCD_DSP_AMPLIFIER_BOTH))
+
+/* Various CCD_DSP routine return these values to indicate success/failure */
 /**
  * Return value from the SDSU CCD Controller. This means the last command succeeded.
  */
-#define CCD_DSP_DON		0x444f4e /* DON */
+#define CCD_DSP_DON		(0x444f4e) /* DON */
 /**
  * Return value from the SDSU CCD Controller. This means the last command failed.
  */
-#define CCD_DSP_ERR		0x455252 /* ERR */
+#define CCD_DSP_ERR		(0x455252) /* ERR */
+/**
+ * Device Driver value, used by the device driver when it times out whilst waiting for a reply value.
+ * This means the GET_REPLY command sent to the device driver did not receive a reply from the PCI DSP.
+ */
+#define CCD_DSP_TOUT		(0x544F5554) /* TOUT */
+/**
+ * Timing board command that means SYstem Reset. This is sent in reply to a reset
+ * controller command.
+ */
+#define CCD_DSP_SYR		(0x535952) /* SYR */
+/**
+ * Another kind of reset command. This one isn't used at the moment.
+ */
+#define CCD_DSP_RST		(0x00525354) /* RST */
+
+/* Manual DSP commands. */
 /**
  * Timing board command that means Set GaiN. This sets the gains of all the video processors. The integrator
  * speed is also set using this command to slow or fast.
  */
-#define CCD_DSP_SGN		0x53474e	/* SGN */
+#define CCD_DSP_SGN		(0x53474e)	/* SGN */
 /**
- * Utility board command that means SYstem Reset. This is sent in reply to a reset
- * controller command.
+ * Timing board command that means Set Output Source. This sets which output amplifiers on the chip to read
+ * out from when a readout is performed. It takes one argument, which selects the amplifier.
+ * @see #CCD_DSP_AMPLIFIER
  */
-#define CCD_DSP_SYR		0x535952 /* SYR */
+#define CCD_DSP_SOS		(0x534f53)	/* SOS */
+
+/**
+ * This hash definition represents one of the bits present in the controller status word,
+ * which is retrieved using READ_CONTROLLER_STATUS and set using WRITE_CONTROLLER_STATUS.
+ * When set, this bit means START_EXPOSURE commands sent to the controller will open the shutter.
+ */
+#define CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT	(1 << 11)
+
 
 extern int CCD_DSP_Initialise(void);
 /* Boot commands */
@@ -157,9 +208,11 @@ extern int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_S
 extern int CCD_DSP_Command_ABR(void);
 extern int CCD_DSP_Command_CLR(void);
 extern int CCD_DSP_Command_IDL(void);
-extern int CCD_DSP_Command_RDC(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename);
+extern int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,int send_rdi,
+	char *filename);
 extern int CCD_DSP_Command_SBV(void);
 extern int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed);
+extern int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier);
 extern int CCD_DSP_Command_STP(void);
 extern int CCD_DSP_Command_Set_NCols(int ncols);
 extern int CCD_DSP_Command_Set_NRows(int nrows);
@@ -175,7 +228,9 @@ extern int CCD_DSP_Command_Read_Temperature(void);
 extern int CCD_DSP_Command_Set_Temperature(int adu);
 extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time);
 extern int CCD_DSP_Command_Reset(void);
-extern int CCD_DSP_Command_Set_Util_Options(int bit_value);
+extern int CCD_DSP_Command_Flush_Reply_Buffer(void);
+extern int CCD_DSP_Command_Read_Controller_Status(void);
+extern int CCD_DSP_Command_Write_Controller_Status(int bit_value);
 extern int CCD_DSP_Command_Set_Exposure_Time(int msecs);
 extern int CCD_DSP_Command_Read_Exposure_Time(void);
 extern int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename);

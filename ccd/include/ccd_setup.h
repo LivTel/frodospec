@@ -1,5 +1,5 @@
 /* ccd_setup.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.6 2000-05-26 08:56:06 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.7 2000-06-13 17:15:02 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -47,24 +47,26 @@
 
 /* These enum definitions should match with those in CCDLibrary.java */
 /**
- * Setup Load Type passed to CCD_Setup_Setup_CCD as a load_type parameter, to load DSP application code from
+ * Setup Load Type passed to CCD_Setup_Startup as a load_type parameter, to load DSP application code from
  * a certain location. The possible values are:
  * <ul>
+ * <li>CCD_SETUP_LOAD_ROM - Load DSP application code from boot ROM. This means CCD_Setup_Startup does nothing.
  * <li>CCD_SETUP_LOAD_APPLICATION - Load DSP application code from EEPROM.
  * <li>CCD_SETUP_LOAD_FILENAME - Load DSP application code from a file.
  * </ul>
- * @see #CCD_Setup_Setup_CCD
+ * @see #CCD_Setup_Startup
  */
 enum CCD_SETUP_LOAD_TYPE
 {
-	CCD_SETUP_LOAD_APPLICATION,CCD_SETUP_LOAD_FILENAME
+	CCD_SETUP_LOAD_ROM,CCD_SETUP_LOAD_APPLICATION,CCD_SETUP_LOAD_FILENAME
 };
 
 /**
  * Macro to check whether the load_type is a legal load type to load DSP applications during setup.
+ * @see #CCD_SETUP_LOAD_TYPE
  */
-#define CCD_SETUP_IS_LOAD_TYPE(load_type)	(((load_type) == CCD_SETUP_LOAD_APPLICATION)|| \
-	((load_type) == CCD_SETUP_LOAD_FILENAME))
+#define CCD_SETUP_IS_LOAD_TYPE(load_type)	(((load_type) == CCD_SETUP_LOAD_ROM)|| \
+	((load_type) == CCD_SETUP_LOAD_APPLICATION)||((load_type) == CCD_SETUP_LOAD_FILENAME))
 
 /**
  * Structure holding position information for one window on the CCD. Fields are:
@@ -85,14 +87,14 @@ struct CCD_Setup_Window_Struct
 };
 
 extern void CCD_Setup_Initialise(void);
-extern int CCD_Setup_Startup(
+extern int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_application_number,char *timing_filename,
 	enum CCD_SETUP_LOAD_TYPE utility_load_type,int utility_application_number,char *utility_filename,
 	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle);
 extern int CCD_Setup_Shutdown(void);
 extern int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,int window_flags,
-	struct CCD_Setup_Window_Struct window_list[]);
+	enum CCD_DSP_AMPLIFIER amplifier,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,
+	int window_flags,struct CCD_Setup_Window_Struct window_list[]);
 extern int CCD_Setup_Filter_Wheel(int position_one,int position_two);
 extern int CCD_Setup_Hardware_Test(int test_count);
 extern void CCD_Setup_Abort(void);
