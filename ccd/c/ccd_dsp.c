@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.36 2001-03-12 15:15:41 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.37 2001-04-17 10:01:00 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.36 $
+ * @version $Revision: 0.37 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.36 2001-03-12 15:15:41 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.37 2001-04-17 10:01:00 cjm Exp $";
 
 /* defines */
 /**
@@ -361,6 +361,10 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_LDA(%d,%d) started.",
+		board_id,application_number);
+#endif
 	/* check - is board_id a legal value */
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
 	{
@@ -392,6 +396,10 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_LDA(%d,%d) returned %d.",
+		board_id,application_number,retval);
 #endif
 	return retval;
 }
@@ -430,6 +438,10 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDM(%d,%d,%d) started.",
+		board_id,mem_space,address);
+#endif
 	/* check - is board_id a legal value */
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
 	{
@@ -481,6 +493,10 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDM(%d,%d,%d) returned %d.",
+		board_id,mem_space,address,retval);
 #endif
 	return retval;
 }
@@ -575,6 +591,10 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_WRM(%d,%d,%#x,%#x) started.",
+		board_id,mem_space,address,data);
+#endif
 	/* check - is board_id a legal value */
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
 	{
@@ -626,6 +646,10 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_WRM(%d,%d,%#x,%#x) returned %#x.",
+		board_id,mem_space,address,data,retval);
+#endif
 	return retval;
 }
 
@@ -646,10 +670,16 @@ int CCD_DSP_Command_ABR(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_ABR() started.");
+#endif
 	if(!DSP_Send_Abr())
 		return FALSE;
 	/* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_ABR() returned %#x.",retval);
+#endif
 	return retval;
 }
 
@@ -671,6 +701,9 @@ int CCD_DSP_Command_CLR(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_CLR() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -700,6 +733,9 @@ int CCD_DSP_Command_CLR(void)
 		return FALSE;
 	}
 #endif
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_CLR() finished.");
+#endif
 	return CCD_DSP_DON;
 }
 
@@ -725,6 +761,9 @@ int CCD_DSP_Command_RDC(void)
 #endif
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDC() started.");
+#endif
 /* if debugging, get PCI/timing board status and print */
 #if DEBUG == 1
 	debug = CCD_DSP_Command_Read_PCI_Status();	
@@ -758,6 +797,9 @@ int CCD_DSP_Command_RDC(void)
 		return FALSE;
 	}
 #endif
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDC() finished.");
+#endif
 	return CCD_DSP_DON;
 }
 
@@ -777,6 +819,9 @@ int CCD_DSP_Command_IDL(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_IDL() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -793,6 +838,9 @@ int CCD_DSP_Command_IDL(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_IDL() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -833,6 +881,10 @@ int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDI(%d,%d,%d,%d,%s) started.",
+		ncols,nrows,deinterlace_type,send_rdi,filename);
+#endif
 	/* number of columns must be a positive number */
 	if(ncols <= 0)
 	{
@@ -915,6 +967,10 @@ int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 			return FALSE;
 	}
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_RDI(%d,%d,%d,%d,%s) returned %#x.",
+		ncols,nrows,deinterlace_type,send_rdi,filename,retval);
+#endif
 	return retval;
 }
 
@@ -972,6 +1028,10 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SGN(%#x,%d) started.",
+		gain,speed);
+#endif
 	if(!CCD_DSP_IS_GAIN(gain))
 	{
 		DSP_Error_Number = 14;
@@ -1003,6 +1063,10 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SGN(%#x,%d) returned %#x.",
+		gain,speed,retval);
+#endif
 	return retval;
 }
 
@@ -1023,6 +1087,10 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SOS(%#x) started.",
+		amplifier);
+#endif
 	if(!CCD_DSP_IS_AMPLIFIER(amplifier))
 	{
 		DSP_Error_Number = 89;
@@ -1046,6 +1114,10 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SOS(%#x) returned %#x.",
+		amplifier,retval);
+#endif
 	return retval;
 }
 
@@ -1064,6 +1136,9 @@ int CCD_DSP_Command_STP(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_STP() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1080,6 +1155,9 @@ int CCD_DSP_Command_STP(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_STP() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1099,6 +1177,9 @@ int CCD_DSP_Command_Set_NCols(int ncols)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NCols(%d) started.",ncols);
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1115,6 +1196,10 @@ int CCD_DSP_Command_Set_NCols(int ncols)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NCols(%d) returned %#x.",
+		ncols,retval);
 #endif
 	return retval;
 }
@@ -1134,6 +1219,9 @@ int CCD_DSP_Command_Set_NRows(int nrows)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NRows(%d) started.",nrows);
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1150,6 +1238,9 @@ int CCD_DSP_Command_Set_NRows(int nrows)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_NRows(%d) returned %#x.",nrows,retval);
 #endif
 	return retval;
 }
@@ -1169,6 +1260,9 @@ int CCD_DSP_Command_AEX(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_AEX() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1185,6 +1279,9 @@ int CCD_DSP_Command_AEX(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_AEX() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1272,6 +1369,9 @@ int CCD_DSP_Command_PEX(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PEX() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1288,6 +1388,9 @@ int CCD_DSP_Command_PEX(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PEX() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1306,6 +1409,9 @@ int CCD_DSP_Command_PON(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PON() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1322,6 +1428,9 @@ int CCD_DSP_Command_PON(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PON() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1343,6 +1452,9 @@ int CCD_DSP_Command_POF(void)
 #endif
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_POF() started.");
+#endif
 /* if debugging, get PCI/timing board status and print */
 #if DEBUG == 1
 	debug = CCD_DSP_Command_Read_PCI_Status();	
@@ -1365,6 +1477,9 @@ int CCD_DSP_Command_POF(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_POF() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1389,6 +1504,9 @@ int CCD_DSP_Command_Read_Temperature(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Temperature() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1420,6 +1538,9 @@ int CCD_DSP_Command_Read_Temperature(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Temperature() returned %#x.",retval);
+#endif
 	return retval;
 }
 
@@ -1442,6 +1563,9 @@ int CCD_DSP_Command_Set_Temperature(int adu)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Temperature(%d) started.",adu);
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1473,6 +1597,9 @@ int CCD_DSP_Command_Set_Temperature(int adu)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Temperature(%d) returned %#x.",adu,retval);
+#endif
 	return retval;
 }
 
@@ -1491,6 +1618,9 @@ int CCD_DSP_Command_REX(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_REX() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1507,6 +1637,9 @@ int CCD_DSP_Command_REX(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_REX() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1563,6 +1696,10 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 #endif
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SEX(%ld,%d,%d,%d,%#x,%s) started.",
+		start_time.tv_sec,exposure_time,ncols,nrows,deinterlace_type,filename);
+#endif
 /* exposure time must be greater than zero  and less than CCD_DSP_EXPOSURE_MAX_LENGTH */
 	if((exposure_time <= 0)||(exposure_time > CCD_DSP_EXPOSURE_MAX_LENGTH))
 	{
@@ -1734,6 +1871,10 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 		}
 	}
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SEX(%ld,%d,%d,%d,%#x,%s) returned DON.",
+		start_time.tv_sec,exposure_time,ncols,nrows,deinterlace_type,filename);
+#endif
 	return CCD_DSP_DON;
 }
 
@@ -1755,6 +1896,9 @@ int CCD_DSP_Command_Reset(void)
 #endif
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Reset() started.");
+#endif
 /* if debugging, get PCI/timing board status and print */
 #if DEBUG == 1
 	debug = CCD_DSP_Command_Read_PCI_Status();	
@@ -1778,6 +1922,9 @@ int CCD_DSP_Command_Reset(void)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Reset() returned %#x.",retval);
+#endif
 	return retval;
 }
 
@@ -1798,12 +1945,18 @@ int CCD_DSP_Command_Flush_Reply_Buffer(void)
 	fprintf(stdout,"FLUSH_REPLY_BUFFER\n");
 	fflush(stdout);
 #endif
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Flush_Reply_Buffer() started.");
+#endif
 	if(CCD_Interface_Command(CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER,&retval) == FALSE)
 	{
 		DSP_Error_Number = 28;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_Flush_Reply_Buffer:Flush failed.");
 		return FALSE;
 	}
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Flush_Reply_Buffer() returned.");
+#endif
 	return TRUE;
 }
 
@@ -1822,6 +1975,9 @@ int CCD_DSP_Command_Read_Controller_Status(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Controller_Status() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1838,6 +1994,9 @@ int CCD_DSP_Command_Read_Controller_Status(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Controller_Status() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1857,6 +2016,10 @@ int CCD_DSP_Command_Write_Controller_Status(int bit_value)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Write_Controller_Status(%#x) started.",
+		bit_value);
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1874,6 +2037,10 @@ int CCD_DSP_Command_Write_Controller_Status(int bit_value)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Write_Controller_Status(%#x) returned %#x.",
+		bit_value,retval);
+#endif
 	return retval;
 }
 
@@ -1890,10 +2057,16 @@ int CCD_DSP_Command_PCI_PC_Reset(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_PC_Reset() started.");
+#endif
 	if(!DSP_Send_PCI_PC_Reset())
 		return FALSE;
 /* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_PC_Reset() returned %#x.",retval);
+#endif
 	return retval;
 }
 
@@ -1912,6 +2085,9 @@ int CCD_DSP_Command_Read_PCI_Status(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_PCI_Status() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1928,6 +2104,9 @@ int CCD_DSP_Command_Read_PCI_Status(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_PCI_Status() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -1948,6 +2127,9 @@ int CCD_DSP_Command_Set_Exposure_Time(int msecs)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Exposure_Time(%d) started.",msecs);
+#endif
 /* exposure time  must be a positive/zero number */
 	if(msecs < 0)
 	{
@@ -1973,6 +2155,10 @@ int CCD_DSP_Command_Set_Exposure_Time(int msecs)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Set_Exposure_Time(%d) returned %#x.",msecs,
+		retval);
+#endif
 	return retval;
 }
 
@@ -1991,6 +2177,9 @@ int CCD_DSP_Command_Read_Exposure_Time(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Exposure_Time() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -2007,6 +2196,9 @@ int CCD_DSP_Command_Read_Exposure_Time(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Read_Exposure_Time() returned %d.",retval);
 #endif
 	return retval;
 }
@@ -2025,6 +2217,9 @@ int CCD_DSP_Command_FWA(void)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWA() started.");
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -2041,6 +2236,9 @@ int CCD_DSP_Command_FWA(void)
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
+#endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWA() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -2064,6 +2262,10 @@ int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWM(%d,%d,%d) started.",
+		wheel,direction,posn_count);
+#endif
 /* check parameters */
 	if(!CCD_GLOBAL_IS_BOOLEAN(wheel))
 	{
@@ -2100,6 +2302,10 @@ int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWM(%d,%d,%d) returned %#x.",
+		wheel,direction,posn_count,retval);
+#endif
 	return retval;
 }
 
@@ -2120,6 +2326,10 @@ int CCD_DSP_Command_FWR(int wheel)
 	int retval;
 
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWR(%d) started.",
+		wheel);
+#endif
 /* check parameters */
 	if(!CCD_GLOBAL_IS_BOOLEAN(wheel))
 	{
@@ -2144,6 +2354,10 @@ int CCD_DSP_Command_FWR(int wheel)
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
 #endif
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWR(%d) returned %#x.",
+		wheel,retval);
+#endif
 	return retval;
 }
 
@@ -2158,7 +2372,13 @@ int CCD_DSP_Command_FWR(int wheel)
  */
 int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download(%#x,%s) started.",
+		board_id,filename);
+#endif
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
 	{
 		DSP_Error_Number = 22;
@@ -2179,15 +2399,22 @@ int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 			sprintf(DSP_Error_String,"CCD_DSP_Download:Can't download DSP code to Host computer.");
 			return FALSE;
 		case CCD_DSP_INTERFACE_BOARD_ID:
-			return DSP_Download_PCI_Interface(filename);
+			retval = DSP_Download_PCI_Interface(filename);
+			break;
 		case CCD_DSP_TIM_BOARD_ID:
 		case CCD_DSP_UTIL_BOARD_ID:
-			return DSP_Download_Timing_Utility(board_id,filename);
+			retval = DSP_Download_Timing_Utility(board_id,filename);
+			break;
 		default:
 			DSP_Error_Number = 69;
 			sprintf(DSP_Error_String,"CCD_DSP_Download:Unknown board ID '%d'.",board_id);
 			return FALSE;
 	}
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download(%#x,%s) returned %#x.",
+		board_id,filename,retval);
+#endif
+	return retval;
 }
 
 /**
@@ -2213,6 +2440,9 @@ int CCD_DSP_Get_Abort(void)
  */
 int CCD_DSP_Set_Abort(int value)
 {
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Set_Abort(%d) started.",value);
+#endif
 	if(!CCD_GLOBAL_IS_BOOLEAN(value))
 	{
 		DSP_Error_Number = 26;
@@ -2220,6 +2450,9 @@ int CCD_DSP_Set_Abort(int value)
 		return FALSE;
 	}
 	DSP_Data.Abort = value;
+#if LOGGING == 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Set_Abort(%d) returned.",value);
+#endif
 	return TRUE;
 }
 
@@ -4411,6 +4644,11 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.36  2001/03/12 15:15:41  cjm
+** Added CCD_DSP_UTIL_EXPOSURE_CHECK conditional compilation flag.
+** When set, this only allows communication with the timing board when we are not exposing.
+** This is because doing this operation used to lock the SDSU controller (now fixed in DSP code).
+**
 ** Revision 0.35  2001/02/16 09:55:19  cjm
 ** Added more detail to error messages.
 **
