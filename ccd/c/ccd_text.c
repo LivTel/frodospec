@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.2 2000-01-26 14:02:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.3 2000-01-28 16:19:39 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -35,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.2 2000-01-26 14:02:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.3 2000-01-28 16:19:39 cjm Exp $";
 
 /* #defines */
 /**
@@ -50,8 +50,12 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.2 2000-01-26 14:02:39 cjm Exp $";
  * <dl>
  * <dt>Ioctl_Request</dt> <dd>The ioctl request.</dd>
  * <dt>HCVR_Command</dt> <dd>The last value put in the HCVR.</dd>
+ * <dt>Destination</dt> <dd>The last destination put into the board destination register. Note
+ * 	this does not include the number of arguments, see below.</dd>
  * <dt>Argument_List</dt> <dd>The current values of the PCI argument registers. An array of length 
- * TEXT_ARGUMENT_COUNT.</dd>
+ * 	TEXT_ARGUMENT_COUNT.</dd>
+ * <dt>Argument_Count</dt> <dd>The number of arguments in the argument list, 
+ * 	set as part of setting a destination.</dd>
  * <dt>Reply</dt> <dd>What we think the reply value should be.</dd>
  * <dt>Exposure_Time</dt> <dd>Set when the exposure time is set.</dd>
  * <dt>Elapsed_Time</dt> <dd>Variable used to simulate exposure time. Reset to zero each time exposure time is set,
@@ -64,7 +68,9 @@ struct Text_Struct
 	int Ioctl_Request;
 	int HCVR_Command;
 	int Manual_Command;
+	enum CCD_DSP_BOARD_ID Destination;
 	int Argument_List[TEXT_ARGUMENT_COUNT];
+	int Argument_Count;
 	int Reply;
 	int Exposure_Time;
 	int Elapsed_Time;
@@ -88,6 +94,23 @@ struct Text_Command_Struct
 	void (*Function)(void);
 };
 
+/**
+ * Structure that holds information on DSP memory locations and their value.
+ * <dl>
+ * <dt>Board_Id</dt> <dd>The board the memory location is on.</dd>
+ * <dt>Mem_Space</dt> <dd>The memory space the memory location is on.</dd>
+ * <dt>Address</dt> <dd>The address of the memory location.</dd>
+ * <dt>Value</dt> <dd>The value contained at the memory location.</dd>
+ * </dl>
+ */
+struct Memory_Struct
+{
+	int Board_Id;
+	int Mem_Space;
+	int Address;
+	int Value;
+};
+
 /* external variables */
 
 /* internal routines */
@@ -96,6 +119,7 @@ static void Text_HCVR(int hcvr_command);
 static void Text_Manual(int manual_command);
 static void Text_Destination(int destination_number);
 static void Text_HCVR_Test_Data_Link(void);
+static void Text_HCVR_Read_Memory(void);
 static void Text_HCVR_Read_Exposure_Time(void);
 static void Text_HCVR_Start_Exposure(void);
 
@@ -135,7 +159,7 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
 	{CCD_PCI_HCVR_MANUAL_COMMAND,"Manual Command",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_READ_PCI_STATUS,"Read PCI Status",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_TEST_DATA_LINK,"Test Data Link",0,Text_HCVR_Test_Data_Link},
-	{CCD_PCI_HCVR_READ_MEMORY,"Read Memory",0,NULL},
+	{CCD_PCI_HCVR_READ_MEMORY,"Read Memory",0,Text_HCVR_Read_Memory},
 	{CCD_PCI_HCVR_WRITE_MEMORY,"Write Memory",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_PCI_DOWNLOAD,"Download PCI code",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_POWER_ON,"Power On",CCD_DSP_DON,NULL},
@@ -180,6 +204,22 @@ static struct Text_Command_Struct Text_Manual_Command_List[] =
  */
 #define MANUAL_COMMAND_COUNT (sizeof(Text_Manual_Command_List)/sizeof(Text_Manual_Command_List[0]))
 
+/**
+ * A list of DSP memory locations and the values in them. This is queried by commands such as Read Memory
+ * to return sensible reply value for read memory requests.
+ * @see #Memory_Struct
+ */
+static struct Memory_Struct Memory_List[] =
+{
+	{CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,1}
+};
+
+/**
+ * Hash Definition with the count of Memory locations in the Memory_List.
+ * @see #Memory_List
+ */
+#define MEMORY_COUNT (sizeof(Memory_List)/sizeof(Memory_List[0]))
+
 /* -------------------------------------------------------------------
 ** external functions 
 ** ------------------------------------------------------------------- */
@@ -207,6 +247,16 @@ void CCD_Text_Set_Print_Level(enum CCD_TEXT_PRINT_LEVEL level)
 	Text_Print_Level = level;
 }
 
+/**
+ * This routine sets the file pointer to the passed in argument, to re-direct the output of the text driver
+ * to the specified file.
+ * @param fp A valid non-NULL file pointer.
+ */
+void CCD_Text_Set_File_Pointer(FILE *fp)
+{
+	Text_File_Ptr = fp;
+}
+
 /* device driver implementation functions */
 /**
  * This routine should be called at startup. 
@@ -223,6 +273,8 @@ void CCD_Text_Initialise(void)
 	Text_Data.Ioctl_Request = 0;
 	Text_Data.HCVR_Command = 0;
 	Text_Data.Manual_Command = 0;
+	Text_Data.Destination = 0;
+	Text_Data.Argument_Count = 0;
 	for(i=0;i<TEXT_ARGUMENT_COUNT;i++)
 		Text_Data.Argument_List[i] = 0;
 	Text_Data.Reply = -1;
@@ -426,14 +478,8 @@ int CCD_Text_Command(int request,int *argument)
 			break;
 		case CCD_PCI_IOCTL_CLEAR_REPLY:
 			fprintf(Text_File_Ptr,"Request:Clear Reply Memory:");
-			/* clear reply returns -1 in the argument, and sets the reply memory to -1 */
-			if(argument != NULL)
-			{
-				Text_Data.Reply = -1;
-				(*argument) = -1;
-			}
-			else
-				fprintf(Text_File_Ptr,"Argument was NULL:");
+			/* clear reply sets the reply memory to -1 */
+			Text_Data.Reply = -1;
 			break;
 		default:
 			fprintf(Text_File_Ptr,"Unknown Request");
@@ -676,13 +722,12 @@ static void Text_Manual(int manual_command)
 static void Text_Destination(int destination_number)
 {
 	char *Board_Name_List[] = {"Host","Interface","Timing board","Utility board"};
-	enum CCD_DSP_BOARD_ID destination;
-	int number_of_arguments;
 
-	destination = destination_number&0xFFFF;
-	number_of_arguments = (destination_number>>16)&0xFFFF;
+	Text_Data.Destination = destination_number&0xFFFF;
+	Text_Data.Argument_Count = (destination_number>>16)&0xFFFF;
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-		fprintf(Text_File_Ptr,":%s:Number of Arguments:%d:",Board_Name_List[destination],number_of_arguments);
+		fprintf(Text_File_Ptr,":%s:Number of Arguments:%d:",Board_Name_List[Text_Data.Destination],
+			Text_Data.Argument_Count);
 }
 
 /**
@@ -695,6 +740,29 @@ static void Text_Destination(int destination_number)
 static void Text_HCVR_Test_Data_Link(void)
 {
 	Text_Data.Reply = Text_Data.Argument_List[0];
+}
+
+/**
+ * Routine invoked from Text_HCVR when a Read Memory command is sent to the driver.
+ * This routine needs to get the relevant memory address we are reading (board/memory space/address)
+ * and return a suitable value for some cases. This uses the Memory_List defined above.
+ * @see #Text_HCVR
+ * @see #Memory_List
+ * @see ccd_pci.html#CCD_PCI_HCVR_READ_MEMORY
+ */
+static void Text_HCVR_Read_Memory(void)
+{
+	int i;
+
+	for(i=0;i<MEMORY_COUNT;i++)
+	{
+		if((Text_Data.Destination == Memory_List[i].Board_Id)&&
+			(Text_Data.Argument_List[0] == Memory_List[i].Mem_Space)&&
+			(Text_Data.Argument_List[1] == Memory_List[i].Address))
+		{
+			Text_Data.Reply = Memory_List[i].Value;
+		}
+	}
 }
 
 /**
@@ -725,6 +793,9 @@ static void Text_HCVR_Start_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/01/26 14:02:39  cjm
+** Added low level printout for regression testing against voodoo.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **
