@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
-	if(!CCD_Exposure_Expose(TRUE,TRUE,start_time,10000,"test.fits"))
+	if(!CCD_Exposure_Expose(TRUE,start_time,10000,"test.fits"))
 		CCD_Global_Error();
 	fprintf(stdout,"Test:CCD_Exposure_Expose finished\n");
 
