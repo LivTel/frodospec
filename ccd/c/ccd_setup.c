@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.2 2000-02-02 15:55:14 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.3 2000-02-02 15:58:32 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.2 2000-02-02 15:55:14 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.3 2000-02-02 15:58:32 cjm Exp $";
 
 /* #defines */
 /**
@@ -76,7 +76,7 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.2 2000-02-02 15:55:14 cjm Exp $";
  * <dt>Setup_In_Progress</dt> <dd>A boolean value indicating whether the setup operation is in progress.</dd>
  * </dl>
  */
-typedef struct Setup_Struct
+struct Setup_Struct
 {
 	int NCols;
 	int NRows;
@@ -91,7 +91,7 @@ typedef struct Setup_Struct
 	int Utility_Complete;
 	int Dimension_Complete;
 	int Setup_In_Progress;
-} SETUP_ATTR;
+};
 
 /* external variables */
 
@@ -107,7 +107,7 @@ static char Setup_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 /**
  * Data holding the current status of ccd_setup.
  */
-static SETUP_ATTR Setup_Data;
+static struct Setup_Struct Setup_Data;
 
 /* local function definitions */
 static int Setup_Reset_Controller(void);
@@ -1083,6 +1083,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/02/02 15:55:14  cjm
+** Binning and windowing addded.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **
