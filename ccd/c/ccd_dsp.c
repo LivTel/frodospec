@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.11 2000-03-09 16:09:28 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.12 2000-03-20 10:41:30 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.11 $
+ * @version $Revision: 0.12 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -36,16 +36,10 @@
 #include "fitsio.h"
 #endif
 
-/*
- * This external declaration is needed, because we include <time.h> in POSIX.4 mode,
- * but cftime is not a POSIX.4 function.
- */
-extern int cftime(char *, char *, const time_t *);
-
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.11 2000-03-09 16:09:28 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.12 2000-03-20 10:41:30 cjm Exp $";
 
 /* defines */
 /**
@@ -233,8 +227,6 @@ static int DSP_Mutex_Unlock(void);
  */
 int CCD_DSP_Initialise(void)
 {
-	int error_number;
-
 	DSP_Error_Number = 0;
 	DSP_Data.Abort = FALSE;
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
@@ -1195,7 +1187,6 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 {
 	struct timespec sleep_time,current_time;
 	int dsp_exposure_time,remaining_exposure_time,done;
-	int retval;
 
 	DSP_Error_Number = 0;
 /* exposure time must be greater than zero */
@@ -1465,7 +1456,7 @@ int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 {
 	FILE *download_fp;
 	enum CCD_DSP_MEM_SPACE mem_space;
-	int finished,download_board_id,addr,ret_value;
+	int finished,download_board_id,addr;
 	char buff[255],addr_type;
 
 	DSP_Error_Number = 0;
@@ -2278,7 +2269,7 @@ static int DSP_Send_Read_Exposure_Time(void)
  */
 static int DSP_Clear_Reply_Memory(void)
 {
-	int retval,value;
+	int retval;
 
 	if(CCD_Interface_Command(CCD_PCI_IOCTL_CLEAR_REPLY,&retval) == FALSE)
 	{
@@ -2590,8 +2581,8 @@ static int DSP_Address_Char_To_Mem_Space(char ch,enum CCD_DSP_MEM_SPACE *mem_spa
 static int DSP_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
 	enum CCD_DSP_MEM_SPACE mem_space,int addr)
 { 
-	int     finished, value,ret_value;
-	char    c;
+	int finished, value;
+	char c;
 
 	finished = FALSE;
 	/* while theres data to download and we've not aborted the operation */
@@ -2910,7 +2901,6 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 {
 	fitsfile *fp = NULL;
 	int retval=0,status=0;
-	long axes_list[2] = { 0,0};
 	char buff[32]; /* fits_get_errstatus returns 30 chars max */
 	char exposure_start_time_string[64];
 
@@ -2924,20 +2914,6 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 		sprintf(DSP_Error_String,"DSP_Save: File open failed(%s,%d,%s).",filename,status,buff);
 		return FALSE;
 	}
-	/* create image block */
-/*diddly this doesn't work here
-	axes_list[0] = ncols;
-	axes_list[1] = nrows;
-	retval = fits_create_img(fp,USHORT_IMG,2,axes_list,&status);
-	if(retval)
-	{
-		fits_get_errstatus(status,buff);
-		fits_report_error(stderr,status);
-		DSP_Error_Number = diddly;
-		sprintf(DSP_Error_String,"DSP_Save: File create image(%s,%d,%s).",filename,status,buff);
-		return FALSE;
-	}
-*/
 	/* write the data */
 	retval = fits_write_img(fp,TUSHORT,1,number_bytes/sizeof(unsigned short),exposure_data,&status);
 	if(retval)
@@ -3022,17 +2998,19 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 
 /**
  * Routine to convert a timespec structure to a DATE-OBS sytle string to put into a FITS header.
- * This uses cftime to format most of the string, and tags the milliseconds on the end.
+ * This uses gmtime and strftime to format most of the string, and tags the milliseconds on the end.
  * @param time The time to convert.
  * @param time_string The string to put the time representation in. The string must be at least
  * 	24 characters long.
  */
 static void DSP_TimeSpec_To_String(struct timespec time,char *time_string)
 {
+	struct tm *tm_time = NULL;
 	char buff[32];
 	int milliseconds;
 
-	cftime(buff,"%Y-%m-%dT%H:%M:%S.",&(time.tv_sec));
+	tm_time = gmtime(&(time.tv_sec));
+	strftime(buff,32,"%Y-%m-%dT%H:%M:%S.",tm_time);
 	milliseconds = (((double)time.tv_nsec)/((double)DSP_ONE_MILLISECOND_NS));
 	sprintf(time_string,"%s%03d",buff,milliseconds);
 }
@@ -3081,6 +3059,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.11  2000/03/09 16:09:28  cjm
+** Added CCD_DSP_Command_Read_Exposure_Time.
+**
 ** Revision 0.10  2000/03/09 15:01:25  cjm
 ** Initial mutex implementation.
 **
