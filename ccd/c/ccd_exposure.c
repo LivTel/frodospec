@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.23 2003-03-04 17:09:53 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.24 2003-03-26 15:44:48 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.23 $
+ * @version $Revision: 0.24 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.23 2003-03-04 17:09:53 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.24 2003-03-26 15:44:48 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -157,6 +157,9 @@ static struct Exposure_Struct Exposure_Data =
 
 /* internal functions */
 static int Exposure_Shutter_Control(int value);
+static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data,char *filename);
+static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
+					       char **filename_listfilename_list,int filename_count);
 /* we should provide an alternative for these two routines if the library is not using short ints. */
 #if CCD_GLOBAL_BYTES_PER_PIXEL == 2
 static void Exposure_Byte_Swap(unsigned short *svalues,long nvals);
@@ -225,8 +228,8 @@ void CCD_Exposure_Initialise(void)
  *	</ul>
  * <li>Get a pointer to the read out reply data, using CCD_Interface_Get_Reply_Data.
  * <li>If byte swapping is enabled, the data is byte swapped with Exposure_Byte_Swap.
- * <li>The data is de-interlaced using Exposure_DeInterlace.
- * <li>The data is saved to disc using Exposure_Save.
+ * <li>If we are reading out a full frame, call Exposure_Expose_Post_Readout_Full_Frame. Otherwise call
+ *     Exposure_Expose_Post_Readout_Window.
  * </ul>
  * The Exposure_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
  * If the exposure is aborted at any stage the routine returns.
@@ -239,7 +242,9 @@ void CCD_Exposure_Initialise(void)
  * 	the exposure can be started at any convenient time.
  * @param exposure_time The length of time to open the shutter for in milliseconds. This must be greater than zero,
  * 	and less than the maximum exposure length CCD_DSP_EXPOSURE_MAX_LENGTH.
- * @param filename The filename to save the exposure into.
+ * @param filename_list A list of filenames to save the exposure into. This is normally of length 1,unless 
+ *        we are windowing, in which case there will be one filename for each window.
+ * @param filename_count The number of filenames in the filename_list.
  * @return Returns TRUE if the exposure succeeds and the file is saved, returns FALSE if an error
  *	occurs or the exposure is aborted.
  * @see #EXPOSURE_HSTR_HTF_BITS
@@ -249,11 +254,11 @@ void CCD_Exposure_Initialise(void)
  * @see #Exposure_Data
  * @see #Exposure_Shutter_Control
  * @see #Exposure_Byte_Swap
- * @see #Exposure_DeInterlace
- * @see #Exposure_Save
+ * @see #Exposure_Expose_Post_Readout_Full_Frame
+ * @see #Exposure_Expose_Post_Readout_Window
  * @see ccd_setup.html#CCD_Setup_Get_Setup_Complete
- * @see ccd_setup.html#CCD_Setup_Get_NCols
- * @see ccd_setup.html#CCD_Setup_Get_NRows
+ * @see ccd_setup.html#CCD_Setup_Get_Window_Flags
+ * @see ccd_setup.html#CCD_Setup_Get_Readout_Pixel_Count
  * @see ccd_setup.html#CCD_Setup_Get_DeInterlace_Type
  * @see ccd_dsp.html#CCD_DSP_Command_CLR
  * @see ccd_dsp.html#CCD_DSP_Command_SET
@@ -264,23 +269,23 @@ void CCD_Exposure_Initialise(void)
  * @see ccd_dsp.html#CCD_DSP_EXPOSURE_MAX_LENGTH
  * @see ccd_interface.html#CCD_Interface_Get_Reply_Data
  */
-int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_time,int exposure_time,char *filename)
+int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_time,int exposure_time,
+			char **filename_list,int filename_count)
 {
 	struct timespec sleep_time,current_time;
 #ifndef _POSIX_TIMERS
 	struct timeval gtod_current_time;
 #endif
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	unsigned short *exposure_data = NULL;
 	int elapsed_exposure_time,done;
-	int retval,status,ncols,nrows;
-	int current_pixel_count,last_pixel_count,readout_timeout_count;
+	int retval,status,window_flags;
+	int expected_pixel_count,current_pixel_count,last_pixel_count,readout_timeout_count;
 
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose(clear_array=%d,open_shutter=%d,"
-			      "start_time_sec=%ld,exposure_time=%d,filename=%s) started.",
-			      clear_array,open_shutter,start_time.tv_sec,exposure_time,filename);
+			      "start_time_sec=%ld,exposure_time=%d,filename_count=%d) started.",
+			      clear_array,open_shutter,start_time.tv_sec,exposure_time,filename_count);
 #endif
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
@@ -312,28 +317,27 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:exposure_time = %d",exposure_time);
 		return FALSE;
 	}
+	if(filename_count < 0)
+	{
+		Exposure_Error_Number = 7;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:filename_count = %d",filename_count);
+		return FALSE;
+	}
+	window_flags = CCD_Setup_Get_Window_Flags();
+	if((window_flags == 0)&&(filename_count > 1))
+	{
+		Exposure_Error_Number = 8;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Too many filenames for window_flags %d:"
+			"filename_count = %d",window_flags,filename_count);
+		return FALSE;
+	}
 /* get information from setup that we need to do an exposure */
-	ncols = CCD_Setup_Get_NCols();
-	nrows = CCD_Setup_Get_NRows();
-	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
-/* number of columns must be a positive number */
-	if(ncols <= 0)
+	expected_pixel_count = CCD_Setup_Get_Readout_Pixel_Count();
+	if(expected_pixel_count <= 0)
 	{
-		Exposure_Error_Number = 27;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal ncols '%d'.",ncols);
-		return FALSE;
-	}
-/* number of rows must be a positive number */
-	if(nrows <= 0)
-	{
-		Exposure_Error_Number = 31;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal nrows '%d'.",nrows);
-		return FALSE;
-	}
-	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
-	{
-		Exposure_Error_Number = 36;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal deinterlace type '%d'.",deinterlace_type);
+		Exposure_Error_Number = 9;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal expected pixel count '%d'.",
+			expected_pixel_count);
 		return FALSE;
 	}
 /* if we have aborted - stop here */
@@ -523,6 +527,16 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			}/* end if there  is less than Exposure_Data.Readout_Remaining_Time milliseconds 
 			 ** of exposure time left */
 		}/* end if HSTR status is not readout */
+		/* Testing whether the status is CCD_EXPOSURE_HSTR_READOUT can fail to be detected, 
+		** if it is in this state for less than one second (i.e. dual amplifier readout with binning 4)
+		** We could try the following test to get round this:
+		**    if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_PRE_READOUT and
+		**       exposure_time - elapsed_exposure_time < 0)
+		**         Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT
+		** However this won't work as we go into PRE_READOUT (which stops updating elapsed_exposure_time)
+		** 1500 ms before the exposure fails.
+		** See below for solution.
+		*/
 		if(status == CCD_EXPOSURE_HSTR_READOUT)
 		{
 #if LOGGING > 4
@@ -535,32 +549,54 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
 #if LOGGING > 4
 				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
-					       "CCD_Exposure_Expose():Exposure Status changed to READOUT.");
+					       "CCD_Exposure_Expose():Exposure Status changed to READOUT(HSTR).");
 #endif
 			}
 		}
 		/* We want to get the readout progress after we have moved into exposure status readout.
 		** We want to continue getting readout progress after the HSTR status has come out of readout mode,
-		** to get the progress of the last few bytes read out whilst we were sleeping. */
+		** to get the progress of the last few bytes read out whilst we were sleeping. 
+		** We used to only get readout progress when:
+		** (Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT), (i.e. during and after
+		** we had detected HSTR register status to be CCD_EXPOSURE_HSTR_READOUT)
+		** However we can miss detecting readout mode, if the whole readout takes less than 1 second.
+		*/
+#if LOGGING > 4
+		CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
+			       "CCD_Exposure_Expose():Getting Readout Progress.");
+#endif
+		last_pixel_count = current_pixel_count;
+		if(!CCD_DSP_Command_Get_Readout_Progress(&current_pixel_count))
+		{
+			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			CCD_DSP_Set_Abort(FALSE);
+			Exposure_Error_Number = 41;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Get Readout Progress failed.");
+			return FALSE;
+		}
+#if LOGGING > 9
+		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
+				      "CCD_Exposure_Expose():Readout progress is %#x.",current_pixel_count);
+#endif
+		/* If the current pixel count is greater than zero, we must be reading out, right? 
+	        ** Correct, see IIA in START_EXPOSURE (timCCDmisc.asm), INITIALIZE_NUMBER_OF_PIXELS in pciboot.asm,
+		** READ_NUMBER_OF_PIXELS_READ (0x8075) in pciboot.asm, and READ_PIXEL_COUNT/ASTROPCI_GET_PROGRESS in
+		** astropci.c. */
+		if(current_pixel_count > 0)
+		{
+			/* is this the first time through the loop we have detected readout mode? */
+			if(Exposure_Data.Exposure_Status != CCD_EXPOSURE_STATUS_READOUT)
+			{
+				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
+#if LOGGING > 4
+				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
+				    "CCD_Exposure_Expose():Exposure Status changed to READOUT(current_pixel_count).");
+#endif
+			}
+		}
+		/* We can only have a readout timeout, if we are in readout mode. */
 		if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT)
 		{
-#if LOGGING > 4
-			CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
-				       "CCD_Exposure_Expose():Getting Readout Progress.");
-#endif
-			last_pixel_count = current_pixel_count;
-			if(!CCD_DSP_Command_Get_Readout_Progress(&current_pixel_count))
-			{
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-				CCD_DSP_Set_Abort(FALSE);
-				Exposure_Error_Number = 41;
-				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Get Readout Progress failed.");
-				return FALSE;
-			}
-#if LOGGING > 9
-			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
-				       "CCD_Exposure_Expose():Readout progress is %#x.",current_pixel_count);
-#endif
 			/* has the pixel count changed. If not, increment timeout */
 			if(current_pixel_count == last_pixel_count)
 				readout_timeout_count++;
@@ -580,7 +616,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		if(CCD_DSP_Get_Abort())
 			done = TRUE;
 		/* check - all pixels read out? */
-		if(current_pixel_count >= (ncols*nrows))
+		if(current_pixel_count >= expected_pixel_count)
 		{
 #if LOGGING > 9
 			CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Readout completed.");
@@ -625,35 +661,24 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Byte swapping.");
 #endif
-	Exposure_Byte_Swap(exposure_data,nrows*ncols);
+	Exposure_Byte_Swap(exposure_data,expected_pixel_count);
 #endif
-/* Do deinterlacing. The image returned from the boards may not be in the correct order
-** if the CCD was readout from multiple places etc. The deinterlace routine reorders the image
-** so that it is back in the right order. */
-#if LOGGING > 4
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():De-Interlacing.");
-#endif
-	if(!Exposure_DeInterlace(ncols,nrows,exposure_data,deinterlace_type))
+/* post-readout processing depends on whether we are windowing or not. */
+	if(window_flags == 0)
 	{
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-		return FALSE;
+		if(Exposure_Expose_Post_Readout_Full_Frame(exposure_data,filename_list[0]) == FALSE)
+		{
+			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			return FALSE;
+		}
 	}
-/* if we have aborted stop and return */
-	if(CCD_DSP_Get_Abort())
+	else
 	{
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-		Exposure_Error_Number = 45;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
-		return FALSE;
-	}
-/* save the resultant image to disk */
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Saving to filename %s.",filename);
-#endif
-	if(!Exposure_Save(filename,exposure_data,ncols,nrows))
-	{
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-		return FALSE;
+		if(Exposure_Expose_Post_Readout_Window(exposure_data,filename_list,filename_count) == FALSE)
+		{
+			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			return FALSE;
+		}
 	}
 /* reset exposure status */
 	Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -665,17 +690,19 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 
 /**
  * Routine to take a bias frame. Calls CCD_Exposure_Expose with clear_array TRUE, open_shutter FALSE and 
- * zero exposure length.
+ * zero exposure length. Note assumes single readout filename, will not work if setup is windowed.
  * @param filename The filename to save the resultant data (in FITS format) to.
  * @return The routine returns TRUE if the operation was completed successfully, FALSE if it failed.
  */
 int CCD_Exposure_Bias(char *filename)
 {
 	struct timespec start_time;
+	char *filename_list[1];
 
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
-	return CCD_Exposure_Expose(TRUE,FALSE,start_time,0,filename);
+	filename_list[0] = filename;
+	return CCD_Exposure_Expose(TRUE,FALSE,start_time,0,filename_list,1);
 }
 
 /**
@@ -861,6 +888,7 @@ int CCD_Exposure_Abort_Readout(void)
  * This routine is not called as part of the normal exposure sequence. It is used to read out a ccd exposure
  * under manual control or to read out an aborted exposure. 
  * If the readout is aborted at any stage the routine returns.
+ * Note assumes single readout filename, will not work if setup is windowed.
  * This routine just calls CCD_Exposure_Expose, with clear_array FALSE (to prevent destruction of the image),
  * open_shutter FALSE, and an exposure length of zero.
  * @param filename The filename to save the exposure into.
@@ -871,10 +899,12 @@ int CCD_Exposure_Abort_Readout(void)
 int CCD_Exposure_Read_Out_CCD(char *filename)
 {
 	struct timespec start_time;
+	char *filename_list[1];
 
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
-	return CCD_Exposure_Expose(FALSE,FALSE,start_time,0,filename);
+	filename_list[0] = filename;
+	return CCD_Exposure_Expose(FALSE,FALSE,start_time,0,filename_list,1);
 }
 
 /**
@@ -1180,6 +1210,201 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
 #else
 #error Exposure_Byte_Swap not defined for this value of CCD_GLOBAL_BYTES_PER_PIXEL.
 #endif
+
+/**
+ * Post-Readout operations on a full frame exposure,
+ * <ul>
+ * <li>The number of columns and rows are retrieved from setup.
+ * <li>The data is de-interlaced using Exposure_DeInterlace.
+ * <li>The data is saved to disc using Exposure_Save.
+ * </ul>
+ * @param exposure_data The data read out from the CCD.
+ * @param filename The FITS filename (which should already contain relevant headers), in which to write 
+ *        the image data.
+ * @return The routine returns TRUE if it suceeded, and FALSE if it fails.
+ * @see #Exposure_DeInterlace
+ * @see #Exposure_Save
+ * @see ccd_setup.html#CCD_Setup_Get_NCols
+ * @see ccd_setup.html#CCD_Setup_Get_NRows
+ */
+static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data,char *filename)
+{
+	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
+	int ncols,nrows;
+
+/* get setup details */
+	ncols = CCD_Setup_Get_NCols();
+	nrows = CCD_Setup_Get_NRows();
+	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
+/* number of columns must be a positive number */
+	if(ncols <= 0)
+	{
+		Exposure_Error_Number = 27;
+		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Illegal ncols '%d'.",ncols);
+		return FALSE;
+	}
+/* number of rows must be a positive number */
+	if(nrows <= 0)
+	{
+		Exposure_Error_Number = 31;
+		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Illegal nrows '%d'.",nrows);
+		return FALSE;
+	}
+	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
+	{
+		Exposure_Error_Number = 36;
+		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:"
+			"Illegal deinterlace type '%d'.",deinterlace_type);
+		return FALSE;
+	}
+/* Do deinterlacing. The image returned from the boards may not be in the correct order
+** if the CCD was readout from multiple places etc. The deinterlace routine reorders the image
+** so that it is back in the right order. */
+#if LOGGING > 4
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Post_Readout_Full_Frame:De-Interlacing.");
+#endif
+	if(!Exposure_DeInterlace(ncols,nrows,exposure_data,deinterlace_type))
+		return FALSE;
+/* if we have aborted stop and return */
+	if(CCD_DSP_Get_Abort())
+	{
+		Exposure_Error_Number = 45;
+		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Aborted.");
+		return FALSE;
+	}
+/* save the resultant image to disk */
+#if LOGGING > 4
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Post_Readout_Full_Frame:"
+			      "Saving to filename %s.",filename);
+#endif
+	if(!Exposure_Save(filename,exposure_data,ncols,nrows))
+		return FALSE;
+	return TRUE; 
+}
+
+/**
+ * Post-Readout operations on a windowed exposure.
+ * <ul>
+ * <li>We get necessary setup data (window flags and deinterlace type).
+ * <li>We go though the list of windows, looking for active windows.
+ * <li>We retrieve setup data for active windows (width,height and pixel_count).
+ * <li>We allocate space for a subimage array of the required size, and copy the relevant exposure data
+ *     (applying the necessary exposure data index offset) into it.
+ * <li>We call Exposure_DeInterlace to de-interlace the sub-image.
+ * <li>We check whether we should be aborting.
+ * <li>We save the sub-image to the relevant filename.
+ * <li>We increment the exposure data index offset by the number of pixels in the sub-image.
+ * <li>We increment the filename index.
+ * <li>We free the sub-image data.
+ * </ul>
+ * @param exposure_data The data read out from the CCD.
+ * @param filename_list The list of FITS filenames (which should already contain relevant headers), in which to write 
+ *        the image data. Each window of data is saved in a separate file.
+ * @return The routine returns TRUE if it suceeded, and FALSE if it fails.
+ * @see #Exposure_DeInterlace
+ * @see #Exposure_Save
+ * @see ccd_setup.html#CCD_SETUP_WINDOW_COUNT
+ * @see ccd_setup.html#CCD_Setup_Get_Window_Flags
+ * @see ccd_setup.html#CCD_Setup_Get_DeInterlace_Type
+ * @see ccd_setup.html#CCD_Setup_Get_Window_Width
+ * @see ccd_setup.html#CCD_Setup_Get_Window_Height
+ * @see ccd_setup.html#CCD_Setup_Get_Window_Pixel_Count
+ * @see ccd_global.html#CCD_GLOBAL_BYTES_PER_PIXEL
+ * @see ccd_dsp.html#CCD_DSP_IS_DEINTERLACE_TYPE
+ * @see ccd_dsp.html#CCD_DSP_Get_Abort
+ */
+static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
+					       char **filename_list,int filename_count)
+{
+	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
+	unsigned short *subimage_data = NULL;
+	int exposure_data_index = 0;
+	int window_number,window_flags,window_count,filename_index;
+	int ncols,nrows,pixel_count;
+
+	/* get setup data */
+	window_flags = CCD_Setup_Get_Window_Flags();
+	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
+	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
+	{
+		Exposure_Error_Number = 10;
+		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
+			"Illegal deinterlace type '%d'.",deinterlace_type);
+		return FALSE;
+	}
+	/* go through list of windows */
+	exposure_data_index = 0;
+	filename_index = 0;
+	for(window_number = 0;window_number < CCD_SETUP_WINDOW_COUNT; window_number++)
+	{
+		/* look for windows that have been read out (are in use). */
+		/* Note, relies on CCD_SETUP_WINDOW_ONE == (1<<0),
+		** CCD_SETUP_WINDOW_TWO	== (1<<1),
+		** CCD_SETUP_WINDOW_THREE == (1<<2) and
+		** CCD_SETUP_WINDOW_FOUR == (1<<3) */
+		if(window_flags&(1<<window_number))
+		{
+			ncols = CCD_Setup_Get_Window_Width(window_number);
+			nrows = CCD_Setup_Get_Window_Height(window_number);
+			pixel_count = CCD_Setup_Get_Window_Pixel_Count(window_number);
+			if(filename_index >= filename_count)
+			{
+				Exposure_Error_Number = 16;
+				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
+					"Filename index greater than count.",filename_index,filename_count);
+				return FALSE;
+			}
+#if LOGGING > 4
+			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Post_Readout_Window:"
+			      "Window %d(%s) active:ncols = %d,nrows = %d,pixel_count = %d.",
+					      window_number,filename_list[filename_index],ncols,nrows,pixel_count);
+#endif
+			subimage_data = (unsigned short*)malloc(pixel_count*CCD_GLOBAL_BYTES_PER_PIXEL);
+			if(subimage_data == NULL)
+			{
+				Exposure_Error_Number = 18;
+				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
+					"SubImage Data was NULL (%d,%d).",window_number,pixel_count);
+				return FALSE;
+			}
+			memcpy(subimage_data,exposure_data+exposure_data_index,pixel_count*CCD_GLOBAL_BYTES_PER_PIXEL);
+#if LOGGING > 4
+			CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
+				       "Exposure_Expose_Post_Readout_Window:De-Interlacing.");
+#endif
+			if(!Exposure_DeInterlace(ncols,nrows,subimage_data,deinterlace_type))
+			{
+				free(subimage_data);
+				return FALSE;
+			}
+/* if we have aborted stop and return */
+			if(CCD_DSP_Get_Abort())
+			{
+				free(subimage_data);
+				Exposure_Error_Number = 19;
+				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:Aborted.");
+				return FALSE;
+			}
+/* save the resultant image to disk */
+#if LOGGING > 4
+			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Post_Readout_Window:"
+			      "Saving to filename %s.",filename_list[filename_index]);
+#endif
+			if(!Exposure_Save(filename_list[filename_index],subimage_data,ncols,nrows))
+			{
+				free(subimage_data);
+				return FALSE;
+			}
+			/* increment index into exposure data to start of next window. */
+			exposure_data_index += pixel_count;
+			/* increment index iff this window is active - only active window filenames in filename_list */
+			filename_index++;
+			/* free subimage */
+			free(subimage_data);
+		}
+	}
+	return TRUE;
+}
 
 #if CCD_GLOBAL_BYTES_PER_PIXEL == 2
 /**
@@ -1656,6 +1881,9 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.23  2003/03/04 17:09:53  cjm
+** Added NGAT_Astro call.
+**
 ** Revision 0.22  2002/12/16 16:49:36  cjm
 ** Fixed problems with status during an exposure, so that it only goes into
 ** PRE_READOUT at the correct time.
