@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.3 2000-02-10 12:00:14 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.4 2000-02-22 17:18:22 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -91,6 +91,7 @@ enum CCD_DSP_GAIN
  * Return value from <a href="#CCD_DSP_Get_Exposure_Status">CCD_DSP_Get_Exposure_Status</a>. 
  * <ul>
  * <li>CCD_DSP_EXPOSURE_STATUS_NONE means the library is not currently performing an exposure.
+ * <li>CCD_DSP_EXPOSURE_STATUS_CLEAR means the library is currently clearing the ccd.
  * <li>CCD_DSP_EXPOSURE_STATUS_EXPOSE means the library is currently performing an exposure.
  * <li>CCD_DSP_EXPOSURE_STATUS_READOUT means the library is currently reading out data from the ccd.
  * </ul>
@@ -98,7 +99,8 @@ enum CCD_DSP_GAIN
  */
 enum CCD_DSP_EXPOSURE_STATUS
 {
-	CCD_DSP_EXPOSURE_STATUS_NONE,CCD_DSP_EXPOSURE_STATUS_EXPOSE,CCD_DSP_EXPOSURE_STATUS_READOUT
+	CCD_DSP_EXPOSURE_STATUS_NONE,CCD_DSP_EXPOSURE_STATUS_CLEAR,
+	CCD_DSP_EXPOSURE_STATUS_EXPOSE,CCD_DSP_EXPOSURE_STATUS_READOUT
 };
 
 /* These enum definitions should match with those in CCDLibrary.java */
