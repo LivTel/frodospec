@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.6 2000-02-24 11:42:38 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.7 2000-03-01 10:50:06 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -31,7 +31,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.6 2000-02-24 11:42:38 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.7 2000-03-01 10:50:06 cjm Exp $";
 
 /* #defines */
 /**
@@ -646,7 +646,7 @@ static void Text_Get_Reply(int *argument)
 /* if it's a standard reply print out a text representation. */
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_REPLIES)
 	{
-		switch(Text_Data.Reply)
+		switch((*argument))
 		{
 			case CCD_DSP_DON:
 				fprintf(Text_File_Ptr,"DON:");
@@ -825,6 +825,10 @@ static void Text_HCVR_Clear_Array(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.6  2000/02/24 11:42:38  cjm
+** Made exposure time depend on real time clock.
+** Made Clear array take some time.
+**
 ** Revision 0.5  2000/02/10 16:26:08  cjm
 ** Changed Text_HCVR_Read_Exposure_Time so that it works with voodoo.
 **
