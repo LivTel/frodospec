@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.13 2001-04-05 09:07:26 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.14 2001-06-04 14:55:56 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -24,7 +24,7 @@ TIMINGDOWNLOADIDLECFLAGS =
 #TIMINGDOWNLOADIDLECFLAGS = -DCCD_SETUP_TIMING_DOWNLOAD_IDLE=1
 
 # In some versions of the DSP code the utility board used to lock the controller up,
-# if we sent an RDM/WRM/Read tempureature during an exposure.
+# if we sent an RDM/WRM/Read temperature during an exposure.
 # This flag enables us to conditionally compile some code to test for this:
 # Return an error if RDM/WRM/temperature get called when we are exposing.
 #UTILEXPOSURECHECKFLAGS = -DCCD_DSP_UTIL_EXPOSURE_CHECK=1
@@ -46,9 +46,20 @@ INPUTHOMETYPE = MAGNETIC
 # define PROXIMITY/MAGNETIC and CCD_FILTER_WHEEL_INPUT_HOME
 FILTERWHEELINPUTHOMECFLAGS = -DPROXIMITY=1 -DMAGNETIC=2 -DCCD_FILTER_WHEEL_INPUT_HOME=$(INPUTHOMETYPE)
 
-UTILEXPOSURECHECKFLAGS = -DCCD_DSP_UTIL_EXPOSURE_CHECK=1
-# Allow RDM/WRM/temperature get calls when we are exposing.
-UTILEXPOSURECHECKFLAGS = 
+# when reading out it helps if we are running at a better priority
+# This can be done by using priority change code and running as root.
+# - No priority changes in library, code will run as user.
+PRIORITYCFLAGS		= -DCCD_GLOBAL_READOUT_PRIORITY=0
+# - Priority changes in library, using POSIX.4 scheduler, code must run as root.
+#PRIORITYCFLAGS		= -DCCD_GLOBAL_READOUT_PRIORITY=1
+# - Priority changes in library, using BSD/SVr4 process management, code must run as root.
+#PRIORITYCFLAGS		= -DCCD_GLOBAL_READOUT_PRIORITY=2
+
+# when reading out it could help if we lock down the memory we are reading out into to prevent page swaps
+# 1. No memory locking
+MLOCKCFLAGS	= 
+# 2. Memory locking
+#MLOCKCFLAGS	= -DCCD_GLOBAL_READOUT_MLOCK
 
 # Do we wish to link with CFITSIO routines?
 FITSCFLAGS = -DCFITSIO=1 -I$(CFITSIOINCDIR) -L$(LT_LIB_HOME)
@@ -57,19 +68,20 @@ CFITSIOLIB = -lcfitsio
 # FITSCFLAGS =
 # CFITSIOLIB =
 
-# Do we want debugging?
-#DEBUGCFLAGS = -DDEBUG=1
-DEBUGCFLAGS = -DDEBUG=0
 
 # Do we want to enable logging?
 # no logging
-#LOGGINGCFLAGS = -DLOGGING=0
+LOGGINGCFLAGS = -DLOGGING=0
 # some logging
-LOGGINGCFLAGS = -DLOGGING=1
+#LOGGINGCFLAGS = -DLOGGING=1
+# some logging
+#LOGGINGCFLAGS = -DLOGGING=4
+#lots of logging. This can cause time critical operations like BIAS frames to fail.
+#LOGGINGCFLAGS = -DLOGGING=5
 
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLAGS) $(MUTEXCFLAGS) \
 	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(UTILEXPOSURECHECKFLAGS) $(BYTESWAPCFLAGS) \
-	$(FILTERWHEELINPUTHOMECFLAGS) $(DEBUGCFLAGS) $(LOGGINGCFLAGS)
+	$(FILTERWHEELINPUTHOMECFLAGS) $(PRIORITYCFLAGS) $(MLOCKCFLAGS) $(LOGGINGCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
@@ -137,6 +149,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.13  2001/04/05 09:07:26  cjm
+# Added LOGGINGCFLAGS.
+#
 # Revision 1.12  2001/03/19 18:38:42  cjm
 # Added FILTERWHEELINPUTHOMECFLAGS.
 #
