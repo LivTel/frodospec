@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.8 2000-05-23 10:34:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.9 2000-06-13 17:14:13 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.8 2000-05-23 10:34:46 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.9 2000-06-13 17:14:13 cjm Exp $";
 
 /* external variables */
 
@@ -59,6 +59,8 @@ static int Exposure_Shutter_Control(int value);
 void CCD_Exposure_Initialise(void)
 {
 	Exposure_Error_Number = 0;
+/* print some compile time information to stdout */
+	fprintf(stdout,"CCD_Exposure_Initialise:%s.\n",rcsid);
 }
 
 /**
@@ -71,7 +73,9 @@ void CCD_Exposure_Initialise(void)
  * <li>The exposure is performed by calling 
  * 	<a href="ccd_dsp.html#CCD_DSP_Command_SEX">CCD_DSP_Command_SEX</a> to do the exposure.
  * <li>If readout_ccd is TRUE the exposure is read out by calling 
- * 	<a href="ccd_dsp.html#CCD_DSP_Command_RDC">CCD_DSP_Command_RDC</a>.
+ * 	<a href="ccd_dsp.html#CCD_DSP_Command_RDI">CCD_DSP_Command_RDI</a>. If the exposure length was greater than
+ * 	5 seconds, the send_rdi parameter is TRUE otherwise it is FALSE. This is because the SEX command
+ * 	will automatically send the RDI command (with our DSP code) if the exposure length is 5 seconds or less.
  * </ul>
  * If the exposure is aborted at any stage the routine returns.
  * @param open_shutter TRUE if the shutter is to be opened over the duration of the exposure, FALSE if the
@@ -91,7 +95,7 @@ void CCD_Exposure_Initialise(void)
  * @see ccd_setup.html#CCD_Setup_Get_DeInterlace_Type
  * @see ccd_dsp.html#CCD_DSP_Command_Set_Exposure_Time
  * @see ccd_dsp.html#CCD_DSP_Command_SEX
- * @see ccd_dsp.html#CCD_DSP_Command_RDC
+ * @see ccd_dsp.html#CCD_DSP_Command_RDI
  */
 int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_time,int exposure_time,char *filename)
 {
@@ -182,7 +186,7 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_t
 /* Read out the ccd. */
 	if(readout_ccd)
 	{
-		if(!CCD_DSP_Command_RDC(ncols,nrows,deinterlace_type,filename))
+		if(!CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,exposure_time>5000,filename))
 		{
 			CCD_DSP_Set_Abort(FALSE);
 			Exposure_Error_Number = 27;
@@ -201,7 +205,7 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_t
  * @param filename The filename to save the resultant data (in FITS format) to.
  * @return The routine returns TRUE if the operation was completed successfully, FALSE if it failed.
  * @see ccd_dsp.html#CCD_DSP_Command_CLR
- * @see ccd_dsp.html#CCD_DSP_Command_RDC
+ * @see ccd_dsp.html#CCD_DSP_Command_RDI
  */
 int CCD_Exposure_Bias(char *filename)
 {
@@ -244,7 +248,7 @@ int CCD_Exposure_Bias(char *filename)
 ** It is saved in the FITS file however, so set it manually here. */
 	CCD_DSP_Set_Exposure_Start_Time();
 /* read out ccd and save to filename */
-	return_value = CCD_DSP_Command_RDC(ncols,nrows,deinterlace_type,filename);
+	return_value = CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,TRUE,filename);
 	if(return_value == FALSE)
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -440,18 +444,20 @@ void CCD_Exposure_Abort_Readout(void)
 
 /**
  * This routine is not called as part of the normal exposure sequence. It is used to read out a ccd exposure
- * under manual control or to read out an aborted exposure. 
+ * under manual control or to read out an aborted exposure. Note it currently always sends the RDI command to
+ * the controller. 
  * <dl>
  * <dd>It checks to ensure CCD Setup has been successfully completed using CCD_Setup_Get_Setup_Complete.</dd>
  * <dd>It gets the number of rows,columns and the deinterlace type from setup.</dd>
  * <dd>It executes a RDC command to read out the CCD, using 
- * 	<a href="ccd_dsp.html#CCD_DSP_Command_RDC">CCD_DSP_Command_RDC</a>.</dd>
+ * 	<a href="ccd_dsp.html#CCD_DSP_Command_RDI">CCD_DSP_Command_RDI</a>.</dd>
  * </dl>
  * If the readout is aborted at any stage the routine returns.
  * @param filename The filename to save the exposure into.
  * @return Returns TRUE if the readout succeeds and the file is saved, returns FALSE if an error
  *	occurs or the readout is aborted.
  * @see ccd_setup.html#CCD_Setup_Get_Setup_Complete
+ * @see ccd_dsp.html#CCD_DSP_Command_RDI
  */
 int CCD_Exposure_Read_Out_CCD(char *filename)
 /* a seperarate command to the main exposure sequence */
@@ -475,7 +481,7 @@ int CCD_Exposure_Read_Out_CCD(char *filename)
 	ncols = CCD_Setup_Get_NCols();
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
- 	ret_val = CCD_DSP_Command_RDC(ncols,nrows,deinterlace_type,filename);
+ 	ret_val = CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,TRUE,filename);
 	if(ret_val == FALSE)
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -560,41 +566,59 @@ void CCD_Exposure_Warning(void)
 /**
  * Internal exposure routine that sets the shutter bit. The SDSU SEX command looks
  * at this bit to determine whether to open and close the shutter whilst performing an exposure.
- * @param value If it is TRUE, the SDSU SEX command will open/close the 
+ * @param open_shutter If it is TRUE, the SDSU SEX command will open/close the 
  * 	shutter at the relevant places during an exposure. If it is FALSE, the shutter will remain in it's 
  * 	current state throughout the exposure.
  * @return Returns TRUE if the operation succeeded, FALSE if it fails.
  * @see #CCD_Exposure_Expose
+ * @see ccd_dsp.html#CCD_DSP_Command_Read_Controller_Status
+ * @see ccd_dsp.html#CCD_DSP_Command_Write_Controller_Status
+ * @see ccd_dsp.html#CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT
  */
-static int Exposure_Shutter_Control(int value)
+static int Exposure_Shutter_Control(int open_shutter)
 {
-	if(value)
+	int controller_status;
+
+/* check parameter */
+	if(!CCD_GLOBAL_IS_BOOLEAN(open_shutter))
 	{
-		/* SEX will Open the shutter */
-		if(!CCD_DSP_Command_Set_Util_Options(TRUE))
-		{
-			Exposure_Error_Number = 21;
-			sprintf(Exposure_Error_String,"Exposure_Shutter_Control: Writing shutter bit failed.");
-			return FALSE;
-		}
+		Exposure_Error_Number = 21;
+		sprintf(Exposure_Error_String,"Exposure_Shutter_Control:Illegal open_shutter value:%d.",
+			open_shutter);
+		return FALSE;
 	}
-	else
+/* get current controller status */
+	controller_status = CCD_DSP_Command_Read_Controller_Status();
+	if((controller_status == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
-		/* SEX will Close the shutter */
-		if(!CCD_DSP_Command_Set_Util_Options(FALSE))
-		{
-			Exposure_Error_Number = 22;
-			sprintf(Exposure_Error_String,"Exposure_Shutter_Control: Writing shutter bit failed.");
-			return FALSE;
-		}
+		Exposure_Error_Number = 28;
+		sprintf(Exposure_Error_String,"Exposure_Shutter_Control: Reading controller status failed.");
+		return FALSE;
+	}
+/* set or clear open shutter bit */
+	if(open_shutter)
+		controller_status |= CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT;
+	else
+		controller_status &= ~(CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT);
+/* write new controller status value */
+	if(CCD_DSP_Command_Write_Controller_Status(controller_status) != CCD_DSP_DON)
+	{
+		Exposure_Error_Number = 22;
+		sprintf(Exposure_Error_String,"Exposure_Shutter_Control: Writing shutter bit failed.");
+		return FALSE;
 	}
 	return TRUE;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2000/05/23 10:34:46  cjm
+** Added call to CCD_DSP_Set_Exposure_Start_Time in CCD_Exposure_Bias,
+** so that bias frames now have an exposure start time set,
+** which gives a sensible value for DATE, DATE-OBS and UTSTART in FITS files.
+**
 ** Revision 0.7  2000/05/10 14:37:52  cjm
-** Removed number of bytes parameter from CCD_DSP_Command_RDC.
+** Removed number of bytes parameter from CCD_DSP_Command_RDI.
 **
 ** Revision 0.6  2000/04/13 13:17:36  cjm
 ** Added current time to error routines.

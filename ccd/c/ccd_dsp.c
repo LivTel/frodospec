@@ -1,12 +1,12 @@
-/* ccd_dsp.c -*- mode: Fundamental;-*-
+ /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.19 2000-05-23 10:33:44 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.20 2000-06-13 17:14:13 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.19 $
+ * @version $Revision: 0.20 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.19 2000-05-23 10:33:44 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.20 2000-06-13 17:14:13 cjm Exp $";
 
 /* defines */
 /**
@@ -52,6 +52,39 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.19 2000-05-23 10:33:44 cjm Exp $";
  * @see #CCD_DSP_Download
  */
 #define	DSP_DOWNLOAD_ADDR_MAX		0x4000 /* maximum address of code that isn't boot code */
+/**
+ * Bits 8 and 9 in the HCTR (host interface control register) on the PCI interface board are used to
+ * put the PCI DSP into slave mode, to download DSP code to the PCI interface board. Bit 8 is cleared
+ * when putting the PCI DSP into slave mode.
+ */
+#define DSP_HCTR_HTF_BIT8		(1<<8)
+/**
+ * Bits 8 and 9 in the HCTR (host interface control register) on the PCI interface board are used to
+ * put the PCI DSP into slave mode, to download DSP code to the PCI interface board. If bit 9 is set,
+ * the PCI DSP is in slave mode.
+ */
+#define DSP_HCTR_HTF_BIT9		(1<<9)
+/**
+ * Bit 3 in the HCTR (host interface control register) on the PCI interface board is set when an image
+ * buffer is being transferred to user space.
+ */
+#define DSP_HCTR_IMAGE_BUFFER_BIT	(1<<3)
+/**
+ * Magic constant value sent to the PCI DSP as argument one, at the commencement of downloading PCI interface
+ * DSP code. The PCI DSP decides to allow the download once this value has been sent.
+ */
+#define DSP_PCI_BOOT_LOAD		(0x00555AAA)
+/**
+ * DSP SECTION name for the DSP code used to control the PCI interface board.
+ * Used in DSP_Download_PCI_Interface to verify DSP code is for the PCI interface.
+ * @see #DSP_Download_PCI_Interface
+ */
+#define DSP_PCI_BOOT_STRING		("PCIBOOT")
+/**
+ * String used in a PCI interface DSP code file to indicate the start of a program segment of code.
+ * @see #DSP_Download_PCI_Interface
+ */
+#define DSP_PCI_DATA_PROGRAM_STRING	("_DATA P")
 /**
  * Special value to pass into <a href="#DSP_Get_Reply">DSP_Get_Reply</a> as the expected reply parameter, indicating
  * that the reply from the command should be an actual value rather then (usually)
@@ -91,7 +124,7 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.19 2000-05-23 10:33:44 cjm Exp $";
  * interface to enter readout mode. Note, because the exposure time is read every second, it is best
  * not have have this constant an exact multiple of 1000.
  */
-#define DSP_DEFAULT_READOUT_REMAINING_TIME	(1100)
+#define DSP_DEFAULT_READOUT_REMAINING_TIME	(5100)
 
 /* structure */
 /**
@@ -180,6 +213,7 @@ static int DSP_Send_Idl(void);
 static int DSP_Send_Rdi(void);
 static int DSP_Send_Sbv(void);
 static int DSP_Send_Sgn(enum CCD_DSP_GAIN gain,int speed);
+static int DSP_Send_Sos(enum CCD_DSP_AMPLIFIER amplifier);
 static int DSP_Send_Stp(void);
 static int DSP_Send_Set_NCols(int ncols);
 static int DSP_Send_Set_NRows(int nrows);
@@ -195,16 +229,19 @@ static int DSP_Send_Set_Temperature(int adu);
 static int DSP_Send_Rex(void);
 static int DSP_Send_Sex(struct timespec start_time);
 static int DSP_Send_Reset(void);
-static int DSP_Send_Set_Util_Options(int bit_value);
+static int DSP_Send_Read_Controller_Status(void);
+static int DSP_Send_Write_Controller_Status(int bit_value);
 static int DSP_Send_Set_Exposure_Time(int msecs);
 static int DSP_Send_Read_Exposure_Time(void);
 
-static int DSP_Clear_Reply_Memory(void);
 static int DSP_Set_Destination(enum CCD_DSP_BOARD_ID board_id,int argument_count);
 static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argument_count);
 static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_count);
 static int DSP_Get_Reply(int expected_reply);
 
+static int DSP_Download_Timing_Utility(enum CCD_DSP_BOARD_ID board_id,char *filename);
+static int DSP_Download_PCI_Interface(char *filename);
+static int DSP_Download_PCI_Finish(void);
 static int DSP_Read_Line(FILE *fp, char *buff);
 static int DSP_Get_Download_Type(FILE *fp);
 static int DSP_Address_Char_To_Mem_Space(char ch,enum CCD_DSP_MEM_SPACE *mem_space);
@@ -252,16 +289,27 @@ int CCD_DSP_Initialise(void)
 	DSP_Data.Exposure_Length = 0;
 	DSP_Data.Exposure_Start_Time.tv_sec = 0;
 	DSP_Data.Exposure_Start_Time.tv_nsec = 0;
-/* print some compile time option information to stdout */
+/* print some compile time information to stdout */
+	fprintf(stdout,"CCD_DSP_Initialise:%s.\n",rcsid);
 #ifdef CCD_DSP_MUTEXED
 	fprintf(stdout,"CCD_DSP_Initialise:SDSU controller commands are mutexed.\n");
 #else
 	fprintf(stdout,"CCD_DSP_Initialise:SDSU controller commands are NOT mutexed.\n");
 #endif
+#ifdef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+	fprintf(stdout,"CCD_DSP_Initialise:SDSU controller reply buffer flushed once per command.\n");
+#else
+	fprintf(stdout,"CCD_DSP_Initialise:SDSU controller reply buffer flushed on startup.\n");
+#endif
 #ifdef _POSIX_TIMERS
 	fprintf(stdout,"CCD_DSP_Initialise:Using Posix Timers (clock_gettime).\n");
 #else
 	fprintf(stdout,"CCD_DSP_Initialise:Using Unix Timers (gettimeofday).\n");
+#endif
+#ifdef CFITSIO
+	fprintf(stdout,"CCD_DSP_Initialise:Using CFITSIO.\n");
+#else
+	fprintf(stdout,"CCD_DSP_Initialise:NOT Using CFITSIO.\n");
 #endif
 	return TRUE;
 }
@@ -598,7 +646,7 @@ int CCD_DSP_Command_IDL(void)
 }
 
 /**
- * This routine executes the ReaDout Ccd (RDC) command on a SDSU Controller board. 
+ * This routine executes the ReaD Image (RDI) command on a SDSU Controller board. 
  * This reads out the data on the CCD.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
@@ -611,13 +659,16 @@ int CCD_DSP_Command_IDL(void)
  *	CCD_DSP_DEINTERLACE_SPLIT_PARALLEL,
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
+ * @param send_rdi A boolean. If TRUE, the READ_IMAGE command is sent to the controller, otherwise it is not.
+ * 	With some PCI DSP code, when the PCI board receives a SEX command with an exposure time less than five seconds
+ * 	it automatically sends an RDI command, so we don't have to.
  * @param filename The filename to save the exposure into.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Rdi
  * @see #DSP_Image_Transfer
  * @see #DSP_Get_Reply
  */
-int CCD_DSP_Command_RDC(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename)
+int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,int send_rdi,char *filename)
 {
 	int retval;
 
@@ -626,32 +677,42 @@ int CCD_DSP_Command_RDC(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 	if(ncols <= 0)
 	{
 		DSP_Error_Number = 10;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_RDC:Illegal ncols '%d'.",ncols);
+		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal ncols '%d'.",ncols);
 		return FALSE;
 	}
 	/* number of rows must be a positive number */
 	if(nrows <= 0)
 	{
 		DSP_Error_Number = 11;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_RDC:Illegal nrows '%d'.",nrows);
+		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal nrows '%d'.",nrows);
 		return FALSE;
 	}
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
 		DSP_Error_Number = 13;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_RDC:Illegal deinterlace type '%d'.",deinterlace_type);
+		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal deinterlace type '%d'.",deinterlace_type);
+		return FALSE;
+	}
+	if(!CCD_GLOBAL_IS_BOOLEAN(send_rdi))
+	{
+		DSP_Error_Number = 90;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal send RDI '%d'.",send_rdi);
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Rdi())
+/* send a read image command to trigger an image readout, if we need to */
+	if(send_rdi)
 	{
+		if(!DSP_Send_Rdi())
+		{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+			DSP_Mutex_Unlock();
 #endif
-		return FALSE;
+			return FALSE;
+		}
 	}
 	/* DSP_Image_Transfer saves the exposed image into a filename */
 	if(!DSP_Image_Transfer(ncols,nrows,deinterlace_type,filename))
@@ -743,6 +804,49 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 		return FALSE;
 #endif
 	if(!DSP_Send_Sgn(gain,speed))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+	/* get reply - DON should be returned */
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
+}
+
+/**
+ * SOS command routine. Timing board command that means Set Output Source. 
+ * This sets which video amplifier to read the CCD chip out from.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @param amplifier The amplifier to use when reading out the CCD. One of:
+ * 	CCD_DSP_AMPLIFIER_LEFT, CCD_DSP_AMPLIFIER_RIGHT or CCD_DSP_AMPLIFIER_BOTH.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Sos
+ * @see #DSP_Get_Reply
+ * @see #CCD_DSP_AMPLIFIER
+ */
+int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+	if(!CCD_DSP_IS_AMPLIFIER(amplifier))
+	{
+		DSP_Error_Number = 89;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SOS:Illegal amplifier '%d'.",amplifier);
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Sos(amplifier))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1341,7 +1445,7 @@ int CCD_DSP_Command_Reset(void)
 #endif
 		return FALSE;
 	}
-	/* get reply - DON should be returned */
+	/* get reply - SYR should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_SYR);
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
@@ -1351,19 +1455,38 @@ int CCD_DSP_Command_Reset(void)
 }
 
 /**
- * Routine to set the utility board options. This is written to the PCI interface 
- * utility options register using a special PCI command. The PCI interface itself writes this to the
- * utility board, memory space X, location 1.
- * Currently only the first bit is used. If it is set the utility board will open the shutter during a 
- * SEX command, otherwise the shutter will remain closed.
+ * Command to flush the device drivers reply buffer. This resets the device driver for the
+ * next generated reply.
+ * No mutex locking is done for this command, it does not expect a reply (the command goes to
+ * the device driver only).
+ * @return Returns TRUE if flushing the reply buffer succeeded, FALSE if it failed.
+ * @see ccd_interface.html#CCD_Interface_Command
+ * @see ccd_pci.html#CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER
+ */
+int CCD_DSP_Command_Flush_Reply_Buffer(void)
+{
+	int retval;
+
+	if(CCD_Interface_Command(CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER,&retval) == FALSE)
+	{
+		DSP_Error_Number = 28;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_Flush_Reply_Buffer:Flush failed.");
+		return FALSE;
+	}
+	return TRUE;
+}
+
+/**
+ * Routine to read the current controller status. This is held in the PCI interface.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
- * @param bit_value The bit value of the utility options. 
- * @return The routine returns DON if the operation succeeds, FALSE otherwise.
- * @see #DSP_Send_Set_Util_Options
+ * @return The routine returns the current controller status word if the operation succeeds, FALSE otherwise.
+ * 	To differentiate between a zero controller status word and an error test whether DSP_Error_Number is
+ * 	non-zero.
+ * @see #DSP_Send_Read_Controller_Status
  * @see #DSP_Get_Reply
  */
-int CCD_DSP_Command_Set_Util_Options(int bit_value)
+int CCD_DSP_Command_Read_Controller_Status(void)
 {
 	int retval;
 
@@ -1372,7 +1495,42 @@ int CCD_DSP_Command_Set_Util_Options(int bit_value)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Set_Util_Options(bit_value))
+	if(!DSP_Send_Read_Controller_Status())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+/* get reply - the current controller status value should be returned */
+	retval = DSP_Get_Reply(DSP_ACTUAL_VALUE);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
+}
+
+/**
+ * Routine to set the controller status. This is held in the PCI interface, and is also written to the
+ * timing board. Various can also be set on the utility board.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @param bit_value The new value of the controller status word. 
+ * @return The routine returns DON if the operation succeeds, FALSE otherwise.
+ * @see #DSP_Send_Write_Controller_Status
+ * @see #DSP_Get_Reply
+ */
+int CCD_DSP_Command_Write_Controller_Status(int bit_value)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Write_Controller_Status(bit_value))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1473,18 +1631,11 @@ int CCD_DSP_Command_Read_Exposure_Time(void)
  * @param filename The filename of compiled DSP commends to send to the board.
  * 	This is usually a .lod file.
  * @return Returns TRUE if the operation succeeds, FALSE if it fails.
- * @see #DSP_Get_Download_Type
- * @see #DSP_Read_Line
- * @see #DSP_Address_Char_To_Mem_Space
- * @see #DSP_Process_Data
+ * @see #DSP_Download_PCI_Interface
+ * @see #DSP_Download_Timing_Utility
  */
 int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 {
-	FILE *download_fp;
-	enum CCD_DSP_MEM_SPACE mem_space;
-	int finished,download_board_id,addr;
-	char buff[255],addr_type;
-
 	DSP_Error_Number = 0;
 	if(!CCD_DSP_IS_BOARD_ID(board_id))
 	{
@@ -1492,59 +1643,23 @@ int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename)
 		sprintf(DSP_Error_String,"CCD_DSP_Download:Illegal board ID '%d'.",board_id);
 		return FALSE;
 	}
-	/* try to open the file */
-	if((download_fp = fopen(filename,"r")) == NULL)
+/* depending on the board type, call a sub-routine */
+	switch(board_id)
 	{
-		DSP_Error_Number = 23;
-		sprintf(DSP_Error_String,"CCD_DSP_Download:Could not open filename(%s).",
-			filename);
-		return FALSE;
+		case CCD_DSP_HOST_BOARD_ID:
+			DSP_Error_Number = 47;
+			sprintf(DSP_Error_String,"CCD_DSP_Download:Can't download DSP code to Host computer.");
+			return FALSE;
+		case CCD_DSP_INTERFACE_BOARD_ID:
+			return DSP_Download_PCI_Interface(filename);
+		case CCD_DSP_TIM_BOARD_ID:
+		case CCD_DSP_UTIL_BOARD_ID:
+			return DSP_Download_Timing_Utility(board_id,filename);
+		default:
+			DSP_Error_Number = 69;
+			sprintf(DSP_Error_String,"CCD_DSP_Download:Unknown board ID '%d'.",board_id);
+			return FALSE;
 	}
-	/* ensure the file is for the same board as the one we are trying to send a program to */
-	if((download_board_id = DSP_Get_Download_Type(download_fp)) == FALSE)
-	{
-		fclose(download_fp);
-		DSP_Error_Number = 24;
-		sprintf(DSP_Error_String,"CCD_DSP_Download:Could not get filename type(%s).",
-			filename);
-		return FALSE;
-	}
-
-	if (download_board_id != board_id)
-	{
-		fclose(download_fp);
-		DSP_Error_Number = 25;
-		sprintf(DSP_Error_String,"CCD_DSP_Download:Boards do not match(%s,%d,%d).",
-			filename,download_board_id,board_id);
-		return FALSE;
-	}
-	finished = FALSE;
-	/* send the data to the board until the end of the file is reached 
-	** or the operation is aborted */
-	while((!finished)&&(!DSP_Data.Abort))
-	{
-		DSP_Read_Line(download_fp,buff);
-		if(strncmp(buff,"_END",4) == 0)
-			finished = TRUE;
-		else if(sscanf(buff,"_DATA %c %x",&addr_type,&addr) == 2)
-		{
-			if(!DSP_Address_Char_To_Mem_Space(addr_type,&mem_space))
-			{
-				fclose(download_fp);
-				return FALSE;
-			}
-			if (addr < DSP_DOWNLOAD_ADDR_MAX)
-			{
-				if(!DSP_Process_Data(download_fp,board_id,mem_space,addr))
-				{
-					fclose(download_fp);
-					return FALSE;
-				}
-			}
-		}
-	}
-	fclose(download_fp);
-	return(TRUE);
 }
 
 /**
@@ -1676,7 +1791,7 @@ void CCD_DSP_Set_Readout_Remaining_Time(int time)
 }
 
 /**
- * Routine to get the amount of time, in milleseconds, remaining for an exposure when we stop sleeping and tell the
+ * Routine to get the amount of time, in milliseconds, remaining for an exposure when we stop sleeping and tell the
  * interface to enter readout mode. 
  * @return The time, in milliseconds.
  * @see #DSP_Data
@@ -1993,6 +2108,28 @@ static int DSP_Send_Sgn(enum CCD_DSP_GAIN gain,int speed)
 }
 
 /**
+ * Internal DSP command to set the which amplifier to read out from during readout. Uses DSP_Set_Destination to set
+ * manual command destination to the timing board.
+ * @param amplifier What amplifier to use during readout. One of the CCD_DSP_AMPLIFIER enum values.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #CCD_DSP_BOARD_ID
+ * @see #CCD_DSP_SOS
+ * @see #DSP_Set_Destination
+ * @see #DSP_Send_Manual_Command
+ * @see #CCD_DSP_AMPLIFIER
+ */
+static int DSP_Send_Sos(enum CCD_DSP_AMPLIFIER amplifier)
+{
+	int argument_list[1];
+	int argument_count = 0;
+
+	argument_list[argument_count++] = amplifier;
+	if(!DSP_Set_Destination(CCD_DSP_TIM_BOARD_ID,argument_count))
+		return FALSE;
+	return DSP_Send_Manual_Command(CCD_DSP_SOS,argument_list,argument_count);
+}
+
+/**
  * Internal DSP command to come out of idle mode.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Idl
@@ -2009,7 +2146,7 @@ static int DSP_Send_Stp(void)
  * Host Command Vector Register like most routines, but directly calls the interface with a special ioctl
  * command.
  * @param ncols Number of columns to read out, after binning has been taken into account.
- * @see #DSP_Clear_Reply_Memory
+ * @see #CCD_DSP_Command_Flush_Reply_Buffer
  * @see ccd_interface.html#CCD_Interface_Command
  * @see ccd_pci.html#CCD_PCI_IOCTL_SET_NCOLS
  */
@@ -2022,8 +2159,10 @@ static int DSP_Send_Set_NCols(int ncols)
 		return FALSE;
 	}
 /* clear the reply memory */
-	if(!DSP_Clear_Reply_Memory())
+#ifdef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+	if(!CCD_DSP_Command_Flush_Reply_Buffer())
 		return FALSE;
+#endif
 /* send command to interface */
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_NCOLS,&ncols))
 	{
@@ -2039,7 +2178,7 @@ static int DSP_Send_Set_NCols(int ncols)
  * Host Command Vector Register like most routines, but directly calls the interface with a special ioctl
  * command.
  * @param nrows Number of rows to read out, after binning has been taken into account.
- * @see #DSP_Clear_Reply_Memory
+ * @see #CCD_DSP_Command_Flush_Reply_Buffer
  * @see ccd_interface.html#CCD_Interface_Command
  * @see ccd_pci.html#CCD_PCI_IOCTL_SET_NROWS
  */
@@ -2052,8 +2191,10 @@ static int DSP_Send_Set_NRows(int nrows)
 		return FALSE;
 	}
 /* clear the reply memory */
-	if(!DSP_Clear_Reply_Memory())
+#ifdef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+	if(!CCD_DSP_Command_Flush_Reply_Buffer())
 		return FALSE;
+#endif
 /* send command to interface */
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_NROWS,&nrows))
 	{
@@ -2112,8 +2253,10 @@ static int DSP_Send_Read_Temperature(void)
 
 /**
  * Internal DSP command to set the target temperature on the SDSU utility board.
+ * Uses DSP_Set_Destination to set the correct board, this needs reviewing.
  * @return Returns true if the command succeeded, false if it failed.
  * @see #DSP_Send_Command
+ * @see #DSP_Set_Destination
  * @see ccd_pci.html#CCD_PCI_HCVR_SET_ARRAY_TEMPERATURE
  */
 static int DSP_Send_Set_Temperature(int adu)
@@ -2122,6 +2265,11 @@ static int DSP_Send_Set_Temperature(int adu)
 	int argument_count = 0;
 
 	argument_list[argument_count++] = adu;
+/* We need to review whether this set destination call is needed.
+** Acording to the Voodoo code it is, according to the DSP code it is not.
+*/
+	if(!DSP_Set_Destination(CCD_DSP_INTERFACE_BOARD_ID,argument_count))
+		return FALSE;
 	return DSP_Send_Command(CCD_PCI_HCVR_SET_ARRAY_TEMPERATURE,argument_list,argument_count);
 }
 
@@ -2176,11 +2324,13 @@ static int DSP_Send_Rex(void)
  * If the tv_sec field of start_time is non-zero, we want to open the shutter as near as possible to the 
  * passed in time, allowing for some transmission delay (DSP_Data.Start_Exposure_Offset_Time).
  * Sets the DSP_Data.Exposure_Start_Time to start of the exposure.
+ * Uses DSP_Set_Destination to set the correct board, this needs reviewing.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Data
  * @see #DSP_Send_Command
+ * @see #DSP_Set_Destination
  * @see ccd_pci.html#CCD_PCI_HCVR_START_EXPOSURE
  */
 static int DSP_Send_Sex(struct timespec start_time)
@@ -2263,32 +2413,31 @@ static int DSP_Send_Reset(void)
 }
 
 /**
- * Internal DSP command to set utility options. This does not set the PCI HCVR (Host Command Vector Register)
- * like most commands, but uses it's own PCI ioctl request number CCD_PCI_IOCTL_SET_UTIL_OPTIONS.
+ * Internal DSP command to read the controller status. This uses DSP_Send_Command to set the HCVR to
+ * CCD_PCI_HCVR_READ_CONTROLLER_STATUS with no arguments.
  * @return Returns TRUE if the command was sent without error, FALSE otherwise.
- * @see #DSP_Clear_Reply_Memory
- * @see ccd_pci.html#CCD_PCI_IOCTL_SET_UTIL_OPTIONS
- * @see ccd_interface.html#CCD_Interface_Command
+ * @see #DSP_Send_Command
+ * @see ccd_pci.html#CCD_PCI_HCVR_READ_CONTROLLER_STATUS
  */
-static int DSP_Send_Set_Util_Options(int bit_value)
+static int DSP_Send_Read_Controller_Status(void)
 {
-	if(DSP_Data.Abort)
-	{
-		DSP_Error_Number = 64;
-		sprintf(DSP_Error_String,"DSP_Send_Set_Util_Options:Aborted.");
-		return FALSE;
-	}
-/* clear the reply memory */
-	if(!DSP_Clear_Reply_Memory())
-		return FALSE;
-/* send command to interface */
-	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_UTIL_OPTIONS,&bit_value))
-	{
-		DSP_Error_Number = 65;
-		sprintf(DSP_Error_String,"DSP_Send_Set_Util_Options:Sending utility options %d failed.",bit_value);
-		return FALSE;
-	}
-	return TRUE;
+	return DSP_Send_Command(CCD_PCI_HCVR_READ_CONTROLLER_STATUS,NULL,0);
+}
+
+/**
+ * Internal DSP command to write the controller status. This uses DSP_Send_Command to set the HCVR to
+ * CCD_PCI_HCVR_WRITE_CONTROLLER_STATUS, with one argument with the bit_value.
+ * @return Returns TRUE if the command was sent without error, FALSE otherwise.
+ * @see #DSP_Send_Command
+ * @see ccd_pci.html#CCD_PCI_HCVR_WRITE_CONTROLLER_STATUS
+ */
+static int DSP_Send_Write_Controller_Status(int bit_value)
+{
+	int argument_list[1];
+	int argument_count = 0;
+
+	argument_list[argument_count++] = bit_value;
+	return DSP_Send_Command(CCD_PCI_HCVR_WRITE_CONTROLLER_STATUS,argument_list,argument_count);
 }
 
 /**
@@ -2307,8 +2456,10 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
 		return FALSE;
 	}
 /* clear the reply memory */
-	if(!DSP_Clear_Reply_Memory())
+#ifdef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+	if(!CCD_DSP_Command_Flush_Reply_Buffer())
 		return FALSE;
+#endif
 /* send command to interface */
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_EXPTIME,&msecs))
 	{
@@ -2328,25 +2479,6 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
 static int DSP_Send_Read_Exposure_Time(void)
 {
 	return DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0);
-}
-
-/**
- * Internal command to clear the reply memory. This sets all the reply memory to -1.
- * @return Returns true if clearing the reply memory succeeded, false if it failed.
- * @see ccd_interface.html#CCD_Interface_Command
- * @see ccd_pci.html#CCD_PCI_IOCTL_CLEAR_REPLY
- */
-static int DSP_Clear_Reply_Memory(void)
-{
-	int retval;
-
-	if(CCD_Interface_Command(CCD_PCI_IOCTL_CLEAR_REPLY,&retval) == FALSE)
-	{
-		DSP_Error_Number = 28;
-		sprintf(DSP_Error_String,"DSP_Clear_Reply_Memory:Clear reply failed.");
-		return FALSE;
-	}
-	return TRUE;
 }
 
 /**
@@ -2381,7 +2513,8 @@ static int DSP_Set_Destination(enum CCD_DSP_BOARD_ID board_id,int argument_count
  * and other old commands not supported directly via the new PCI interface command set can be sent using this
  * routine.
  * <ul>
- * <li>The reply memory is first cleared using DSP_Clear_Reply_Memory.
+ * <li>If the compilation option CCD_FLUSH_REPLY_BUFFER_PER_COMMAND has been set,
+ * 	the reply memory is first cleared using CCD_DSP_Command_Flush_Reply_Buffer.
  * <li>The arguments to the command are passed to the PCI interface using CCD_Interface_Command 
  * 	(CCD_PCI_IOCTL_SET_ARGn).
  * <li>The command is sent using CCD_Interface_Command (CCD_PCI_IOCTL_SET_HCVR).
@@ -2391,7 +2524,7 @@ static int DSP_Set_Destination(enum CCD_DSP_BOARD_ID board_id,int argument_count
  * @param argument_count The number of arguments in the argument_list.
  * @return Returns true if no error occurs. If the command fails returns false.
  * @see ccd_interface.html#CCD_Interface_Command
- * @see #DSP_Clear_Reply_Memory
+ * @see #CCD_DSP_Command_Flush_Reply_Buffer
  * @see #DSP_Send_Command
  */
 static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argument_count)
@@ -2405,8 +2538,10 @@ static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argum
 		return FALSE;
 	}
 /* clear the reply memory */
-	if(!DSP_Clear_Reply_Memory())
+#ifdef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+	if(!CCD_DSP_Command_Flush_Reply_Buffer())
 		return FALSE;
+#endif
 /* put the argument words into data memory */
 	for(argument_index = 0;argument_index < argument_count;argument_index++)
 	{
@@ -2433,7 +2568,8 @@ static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argum
  * Internal DSP command that sends a command to the SDSU CCD Controller. The command is a PCI interface type
  * command.
  * <ul>
- * <li>The reply memory is first cleared using DSP_Clear_Reply_Memory.
+ * <li>If the compilation option CCD_FLUSH_REPLY_BUFFER_PER_COMMAND has been set,
+ * 	the reply memory is first cleared using CCD_DSP_Command_Flush_Reply_Buffer.
  * <li>The arguments to the command are passed to the PCI interface using CCD_Interface_Command 
  * 	(CCD_PCI_IOCTL_SET_ARGn).
  * <li>The command is sent using CCD_Interface_Command (CCD_PCI_IOCTL_SET_HCVR).
@@ -2443,7 +2579,7 @@ static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argum
  * @param argument_count The number of arguments in the argument_list.
  * @return Returns true if no error occurs. If the command fails returns false.
  * @see ccd_interface.html#CCD_Interface_Command
- * @see #DSP_Clear_Reply_Memory
+ * @see #CCD_DSP_Command_Flush_Reply_Buffer
  */
 static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_count)
 {
@@ -2456,8 +2592,10 @@ static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_cou
 		return FALSE;
 	}
 /* clear the reply memory */
-	if(!DSP_Clear_Reply_Memory())
+#ifdef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+	if(!CCD_DSP_Command_Flush_Reply_Buffer())
 		return FALSE;
+#endif
 /* put the argument words into data memory */
 	for(argument_index = 0;argument_index < argument_count;argument_index++)
 	{
@@ -2484,65 +2622,400 @@ static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_cou
  * This routine gets a reply from the SDSU CCD Controller. It checks that the reply is the expected_reply 
  * (unless expected_reply is 
  * <a href="#DSP_ACTUAL_VALUE">DSP_ACTUAL_VALUE</a>, in which case the reply is a value.
+ * If a timeout (CCD_DSP_TOUT) or error (CCD_DSP_ERR) occurs an error is returned. If the reply is not
+ * the expected_reply, but is a CCD_DSP_RST or CCD_DSP_SYR, a reset has occured and 
+ * CCD_DSP_Command_Flush_Reply_Buffer is always called.
  * @param expected_reply What the reply should be. Normally it should be <a href="#CCD_DSP_DON">DON</a>, if an error
  *	occurs the CCD Controller will probably return <a href="#CCD_DSP_ERR">ERR</a> and an error is returned. If the
  * 	special value <a href="#DSP_ACTUAL_VALUE">DSP_ACTUAL_VALUE</a> is passed in no reply chacking is
  * 	performed (for instance, when the reply is a memory value from a RDM command).
  * @return Returns the expected reply value when that value is actually returned. If an error occurs FALSE is
  * 	returned. If an actual value was requested that is returned.
+ * @see #CCD_DSP_Command_Flush_Reply_Buffer
  * @see #CCD_DSP_ERR
  * @see #CCD_DSP_DON
+ * @see #CCD_DSP_TOUT
+ * @see #CCD_DSP_RST
+ * @see #CCD_DSP_SYR
  * @see #DSP_ACTUAL_VALUE
  */
 static int DSP_Get_Reply(int expected_reply)
 {
-	int last_reply;
+	int reply;
 
-	/* read the reply from the device driver 
-	** Before the command was send DSP_Send_Command clear the reply buffer (to -1).
-	** This read of the reply buffer is done in a while until the reply buffer is not -1. */
-	last_reply = -1;
-	while((last_reply == -1)&&(DSP_Data.Abort == FALSE))
+	if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_REPLY,&reply))
 	{
-		if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_REPLY,&last_reply))
-		{
-			DSP_Error_Number = 38;
-			sprintf(DSP_Error_String,"DSP_Get_Reply:CCD_Interface_Command(%#x) failed.",
-				CCD_PCI_IOCTL_GET_REPLY);
-			return FALSE;
-		}
-	}
-	if(DSP_Data.Abort)
-	{
-		DSP_Error_Number = 37;
-		sprintf(DSP_Error_String,"DSP_Get_Reply:Aborted.");
+		DSP_Error_Number = 38;
+		sprintf(DSP_Error_String,"DSP_Get_Reply:CCD_Interface_Command(%#x) failed.",
+			CCD_PCI_IOCTL_GET_REPLY);
 		return FALSE;
 	}
 
 	/* If the expected reply was an actual value we can't test whether this is correct or not
-	** so just return it */
+	** so just return it. We do this first as a RDM may return the value for ERR correctly etc... */
 	if(expected_reply == DSP_ACTUAL_VALUE)
 	{
-		return last_reply;
+		return reply;
 	}
-	/* If the last_reply was ERR something went wrong with the last command */
-	if(last_reply == CCD_DSP_ERR)
+
+	/* If the reply was ERR something went wrong with the last command */
+	if(reply == CCD_DSP_ERR)
 	{
 		DSP_Error_Number = 39;
 		sprintf(DSP_Error_String,"DSP_Get_Reply:Reply was ERR.");
 		return FALSE;
  	}
-	if(last_reply == expected_reply)
+	/* If the reply was TOUT the device driver did not receive a reply for the last command */
+	if(reply == CCD_DSP_TOUT)
 	{
-		return last_reply; 
+		DSP_Error_Number = 37;
+		sprintf(DSP_Error_String,"DSP_Get_Reply:Reply was TOUT.");
+		return FALSE;
+ 	}
+
+	if(reply == expected_reply)
+	{
+		return reply; 
 	}
 	else /* the reply is not what we expected */
 	{
+		/* was the reply an unexpected reset (someone pressed the reset button) */
+		if((reply == CCD_DSP_RST)||(reply == CCD_DSP_SYR))
+		{
+			/* always flush reply buffer */
+			CCD_DSP_Command_Flush_Reply_Buffer();
+		}
 		DSP_Error_Number = 40;
 		sprintf(DSP_Error_String,"DSP_Get_Reply:Unexpected Reply(%#x,%#x).",
-			last_reply,expected_reply);
+			reply,expected_reply);
 		return FALSE;
 	}
+}
+
+/**
+ * Downloads some DSP code to either the timing or utility board from filename.
+ * @param board The board to send the command to.
+ * @param filename The filename of compiled DSP commends to send to the board.
+ * 	This is usually a .lod file.
+ * @return Returns TRUE if the operation succeeds, FALSE if it fails.
+ * @see #DSP_Get_Download_Type
+ * @see #DSP_Read_Line
+ * @see #DSP_Address_Char_To_Mem_Space
+ * @see #DSP_Process_Data
+ */
+static int DSP_Download_Timing_Utility(enum CCD_DSP_BOARD_ID board_id,char *filename)
+{
+	FILE *download_fp;
+	enum CCD_DSP_MEM_SPACE mem_space;
+	int finished,download_board_id,addr;
+	char buff[255],addr_type;
+
+/* try to open the file */
+	if((download_fp = fopen(filename,"r")) == NULL)
+	{
+		DSP_Error_Number = 23;
+		sprintf(DSP_Error_String,"CCD_DSP_Download_Timing_Utility:Could not open filename(%s).",
+			filename);
+		return FALSE;
+	}
+/* ensure the file is for the same board as the one we are trying to send a program to */
+	if((download_board_id = DSP_Get_Download_Type(download_fp)) == FALSE)
+	{
+		fclose(download_fp);
+		DSP_Error_Number = 24;
+		sprintf(DSP_Error_String,"CCD_DSP_Download_Timing_Utility:Could not get filename type(%s).",
+			filename);
+		return FALSE;
+	}
+
+	if (download_board_id != board_id)
+	{
+		fclose(download_fp);
+		DSP_Error_Number = 25;
+		sprintf(DSP_Error_String,"CCD_DSP_Download_Timing_Utility:Boards do not match(%s,%d,%d).",
+			filename,download_board_id,board_id);
+		return FALSE;
+	}
+	finished = FALSE;
+/* send the data to the board until the end of the file is reached 
+** or the operation is aborted */
+	while((!finished)&&(!DSP_Data.Abort))
+	{
+		DSP_Read_Line(download_fp,buff);
+		if(strncmp(buff,"_END",4) == 0)
+			finished = TRUE;
+		else if(sscanf(buff,"_DATA %c %x",&addr_type,&addr) == 2)
+		{
+			if(!DSP_Address_Char_To_Mem_Space(addr_type,&mem_space))
+			{
+				fclose(download_fp);
+				return FALSE;
+			}
+			if (addr < DSP_DOWNLOAD_ADDR_MAX)
+			{
+				if(!DSP_Process_Data(download_fp,board_id,mem_space,addr))
+				{
+					fclose(download_fp);
+					return FALSE;
+				}
+			}
+		}
+	}
+	fclose(download_fp);
+	return(TRUE);
+}
+
+/**
+ * Downloads some DSP code to the PCI interface board from filename. This is done by setting the PCI interface
+ * DSP chip to slave mode, and using SET_ARG1 calls to download program data. The PCI interface board must
+ * be set back to master mode on completion.
+ * @param board The board to download the program to.
+ * @param filename The filename of compiled DSP commends to send to the board.
+ * 	This is usually a .lod file.
+ * @return Returns TRUE if the operation succeeds, FALSE if it fails.
+ * @see #DSP_Download_PCI_Finish
+ * @see #DSP_HCTR_HTF_BIT8
+ * @see #DSP_HCTR_HTF_BIT9
+ * @see #DSP_HCTR_IMAGE_BUFFER_BIT
+ * @see #DSP_PCI_BOOT_STRING
+ * @see #DSP_PCI_DATA_PROGRAM_STRING
+ */
+static int DSP_Download_PCI_Interface(char *filename)
+{
+	FILE *download_fp = NULL;
+	char buff[81];
+	char *value_string = NULL;
+	int host_control_reg,argument,done,word_count,address,retval;
+	int word_number = 0;
+
+/* try to open the file */
+	if((download_fp = fopen(filename,"r")) == NULL)
+	{
+		DSP_Error_Number = 70;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Could not open filename(%s).",
+			filename);
+		return FALSE;
+	}
+/* get host interface control register */
+	if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_HCTR,&host_control_reg))
+	{
+		fclose(download_fp);
+		DSP_Error_Number = 71;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Getting Host Control Register failed.");
+		return FALSE;
+	}
+/* clear HTF bits (8 and 9) and image buffer bit (3) */
+ 	host_control_reg = host_control_reg & (~(DSP_HCTR_HTF_BIT8|DSP_HCTR_HTF_BIT9|DSP_HCTR_IMAGE_BUFFER_BIT));
+/* set HTF bit 9 */
+	host_control_reg = host_control_reg|DSP_HCTR_HTF_BIT9;
+/* set host interface control register */
+	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCTR,&host_control_reg))
+	{
+		fclose(download_fp);
+		DSP_Error_Number = 72;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Setting Host Control Register failed.");
+		return FALSE;
+	}
+/* Inform the DSP that new pci boot code will be downloaded.*/
+	if(!DSP_Send_Command(CCD_PCI_HCVR_PCI_DOWNLOAD,NULL,0))
+	{
+		DSP_Download_PCI_Finish();
+		fclose(download_fp);
+		DSP_Error_Number = 73;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Sending PCI download command failed.");
+		return FALSE;
+	}
+/* send the magic number that says this is a pci boot load. */
+	argument = DSP_PCI_BOOT_LOAD;
+	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_ARG1,&argument))
+	{
+		DSP_Download_PCI_Finish();
+		fclose(download_fp);
+		DSP_Error_Number = 74;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Sending PCI magic number failed.");
+		return FALSE;
+	}
+/* get first line from input file, check file is a PCIBOOT DSP code file */
+	if(!DSP_Read_Line(download_fp,buff))
+	{
+		DSP_Download_PCI_Finish();
+		fclose(download_fp);
+		DSP_Error_Number = 75;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Reading first line from '%s failed.",filename);
+		return FALSE;
+	}
+	if(strstr(buff,DSP_PCI_BOOT_STRING) == NULL)
+	{
+		DSP_Download_PCI_Finish();
+		fclose(download_fp);
+		DSP_Error_Number = 76;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:"
+			"First line in filename '%s' does not include '%s'.",filename,DSP_PCI_BOOT_STRING);
+		return FALSE;
+	}
+/* while reading data, get a line and process it */
+	done = FALSE;
+	while(done == FALSE)
+	{
+		if(!DSP_Read_Line(download_fp,buff))
+		{
+			DSP_Download_PCI_Finish();
+			fclose(download_fp);
+			DSP_Error_Number = 77;
+			sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Reading line from '%s failed.",filename);
+			return FALSE;
+		}
+		if(strstr(buff,DSP_PCI_DATA_PROGRAM_STRING) != NULL)
+		{
+			if(!DSP_Read_Line(download_fp,buff))
+			{
+				DSP_Download_PCI_Finish();
+				fclose(download_fp);
+				DSP_Error_Number = 78;
+				sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Reading line from '%s failed.",
+					filename);
+				return FALSE;
+			}
+			retval = sscanf(buff,"%x %x",&word_count,&address);
+			if(retval != 2)
+			{
+				DSP_Download_PCI_Finish();
+				fclose(download_fp);
+				DSP_Error_Number = 79;
+				sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:"
+					"Reading line '%s' from '%s' failed.",filename);
+				return FALSE;
+			}
+		/* send word count */
+			if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_ARG1,&word_count))
+			{
+				DSP_Download_PCI_Finish();
+				fclose(download_fp);
+				DSP_Error_Number = 80;
+				sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Sending word count %#x failed.",
+					word_count);
+				return FALSE;
+			}
+		/* send address */
+			if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_ARG1,&address))
+			{
+				DSP_Download_PCI_Finish();
+				fclose(download_fp);
+				DSP_Error_Number = 81;
+				sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Sending address %#x failed.",
+					address);
+				return FALSE;
+			}
+		/* throw away next line (e.g. _DATA P 000002) - this does not make sense to me. */
+			if(!DSP_Read_Line(download_fp,buff))
+			{
+				DSP_Download_PCI_Finish();
+				fclose(download_fp);
+				DSP_Error_Number = 82;
+				sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:Reading line from '%s failed.",
+					filename);
+				return FALSE;
+			}
+			while(word_number < (word_count - 2))
+			{
+				if(!DSP_Read_Line(download_fp,buff))
+				{
+					DSP_Download_PCI_Finish();
+					fclose(download_fp);
+					DSP_Error_Number = 83;
+					sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:"
+						"Reading line from '%s failed.",filename);
+					return FALSE;
+				}
+			/* if line does not contain "_DATA P", it must contain program data */
+				if(strstr(buff,DSP_PCI_DATA_PROGRAM_STRING) == NULL)
+				{
+					value_string = strtok(buff," \t\n");
+					while(value_string != NULL)
+					{
+					/* Check the word number. */
+						if (word_number >= (word_count - 2))
+							break;
+
+						retval = sscanf(value_string,"%x",&argument);
+						if(retval != 1)
+						{
+							DSP_Download_PCI_Finish();
+							fclose(download_fp);
+							DSP_Error_Number = 84;
+							sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:"
+								"Scanning program word '%s' (%d of %d) failed.",
+								value_string,word_number,word_count);
+							return FALSE;
+						}
+					/* send program word. */
+						if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_ARG1,&argument))
+						{
+							DSP_Download_PCI_Finish();
+							fclose(download_fp);
+							DSP_Error_Number = 85;
+							sprintf(DSP_Error_String,"DSP_Download_PCI_Interface:"
+								"Sending program word %#x (%d of %d) failed.",
+								argument,word_number,word_count);
+							return FALSE;
+						}
+						word_number++;
+					/* get next token */
+						value_string = strtok(NULL," \t\n");
+					}/* while next token in buff */
+				}/*end if line did not contain "_DATA P" */
+			}/* end while number of words is less than word_count-2 */
+			done = TRUE;
+		}/* end if string is DATA _P */
+	}/* end while on done */
+/* return PCI interface DSP from slave mode */
+	if(!DSP_Download_PCI_Finish())
+	{
+		fclose(download_fp);
+		return FALSE;
+	}
+/* close and return */
+	fclose(download_fp);
+	return TRUE;
+}
+
+/**
+ * Routine to finish a DSP program download to the PCI interface board. This involves clearing
+ * the HTF bits so the PCI DSP returns from slave mode, and setting bit 3.
+ * @return The routine returns TRUE if the reset succeeded, FALSE if it failed (an error is set).
+ * @see ccd_pci.html#CCD_PCI_IOCTL_GET_HCTR
+ * @see ccd_pci.html#CCD_PCI_IOCTL_SET_HCTR
+ */
+static int DSP_Download_PCI_Finish(void)
+{
+	int host_control_reg;
+
+/* get host interface control register */
+	if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_HCTR,&host_control_reg))
+	{
+		DSP_Error_Number = 86;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Finish:Getting Host Control Register failed.");
+		return FALSE;
+	}
+/* clear HTF bits (8 and 9) */
+ 	host_control_reg = host_control_reg & (~(DSP_HCTR_HTF_BIT8|DSP_HCTR_HTF_BIT9));
+/* set host interface control register */
+	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCTR,&host_control_reg))
+	{
+		DSP_Error_Number = 87;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Finish:Setting Host Control Register(1) failed.");
+		return FALSE;
+	}
+/* set HTF bit 9 */
+	host_control_reg = host_control_reg|DSP_HCTR_IMAGE_BUFFER_BIT;
+/* set host interface control register */
+	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCTR,&host_control_reg))
+	{
+		DSP_Error_Number = 88;
+		sprintf(DSP_Error_String,"DSP_Download_PCI_Finish:Setting Host Control Register(2) failed.");
+		return FALSE;
+	}
+	return TRUE;
 }
 
 /**
@@ -3222,6 +3695,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.19  2000/05/23 10:33:44  cjm
+** Added CCD_DSP_Set_Exposure_Start_Time and changed DSP_Send_Sex to use it.
+**
 ** Revision 0.18  2000/05/22 16:28:12  cjm
 ** DSP_Save now updates DATE,DATE-OBS and UTSTART keywords.
 **

@@ -1,13 +1,13 @@
 /* ccd_interface.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.2 2000-04-13 13:15:33 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.3 2000-06-13 17:14:13 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +24,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.2 2000-04-13 13:15:33 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.3 2000-06-13 17:14:13 cjm Exp $";
 
 /* external variables */
 
@@ -97,6 +97,8 @@ void CCD_Interface_Initialise(void)
 			CCD_Interface_Error();
 			break;
 	}
+/* print some compile time information to stdout */
+	fprintf(stdout,"CCD_Interface_Initialise:%s.\n",rcsid);
 }
 
 /**
@@ -257,6 +259,9 @@ void CCD_Interface_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/04/13 13:15:33  cjm
+** Added current time to error routines.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **

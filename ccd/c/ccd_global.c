@@ -1,11 +1,11 @@
 /* ccd_global.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.4 2000-04-13 12:57:55 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.5 2000-06-13 17:14:13 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -32,7 +32,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.4 2000-04-13 12:57:55 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.5 2000-06-13 17:14:13 cjm Exp $";
 
 /* external functions */
 /**
@@ -61,6 +61,8 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
 		CCD_DSP_Error();
 	CCD_Exposure_Initialise();
 	CCD_Setup_Initialise();
+/* print some compile time information to stdout */
+	fprintf(stdout,"CCD_Global_Initialise:%s.\n",rcsid);
 }
 
 /**
@@ -218,6 +220,9 @@ void CCD_Global_Get_Current_Time_String(char *time_string,int string_length)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2000/04/13 12:57:55  cjm
+** Added CCD_Global_Get_Current_Time_String.
+**
 ** Revision 0.3  2000/03/08 18:27:11  cjm
 ** CCD_DSP_Initialise now returns success.
 **

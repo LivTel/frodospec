@@ -1,12 +1,12 @@
 /* ccd_pci.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.2 2000-04-13 13:13:34 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.3 2000-06-13 17:14:13 cjm Exp $
 */
 /**
  * ccd_pci.c will implement a specific interface that connects the SDSU CCD Controller system with a host
  * computer using a PCI interface.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -22,7 +22,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_pci.c,v 0.2 2000-04-13 13:13:34 cjm Exp $";
+static char rcsid[] = "$Id: ccd_pci.c,v 0.3 2000-06-13 17:14:13 cjm Exp $";
 
 /* #defines */
 /**
@@ -70,6 +70,8 @@ void CCD_PCI_Initialise(void)
 	strcpy(PCI_Data.PCI_Dev0,CCD_PCI_DEFAULT_DEVICE_ZERO);
 	strcpy(PCI_Data.PCI_Dev1,CCD_PCI_DEFAULT_DEVICE_ONE);
 	PCI_Data.PCI_Fd = 0;
+/* print some compile time information to stdout */
+	fprintf(stdout,"CCD_PCI_Initialise:%s.\n",rcsid);
 }
 
 /**
@@ -263,6 +265,9 @@ void CCD_PCI_Warning(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/04/13 13:13:34  cjm
+** Added current time to error routines.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **

@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.12 2000-05-26 08:56:09 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.13 2000-06-13 17:14:13 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.12 $
+ * @version $Revision: 0.13 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.12 2000-05-26 08:56:09 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.13 2000-06-13 17:14:13 cjm Exp $";
 
 /* #defines */
 /**
@@ -66,6 +66,7 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.12 2000-05-26 08:56:09 cjm Exp $";
  * 	CCD_DSP_DEINTERLACE_SPLIT_SERIAL or
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.</dd>
  * <dt>Gain</dt> <dd>The gain setting used to configure the CCD electronics.</dd>
+ * <dt>Amplifier</dt> <dd>The amplifier setting used to configure the CCD electronics.</dd>
  * <dt>Window_Flags</dt> <dd>The window flags for this setup. Determines which of the four possible windows
  * 	are in use for this setup.</dd>
  * <dt>Window_List</dt> <dd>A list of window positions on the CCD. Theere are a maximum of CCD_SETUP_WINDOW_COUNT
@@ -73,6 +74,8 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.12 2000-05-26 08:56:09 cjm Exp $";
  * <dt>Filter_Wheel_Position_List</dt> <dd>A list of positions the filter wheel has attained. There are
  * 	SETUP_FILTER_WHEEL_COUNT filter wheels.</dd>
  * <dt>Power_Complete</dt> <dd>A boolean value indicating whether the power cycling operation was completed
+ * 	successfully.</dd>
+ * <dt>PCI_Complete</dt> <dd>A boolean value indicating whether the PCI interface program was completed
  * 	successfully.</dd>
  * <dt>Timing_Complete</dt> <dd>A boolean value indicating whether the timing program was completed
  * 	successfully.</dd>
@@ -91,10 +94,12 @@ struct Setup_Struct
 	int NPBin;
 	enum CCD_DSP_DEINTERLACE_TYPE DeInterlace_Type;
 	enum CCD_DSP_GAIN Gain;
+	enum CCD_DSP_AMPLIFIER Amplifier;
 	int Window_Flags;
 	struct CCD_Setup_Window_Struct Window_List[CCD_SETUP_WINDOW_COUNT];
 	int Filter_Wheel_Position_List[SETUP_FILTER_WHEEL_POSITION_COUNT];
 	int Power_Complete;
+	int PCI_Complete;
 	int Timing_Complete;
 	int Utility_Complete;
 	int Dimension_Complete;
@@ -120,6 +125,7 @@ static struct Setup_Struct Setup_Data;
 
 /* local function definitions */
 static int Setup_Reset_Controller(void);
+static int Setup_PCI_Board(enum CCD_SETUP_LOAD_TYPE load_type,char *filename);
 static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_application_number,char *filename);
 static int Setup_Utility_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_application_number,char *filename);
 static int Setup_Power_On(void);
@@ -127,7 +133,7 @@ static int Setup_Power_Off(void);
 static int Setup_Gain(enum CCD_DSP_GAIN gain,int speed);
 static int Setup_Idle(int idle);
 static int Setup_Binning(int nsbin,int npbin);
-static int Setup_DeInterlace(enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
+static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
 static int Setup_Dimensions(void);
 
 /* external functions */
@@ -146,6 +152,7 @@ void CCD_Setup_Initialise(void)
 	Setup_Data.NPBin = 0;
 	Setup_Data.DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
 	Setup_Data.Gain = CCD_DSP_GAIN_ONE;
+	Setup_Data.Amplifier = CCD_DSP_AMPLIFIER_LEFT;
 	Setup_Data.Window_Flags = 0;
 	for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
 	{
@@ -157,30 +164,50 @@ void CCD_Setup_Initialise(void)
 	for(i=0;i<SETUP_FILTER_WHEEL_POSITION_COUNT;i++)
 		Setup_Data.Filter_Wheel_Position_List[i] = -1;
 	Setup_Data.Power_Complete = FALSE;
+	Setup_Data.PCI_Complete = FALSE;
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
+/* print some compile time information to stdout */
+	fprintf(stdout,"CCD_Setup_Initialise:%s.\n",rcsid);
+#ifdef CCD_SETUP_TIMING_DOWNLOAD_IDLE
+	fprintf(stdout,"CCD_Setup_Initialise:Stop timing board Idling whilst downloading timing board DSP code.\n");
+#else
+	fprintf(stdout,"CCD_Setup_Initialise:NOT Stopping timing board Idling "
+		"whilst downloading timing board DSP code.\n");
+#endif
 }
 
 /**
  * The routine that sets up the SDSU CCD Controller. This routine does the following:
  * <ul>
  * <li>Resets setup completion flags.</li>
+ * <li>If we are not flushing the reply buffer once per DSP command (compile time option 
+ * 	CCD_FLUSH_REPLY_BUFFER_PER_COMMAND), call CCD_DSP_Command_Flush_Reply_Buffer to flush the
+ * 	reply buffer.
+ * <li>Loads a PCI board program from ROM/file.</li>
  * <li>Resets the SDSU CCD Controller.</li>
  * <li>Does a hardware test on the data links to each board in the controller. This is done
  * 	SETUP_SHORT_TEST_COUNT times.</li>
- * <li>Loads a timing board application from ROM/file.</li>
- * <li>Loads a utility board application from ROM/file.</li>
+ * <li>Loads a timing board program from ROM/application/file.</li>
+ * <li>Loads a utility board program from ROM/application/file.</li>
  * <li>Switches the boards analogue power on.</li>
- * <li>Sets the arrays target temperature.</li>
  * <li>Setup the array's gain and readout speed.</li>
+ * <li>Sets the arrays target temperature.</li>
  * <li>Setup the readout clocks to idle(or not!).</li>
  * </ul>
- * Array dimension information also needs to be setup before the controller can take exposures.
+ * Array dimension information also needs to be setup before the controller can take exposures 
+ * (see CCD_Setup_Dimensions).
  * This routine can be aborted with CCD_Setup_Abort.
+ * @param pci_load_type Where the routine is going to load the timing board application from. One of
+ * 	<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
+ * 	CCD_SETUP_LOAD_ROM or
+ * 	CCD_SETUP_LOAD_FILENAME. The PCI DSP has no applications.
+ * @param pci_filename The filename of the DSP code on disc that will be loaded if the
+ * 	pci_load_type is CCD_SETUP_LOAD_FILENAME.
  * @param timing_load_type Where the routine is going to load the timing board application from. One of
  * 	<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
- * 	CCD_SETUP_LOAD_APPLICATION or
+ * 	CCD_SETUP_LOAD_ROM, CCD_SETUP_LOAD_APPLICATION or
  * 	CCD_SETUP_LOAD_FILENAME.
  * @param timing_application_number The application number of the DSP code on EEPROM that will be loaded if the 
  * 	timing_load_type is CCD_SETUP_LOAD_APPLICATION.
@@ -203,11 +230,22 @@ void CCD_Setup_Initialise(void)
  * @param idle If true puts CCD clocks in readout sequence, but not transferring any data, whenever a
  * 	command is not executing.
  * @return Returns TRUE if the setup is successfully completed, FALSE if the setup fails or is aborted.
+ * @see #Setup_Reset_Controller
+ * @see #CCD_Setup_Hardware_Test
+ * @see #Setup_PCI_Board
+ * @see #Setup_Timing_Board
+ * @see #Setup_Utility_Board
+ * @see #Setup_Power_On
+ * @see #CCD_Temperature_Set
+ * @see #Setup_Gain
+ * @see #Setup_Idle
  * @see #SETUP_SHORT_TEST_COUNT
  * @see #CCD_Setup_Dimensions
  * @see #CCD_Setup_Abort
+ * @see ccd_dsp.html#CCD_DSP_Command_Flush_Reply_Buffer
  */
-int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_application_number,char *timing_filename,
+int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
+	enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_application_number,char *timing_filename,
 	enum CCD_SETUP_LOAD_TYPE utility_load_type,int utility_application_number,char *utility_filename,
 	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle)
 {
@@ -218,9 +256,31 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_appli
 	CCD_DSP_Set_Abort(FALSE);
 /* reset completion flags - even dimension flag is reset, as the controller itself is reset */
 	Setup_Data.Power_Complete = FALSE;
+	Setup_Data.PCI_Complete = FALSE;
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
+/* if we are not flushing the reply buffer once per DSP command (compile time option),
+** flush the reply buffer. */
+#ifndef CCD_FLUSH_REPLY_BUFFER_PER_COMMAND
+	if(!CCD_DSP_Command_Flush_Reply_Buffer())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		CCD_DSP_Set_Abort(FALSE);
+		Setup_Error_Number = 41;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Flushing Reply Buffer failed.");
+		return FALSE;
+	}
+#endif
+/* load a PCI interface board ROM or a filename */
+	if(!Setup_PCI_Board(pci_load_type,pci_filename))
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
+	}
+	else   /*acknowlege PCI load complete*/
+		Setup_Data.PCI_Complete = TRUE;
 /* reset controller */
 	if(!Setup_Reset_Controller())
 	{
@@ -262,6 +322,13 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_appli
 	}
 	else /*acknowlege power on complete*/ 
 		Setup_Data.Power_Complete = TRUE;
+/* setup gain */
+	if(!Setup_Gain(gain,gain_speed))
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
+	}
 /* set the temperature */
 	if(!CCD_Temperature_Set(target_temperature))
 	{
@@ -270,13 +337,6 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_appli
 		Setup_Error_Number = 2;
 		sprintf(Setup_Error_String,"CCD_Setup_Startup:CCD_Temperature_Set failed(%.2f)",
 			target_temperature);
-		return FALSE;
-	}
-/* setup gain */
-	if(!Setup_Gain(gain,gain_speed))
-	{
-		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
 /* setup idling of the readout clocks */
@@ -321,6 +381,7 @@ int CCD_Setup_Shutdown(void)
 	Setup_Data.NPBin = 0;
 	Setup_Data.DeInterlace_Type = CCD_DSP_DEINTERLACE_SINGLE;
 	Setup_Data.Gain = CCD_DSP_GAIN_ONE;
+	Setup_Data.Amplifier = CCD_DSP_AMPLIFIER_LEFT;
 	Setup_Data.Window_Flags = 0;
 	for(i=0;i<CCD_SETUP_WINDOW_COUNT;i++)
 	{
@@ -332,6 +393,7 @@ int CCD_Setup_Shutdown(void)
 	for(i=0;i<SETUP_FILTER_WHEEL_POSITION_COUNT;i++)
 		Setup_Data.Filter_Wheel_Position_List[i] = -1;
 	Setup_Data.Power_Complete = FALSE;
+	Setup_Data.PCI_Complete = FALSE;
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
@@ -348,6 +410,8 @@ int CCD_Setup_Shutdown(void)
  *	ncols.
  * @param npbin The amount of binning applied to pixels in rows.This parameter will change internally
  *	nrows.
+ * @param amplifier Which amplifier to use when reading out data from the CCD. Possible values come from
+ * 	the CCD_DSP_AMPLIFIER enum.
  * @param deinterlace_type The algorithm to use for deinterlacing the resulting data. The data needs to be
  * 	deinterlaced if the CCD is read out from multiple readouts. One of
  * 	<a href="ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
@@ -362,10 +426,12 @@ int CCD_Setup_Shutdown(void)
  * @see #CCD_Setup_Startup
  * @see #CCD_Setup_Abort
  * @see #CCD_Setup_Window_Struct
+ * @see ccd_dsp.html#CCD_DSP_AMPLIFIER
+ * @see ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE
  */
 int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,int window_flags,
-	struct CCD_Setup_Window_Struct window_list[])
+	enum CCD_DSP_AMPLIFIER amplifier,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,
+	int window_flags,struct CCD_Setup_Window_Struct window_list[])
 {
 	Setup_Error_Number = 0;
 /* we are in a setup routine */
@@ -408,8 +474,8 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 		return FALSE; 
 	}
 
-/* do de-interlacing */
-	if(!Setup_DeInterlace(deinterlace_type))
+/* do de-interlacing/ amplifier setup */
+	if(!Setup_DeInterlace(amplifier,deinterlace_type))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
 		CCD_DSP_Set_Abort(FALSE);
@@ -439,6 +505,7 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 		Setup_Data.Window_List[3] = window_list[3];
 
 	Setup_Data.Window_Flags = window_flags;
+/* diddly write paramaters to window table on timing board */
 /* reset in progress information */
 	Setup_Data.Setup_In_Progress = FALSE;
 	CCD_DSP_Set_Abort(FALSE);
@@ -732,8 +799,8 @@ int CCD_Setup_Get_Filter_Wheel_Position(int wheel_number,int *position)
  */
 int CCD_Setup_Get_Setup_Complete(void)
 {
-	return (Setup_Data.Power_Complete&&Setup_Data.Timing_Complete&&Setup_Data.Utility_Complete&&
-		Setup_Data.Dimension_Complete);
+	return (Setup_Data.Power_Complete&&Setup_Data.PCI_Complete&&
+		Setup_Data.Timing_Complete&&Setup_Data.Utility_Complete&&Setup_Data.Dimension_Complete);
 }
 
 /**
@@ -839,12 +906,57 @@ static int Setup_Reset_Controller(void)
 }
 
 /**
- * Internal routine that loads a timing board DSP application onto the SDSU CCD Controller. The
- * application can come from either (EEP)ROM or a file on disc. This routine is called from
- * CCD_Setup_Startup. If the timing board is in idle mode and load_type is
- * CCD_SETUP_LOAD_FILENAME the board is stopped whilst the application is loaded.
+ * Internal routine that loads a PCI board DSP program into the SDSU CCD Controller. The
+ * program can come from either ROM or a file on disc. This routine is called from
+ * CCD_Setup_Startup.
  * @return The routine returns TRUE if the operation succeeded, or FALSE if it fails.
  * @param load_type Where to load the application from, one of<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
+ *	CCD_SETUP_LOAD_ROM (do nothing, use default program loaded at startup), 
+ *	CCD_SETUP_LOAD_APPLICATION (load from (EEP)ROM) or
+ *	CCD_SETUP_LOAD_FILENAME (load from a disc file).
+ * @param filename If load_type is CCD_SETUP_LOAD_FILENAME,
+ * 	this specifies a filename to load the application from.
+ * @see #CCD_Setup_Startup
+ * @see ccd_dsp.html#CCD_DSP_Download
+ */
+static int Setup_PCI_Board(enum CCD_SETUP_LOAD_TYPE load_type,char *filename)
+{
+	if(!CCD_SETUP_IS_LOAD_TYPE(load_type))
+	{
+		Setup_Error_Number = 35;
+		sprintf(Setup_Error_String,"Setup_PCI_Board:PCI board has illegal load type(%d)",
+			load_type);
+		return FALSE;
+	}
+	if(load_type == CCD_SETUP_LOAD_APPLICATION)
+	{
+		Setup_Error_Number = 39;
+		sprintf(Setup_Error_String,"Setup_PCI_Board:PCI board cannot use Application type.");
+		return FALSE;
+	}
+	else if(load_type == CCD_SETUP_LOAD_FILENAME)
+	{
+		if(!CCD_DSP_Download(CCD_DSP_INTERFACE_BOARD_ID,filename))
+		{
+			Setup_Error_Number = 40;
+			sprintf(Setup_Error_String,"PCI Board:Failed to download filename '%s'",
+				filename);
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+/**
+ * Internal routine that loads a timing board DSP application onto the SDSU CCD Controller. The
+ * application can come from either (EEP)ROM or a file on disc. This routine is called from
+ * CCD_Setup_Startup. 
+ * If the CCD_SETUP_TIMING_DOWNLOAD_IDLE compile time directive has been set,
+ * and if the timing board is in idle mode and load_type is
+ * CCD_SETUP_LOAD_FILENAME, the timing board is stopped whilst the application is loaded.
+ * @return The routine returns TRUE if the operation succeeded, or FALSE if it fails.
+ * @param load_type Where to load the application from, one of<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
+ *	CCD_SETUP_LOAD_ROM (do nothing, use default program loaded at startup), 
  *	CCD_SETUP_LOAD_APPLICATION (load from (EEP)ROM) or
  *	CCD_SETUP_LOAD_FILENAME (load from a disc file).
  * @param load_application_number If load_type is CCD_SETUP_LOAD_APPLICATION,
@@ -859,7 +971,9 @@ static int Setup_Reset_Controller(void)
  */
 static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_application_number,char *filename)
 {
+#ifdef CCD_SETUP_TIMING_DOWNLOAD_IDLE
 	int value,bit_value;
+#endif
 
 	if(!CCD_SETUP_IS_LOAD_TYPE(load_type))
 	{
@@ -880,8 +994,9 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 	}
 	else if(load_type == CCD_SETUP_LOAD_FILENAME)
 	{
-	/* diddly It is not clear from the documentation whether stopping Idling is
-	** still necessary */
+/* If the compile time directive has been set, check whether the timing board is in idle mode,
+** and if so send a STP command. */
+#ifdef CCD_SETUP_TIMING_DOWNLOAD_IDLE
 		/* if we are currently in IDL mode - come out of this mode */
 		value = CCD_DSP_Command_RDM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0);
 		bit_value = value & 0x01;
@@ -895,6 +1010,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 				return FALSE;
 			}
 		}
+#endif
 		/* download the program from the file */
 		if(!CCD_DSP_Download(CCD_DSP_TIM_BOARD_ID,filename))
 		{
@@ -903,6 +1019,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 				filename);
 			return FALSE;
 		}
+#ifdef CCD_SETUP_TIMING_DOWNLOAD_IDLE
 		/* if neccessary restart IDL mode */
 		if(bit_value)
 		{
@@ -914,6 +1031,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
 				return FALSE;
 			}
 		}
+#endif
 	}
 	return TRUE;
 }
@@ -924,6 +1042,7 @@ static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_applic
  * CCD_Setup_Startup.
  * @return The routine returns TRUE if the operation succeeded, or FALSE if it fails.
  * @param load_type Where to load the application from, one of<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
+ *	CCD_SETUP_LOAD_ROM (do nothing, use default program loaded at startup), 
  *	CCD_SETUP_LOAD_APPLICATION (load from (EEP)ROM) or
  *	CCD_SETUP_LOAD_FILENAME (load from a disc file).
  * @param load_application_number If load_type is CCD_SETUP_LOAD_APPLICATION,
@@ -1116,7 +1235,6 @@ static int Setup_Binning(int nsbin,int npbin)
 	Setup_Data.NCols = Setup_Data.NCols/Setup_Data.NSBin;
 	Setup_Data.NRows = Setup_Data.NRows/Setup_Data.NPBin;
 
-/* diddly These locations should be set by the PCI memory writes, but I am not convinced they work */
 	if(CCD_DSP_Command_WRM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0005,Setup_Data.NSBin)!=CCD_DSP_DON)
 	{
 		Setup_Error_Number = 16;
@@ -1137,6 +1255,10 @@ static int Setup_Binning(int nsbin,int npbin)
  * This routine re-calculates the stored columns and rows values to allow for the deinterlace type. Some deinterlace
  * types require an even number of rows and/or columns. The routine prints a warning if the rows or columns are
  * changed. This routine is called from CCD_Setup_Dimensions.
+ * The routine also sets which amplifier is used for image readout, which dictates the de-interlace settings.
+ * Note you can currently choose a silly combination of amplifier and deinterlace_type at the moment.
+ * @param amplifier Which amplifier to use when reading out data from the CCD. Possible values come from
+ * 	the CCD_DSP_AMPLIFIER enum.
  * @param deinterlace_type The algorithm to use for deinterlacing the resulting data. The data needs to be
  * 	deinterlaced if the CCD is read out from multiple readouts. One of
  * 	<a href="ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE">CCD_DSP_DEINTERLACE_TYPE</a>:
@@ -1146,16 +1268,34 @@ static int Setup_Binning(int nsbin,int npbin)
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
  * @return Returns TRUE if the operation succeeds, FALSE if it fails.
  * @see #CCD_Setup_Dimensions
+ * @see ccd_dsp.html#CCD_DSP_AMPLIFIER
+ * @see ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE
  */
-static int Setup_DeInterlace(enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
+static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
 {
+	if(!CCD_DSP_IS_AMPLIFIER(amplifier))
+	{
+		Setup_Error_Number = 42;
+		sprintf(Setup_Error_String,"Setup_DeInterlace:Illegal value:Amplifier '%d'",amplifier);
+		return FALSE;
+	}
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
 		Setup_Error_Number = 28;
 		sprintf(Setup_Error_String,"Setup_DeInterlace:Illegal value:DeInterlace Type '%d'",deinterlace_type);
 		return FALSE;
 	}
+/* setup output amplifier */
+	Setup_Data.Amplifier = amplifier;
+	if(CCD_DSP_Command_SOS(Setup_Data.Amplifier)!=CCD_DSP_DON)
+	{
+		Setup_Error_Number = 43;
+		sprintf(Setup_Error_String,"Setup_DeInterlace:Setting Amplifier to %d failed",Setup_Data.Amplifier);
+		return FALSE;
+	}
+/* setup deinterlace type */
 	Setup_Data.DeInterlace_Type = deinterlace_type;
+/* check rows/columns based on deinterlace type */
 	switch(Setup_Data.DeInterlace_Type)
 	{
 		case CCD_DSP_DEINTERLACE_SINGLE:		/* Single readout */
@@ -1230,6 +1370,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.12  2000/05/26 08:56:09  cjm
+** Added CCD_Setup_Get_Window.
+**
 ** Revision 0.11  2000/05/25 08:44:46  cjm
 ** Gain settings now held in Setup_Data so that CCD_Setup_Get_Gain
 ** can return the current gain.
