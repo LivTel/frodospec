@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.16 2000-09-25 09:51:28 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.17 2001-01-30 12:37:30 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.16 $
+ * @version $Revision: 0.17 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.16 2000-09-25 09:51:28 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.17 2001-01-30 12:37:30 cjm Exp $";
 
 /* #defines */
 /**
@@ -230,7 +230,10 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
 static struct Text_Command_Struct Text_Manual_Command_List[] = 
 {
 	{CCD_DSP_SGN,"Set Gain",CCD_DSP_DON,NULL},
-	{CCD_DSP_SOS,"Set Output Source",CCD_DSP_DON,NULL}
+	{CCD_DSP_SOS,"Set Output Source",CCD_DSP_DON,NULL},
+	{CCD_DSP_FWA,"Filter Wheel Abort",CCD_DSP_DON,NULL},
+	{CCD_DSP_FWM,"Filter Wheel Move",CCD_DSP_DON,NULL},
+	{CCD_DSP_FWR,"Filter Wheel Reset",CCD_DSP_DON,NULL}
 };
 
 /**
@@ -1014,6 +1017,9 @@ static void Text_HCVR_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.16  2000/09/25 09:51:28  cjm
+** Changes to use with v1.4 SDSU DSP code.
+**
 ** Revision 0.15  2000/07/06 09:33:43  cjm
 ** Changed GET_REPLY time delay.
 **
