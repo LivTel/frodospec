@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.8 2000-03-01 15:44:41 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.9 2000-03-02 16:46:53 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.8 2000-03-01 15:44:41 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.9 2000-03-02 16:46:53 cjm Exp $";
 
 /* #defines */
 /**
@@ -38,7 +38,7 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.8 2000-03-01 15:44:41 cjm Exp $";
  */
 #define SETUP_FILTER_WHEEL_POSITION_COUNT	(2)
 /**
- * Used when performing a short hardware test (in <a href="#Setup_Hardware_Test">Setup_Hardware_Test</a>),
+ * Used when performing a short hardware test (in <a href="#CCD_Setup_Hardware_Test">CCD_Setup_Hardware_Test</a>),
  * This is the number of times each board's data link is tested using the 
  * <a href="ccd_dsp.html#CCD_DSP_TDL">TDL</a> command.
  */
@@ -118,7 +118,6 @@ static struct Setup_Struct Setup_Data;
 
 /* local function definitions */
 static int Setup_Reset_Controller(void);
-static int Setup_Hardware_Test(void);
 static int Setup_Timing_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_application_number,char *filename);
 static int Setup_Utility_Board(enum CCD_SETUP_LOAD_TYPE load_type,int load_application_number,char *filename);
 static int Setup_Power_On(void);
@@ -165,7 +164,8 @@ void CCD_Setup_Initialise(void)
  * <ul>
  * <li>Resets setup completion flags.</li>
  * <li>Resets the SDSU CCD Controller.</li>
- * <li>Does a hardware test on the data links to each board in the controller.</li>
+ * <li>Does a hardware test on the data links to each board in the controller. This is done
+ * 	SETUP_SHORT_TEST_COUNT times.</li>
  * <li>Loads a timing board application from ROM/file.</li>
  * <li>Loads a utility board application from ROM/file.</li>
  * <li>Switches the boards analogue power on.</li>
@@ -200,6 +200,7 @@ void CCD_Setup_Initialise(void)
  * @param idle If true puts CCD clocks in readout sequence, but not transferring any data, whenever a
  * 	command is not executing.
  * @return Returns TRUE if the setup is successfully completed, FALSE if the setup fails or is aborted.
+ * @see #SETUP_SHORT_TEST_COUNT
  * @see #CCD_Setup_Dimensions
  * @see #CCD_Setup_Abort
  */
@@ -225,7 +226,7 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_appli
 		return(FALSE);
 	}
 /* do a hardware test (data link) */
-	if(!Setup_Hardware_Test())
+	if(!CCD_Setup_Hardware_Test(SETUP_SHORT_TEST_COUNT))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
 		CCD_DSP_Set_Abort(FALSE);
@@ -495,6 +496,97 @@ int CCD_Setup_Filter_Wheel(int position_one,int position_two)
 }
 
 /**
+ * Routine that performs a hardware test on the PCI, timing and utility boards. It does this by doing 
+ * sending TDL commands to the boards and testing the results. This routine is called from
+ * CCD_Setup_Startup.
+ * @param test_count The number of times to perform the TDL command <b>on each board</b>. The test is performed on
+ * 	three boards, PCI, timing and utility.
+ * @return If all the TDL commands fail to one of the boards it returns FALSE, otherwise
+ *	it returns TRUE. If some commands fail a warning is given.
+ * @see ccd_dsp.html#CCD_DSP_Command_TDL
+ * @see #CCD_Setup_Startup
+ */
+int CCD_Setup_Hardware_Test(int test_count)
+{
+	int i;				/* loop number */
+	int value;			/* value sent to tdl */
+	int value_increment;		/* amount to increment value for each pass through the loop */
+	int retval;			/* return value from dsp_command */
+	int pci_errno,tim_errno,util_errno;	/* num of test encountered, per board */
+
+	Setup_Error_Number = 0;
+	CCD_DSP_Set_Abort(FALSE);
+	value_increment = TDL_MAX_VALUE/test_count;
+
+	/* test the PCI board test_count times */
+	pci_errno = 0;
+	value = 0;
+	for(i=1; i<=test_count; i++)
+	{
+		retval = CCD_DSP_Command_TDL(CCD_DSP_INTERFACE_BOARD_ID,value);
+		if(retval != value)
+			pci_errno++;
+		value += value_increment;
+	}
+
+	/* test the timimg board test_count times */
+	tim_errno = 0;
+	value = 0;
+	for(i=1; i<=test_count; i++)
+	{
+		retval = CCD_DSP_Command_TDL(CCD_DSP_TIM_BOARD_ID,value);
+		if(retval != value)
+			tim_errno++;
+		value += value_increment;
+	}
+
+	/* test the utility board test_count times */
+	util_errno = 0;
+	value = 0;	
+	for(i=1; i<=test_count; i++)
+	{
+		retval = CCD_DSP_Command_TDL(CCD_DSP_UTIL_BOARD_ID,value);
+		if(retval != value)
+			util_errno++;
+		value += value_increment;
+	}
+	/* if some PCI errors occured, setup an error message and determine whether it was fatal or not */
+	if(pci_errno > 0)
+	{
+		Setup_Error_Number = 36;
+		sprintf(Setup_Error_String,"Interface Board Hardware Test:Failed %d of %d times",
+			pci_errno,test_count);
+		if(pci_errno < test_count)
+			CCD_Setup_Warning();
+		else
+			return FALSE;
+	}
+	/* if some timing errors occured, setup an error message and determine whether it was fatal or not */
+	if(tim_errno > 0)
+	{
+		Setup_Error_Number = 4;
+		sprintf(Setup_Error_String,"Timing Board Hardware Test:Failed %d of %d times",
+			tim_errno,test_count);
+		if(tim_errno < test_count)
+			CCD_Setup_Warning();
+		else
+			return FALSE;
+	}
+	/* if some utility errors occured, setup an error message and determine whether it was fatal or not */
+	if(util_errno > 0)
+	{
+		Setup_Error_Number = 5;
+		sprintf(Setup_Error_String,"Utility Board Hardware Test:Failed %d of %d times",
+			util_errno,test_count);
+		if(util_errno < test_count)
+			CCD_Setup_Warning();
+		else
+			return FALSE;
+	}
+	return TRUE;
+}
+
+/**
  * Routine to abort a setup that is underway. This will cause CCD_Setup_Startup and CCD_Setup_Dimensions
  * to return FALSE as it will fail to complete the setup.
  * @see #CCD_Setup_Startup
@@ -712,96 +804,6 @@ static int Setup_Reset_Controller(void)
 		Setup_Error_Number = 33;
 		sprintf(Setup_Error_String,"Reset Controller Failed.");
 		return FALSE;
-	}
-	return TRUE;
-}
-
-/**
- * Internal routine that performs a hardware test on the PCI, timing and utility boards. It does this by doing 
- * sending TDL commands to the boards and testing the results. Currently
- * only a short hardware test is implemented, where each board is tested. This routine is called from
- * CCD_Setup_Startup.
- * The test is performed <a href="#SETUP_SHORT_TEST_COUNT">SETUP_SHORT_TEST_COUNT</a> times.
- * @return If all the TDL commands fail to one of the boards it returns FALSE, otherwise
- *	it returns TRUE. If some commands fail a warning is given.
- * @see ccd_dsp.html#CCD_DSP_Command_TDL
- * @see #CCD_Setup_Startup
- */
-static int Setup_Hardware_Test(void)
-/* this function implements a SHORT hardware test only */
-{
-	int i;				/* loop number */
-	int value;			/* value sent to tdl */
-	int value_increment;		/* amount to increment value for each pass through the loop */
-	int retval;			/* return value from dsp_command */
-	int pci_errno,tim_errno,util_errno;	/* num of test encountered, per board */
-
-	value_increment = TDL_MAX_VALUE/SETUP_SHORT_TEST_COUNT;
-
-	/* test the PCI board SETUP_SHORT_TEST_COUNT times */
-	pci_errno = 0;
-	value = 0;
-	for(i=1; i<=SETUP_SHORT_TEST_COUNT; i++)
-	{
-		retval = CCD_DSP_Command_TDL(CCD_DSP_INTERFACE_BOARD_ID,value);
-		if(retval != value)
-			pci_errno++;
-		value += value_increment;
-	}
-
-	/* test the timimg board SETUP_SHORT_TEST_COUNT times */
-	tim_errno = 0;
-	value = 0;
-	for(i=1; i<=SETUP_SHORT_TEST_COUNT; i++)
-	{
-		retval = CCD_DSP_Command_TDL(CCD_DSP_TIM_BOARD_ID,value);
-		if(retval != value)
-			tim_errno++;
-		value += value_increment;
-	}
-
-	/* test the utility board SETUP_SHORT_TEST_COUNT times */
-	util_errno = 0;
-	value = 0;	
-	for(i=1; i<=SETUP_SHORT_TEST_COUNT; i++)
-	{
-		retval = CCD_DSP_Command_TDL(CCD_DSP_UTIL_BOARD_ID,value);
-		if(retval != value)
-			util_errno++;
-		value += value_increment;
-	}
-	/* if some PCI errors occured, setup an error message and determine whether it was fatal or not */
-	if(pci_errno > 0)
-	{
-		Setup_Error_Number = 36;
-		sprintf(Setup_Error_String,"Interface Board Hardware Test:Failed %d of %d times",
-			pci_errno,SETUP_SHORT_TEST_COUNT);
-		if(pci_errno < SETUP_SHORT_TEST_COUNT)
-			CCD_Setup_Warning();
-		else
-			return FALSE;
-	}
-	/* if some timing errors occured, setup an error message and determine whether it was fatal or not */
-	if(tim_errno > 0)
-	{
-		Setup_Error_Number = 4;
-		sprintf(Setup_Error_String,"Timing Board Hardware Test:Failed %d of %d times",
-			tim_errno,SETUP_SHORT_TEST_COUNT);
-		if(tim_errno < SETUP_SHORT_TEST_COUNT)
-			CCD_Setup_Warning();
-		else
-			return FALSE;
-	}
-	/* if some utility errors occured, setup an error message and determine whether it was fatal or not */
-	if(util_errno > 0)
-	{
-		Setup_Error_Number = 5;
-		sprintf(Setup_Error_String,"Utility Board Hardware Test:Failed %d of %d times",
-			util_errno,SETUP_SHORT_TEST_COUNT);
-		if(util_errno < SETUP_SHORT_TEST_COUNT)
-			CCD_Setup_Warning();
-		else
-			return FALSE;
 	}
 	return TRUE;
 }
@@ -1164,6 +1166,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2000/03/01 15:44:41  cjm
+** Backup.
+**
 ** Revision 0.7  2000/02/23 11:54:00  cjm
 ** Removed setting reply buffer bit on startup/shutdown.
 ** This is now handled by the latest astropci driver.
