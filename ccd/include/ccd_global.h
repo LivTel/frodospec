@@ -1,5 +1,5 @@
 /* ccd_global.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.1 2000-01-25 15:03:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.2 2000-04-13 12:57:23 cjm Exp $
 */
 
 #ifndef CCD_GLOBAL_H
@@ -37,4 +37,7 @@
 extern void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device);
 extern void CCD_Global_Error(void);
 extern void CCD_Global_Error_String(char *error_string);
+
+/* routine used by other modules error code */
+extern  void CCD_Global_Get_Current_Time_String(char *time_string,int string_length);
 #endif
