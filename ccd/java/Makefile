@@ -1,6 +1,7 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.3 1999-03-03 14:46:56 dev Exp $ 
-
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.4 1999-04-27 10:55:41 dev Exp $ 
+include ../../Makefile.common
+include ../Makefile.common
 
 INCDIR = ../include
 DOCSDIR = ../javadocs
@@ -41,7 +42,13 @@ SetupThread.java ExposureThread.java ReadOutThread.java
 	javadoc -d $(DOCSDIR) $(DOCFLAGS) *.java
 
 clean:
-	rm -f $(OBJS) *.bak *.BAK *~ #*#
+	$(RM) $(RM_OPTIONS) $(OBJS) $(TIDY_OPTIONS)
+
+tidy:
+	$(RM) $(RM_OPTIONS) $(TIDY_OPTIONS)
 
 checkout:
-	$(CO)   -l $(SRCS)
+	$(CO) $(CO_OPTIONS) $(SRCS)
+
+checkin:
+	$(CI) $(SRCS)
