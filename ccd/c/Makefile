@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.10 2001-01-30 10:06:49 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.11 2001-03-12 15:14:06 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -23,6 +23,14 @@ TIMINGDOWNLOADIDLECFLAGS =
 # Stop timing board Idling whilst downloading DSP code. (ccdtool did this)
 #TIMINGDOWNLOADIDLECFLAGS = -DCCD_SETUP_TIMING_DOWNLOAD_IDLE=1
 
+# In some versions of the DSP code the utility board used to lock the controller up,
+# if we sent an RDM/WRM/Read tempureature during an exposure.
+# This flag enables us to conditionally compile some code to test for this:
+# Return an error if RDM/WRM/temperature get called when we are exposing.
+#UTILEXPOSURECHECKFLAGS = -DCCD_DSP_UTIL_EXPOSURE_CHECK=1
+# Allow RDM/WRM/temperature get calls when we are exposing.
+UTILEXPOSURECHECKFLAGS = 
+
 #Do we want to byte swap the ccd data read from the camera.
 # New device drivers do this in the driver (v1.4+) old ones don't (to v1.3)
 #BYTESWAPCFLAGS = -DCCD_DSP_BYTE_SWAP=1
@@ -40,7 +48,8 @@ CFITSIOLIB = -lcfitsio
 DEBUGCFLAGS = -DDEBUG=0
 
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLAGS) $(MUTEXCFLAGS) \
-	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(BYTESWAPCFLAGS) $(DEBUGCFLAGS)
+	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(UTILEXPOSURECHECKFLAGS) $(BYTESWAPCFLAGS) \
+	$(DEBUGCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
@@ -108,6 +117,10 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.10  2001/01/30 10:06:49  cjm
+# Fixed ngat_ccd_CCDLibrary.h dependancy so the header always gets built using
+# javah when the ngat_ccd.jar changes or the header does not exist (has been cleaned).
+#
 # Revision 1.9  2000/12/19 12:03:58  cjm
 # Added ccd_filter_wheel source.
 #
