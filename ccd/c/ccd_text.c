@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.12 2000-05-12 15:29:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.13 2000-06-09 16:06:20 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.12 $
+ * @version $Revision: 0.13 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.12 2000-05-12 15:29:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.13 2000-06-09 16:06:20 cjm Exp $";
 
 /* #defines */
 /**
@@ -54,6 +54,7 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.12 2000-05-12 15:29:19 cjm Exp $";
  * <dl>
  * <dt>Ioctl_Request</dt> <dd>The ioctl request.</dd>
  * <dt>HCVR_Command</dt> <dd>The last value put in the HCVR.</dd>
+ * <dt>HCTR_Register</dt> <dd>The last value put in the HCTR.</dd>
  * <dt>Destination</dt> <dd>The last destination put into the board destination register. Note
  * 	this does not include the number of arguments, see below.</dd>
  * <dt>Argument_List</dt> <dd>The current values of the PCI argument registers. An array of length 
@@ -61,10 +62,10 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.12 2000-05-12 15:29:19 cjm Exp $";
  * <dt>Argument_Count</dt> <dd>The number of arguments in the argument list, 
  * 	set as part of setting a destination.</dd>
  * <dt>Reply</dt> <dd>What we think the reply value should be.</dd>
+ * <dt>Controller_Status</dt> <dd>The current value of the PCI controller status register.</dd>
  * <dt>Exposure_Time</dt> <dd>Set when the exposure time is set.</dd>
  * <dt>Exposure_Start_Time</dt> <dd>The time the exposure was started.</dd>
  * <dt>Pause_Start_Time</dt> <dd>The time the last pause was started.</dd>
- * <dt>Clear_Start_Time</dt> <dd>The time the CLEAR_ARRAY operation was started.</dd>
  * </dl>
  * @see #TEXT_ARGUMENT_COUNT
  */
@@ -72,15 +73,16 @@ struct Text_Struct
 {
 	int Ioctl_Request;
 	int HCVR_Command;
+	int HCTR_Register;
 	int Manual_Command;
 	enum CCD_DSP_BOARD_ID Destination;
 	int Argument_List[TEXT_ARGUMENT_COUNT];
 	int Argument_Count;
 	int Reply;
+	int Controller_Status;
 	int Exposure_Time;
 	struct timespec Exposure_Start_Time;
 	struct timespec Pause_Start_Time;
-	struct timespec Clear_Start_Time;
 };
 
 /**
@@ -125,13 +127,14 @@ static void Text_Get_Reply(int *argument);
 static void Text_HCVR(int hcvr_command);
 static void Text_Manual(int manual_command);
 static void Text_Destination(int destination_number);
+static void Text_HCVR_Read_Controller_Status(void);
+static void Text_HCVR_Write_Controller_Status(void);
 static void Text_HCVR_Test_Data_Link(void);
 static void Text_HCVR_Read_Memory(void);
 static void Text_HCVR_Read_Exposure_Time(void);
 static void Text_HCVR_Start_Exposure(void);
 static void Text_HCVR_Pause_Exposure(void);
 static void Text_HCVR_Resume_Exposure(void);
-static void Text_HCVR_Clear_Array(void);
 
 /* local variables */
 /**
@@ -164,6 +167,8 @@ static struct Text_Struct Text_Data;
  */
 static struct Text_Command_Struct Text_HCVR_Command_List[] = 
 {
+	{CCD_PCI_HCVR_READ_CONTROLLER_STATUS,"Read Controller Status",0,Text_HCVR_Read_Controller_Status},
+	{CCD_PCI_HCVR_WRITE_CONTROLLER_STATUS,"Write Controller Status",0,Text_HCVR_Write_Controller_Status},
 	{CCD_PCI_HCVR_RESET_CONTROLLER,"Reset Controller",CCD_DSP_SYR,NULL},
 	{CCD_PCI_HCVR_LOAD_APPLICATION,"Load Application",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_MANUAL_COMMAND,"Manual Command",CCD_DSP_DON,NULL},
@@ -175,7 +180,7 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
 	{CCD_PCI_HCVR_POWER_ON,"Power On",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_POWER_OFF,"Power Off",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_SET_BIAS_VOLTAGES,"Set Bias Voltages",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_CLEAR_ARRAY,"Clear Array",CCD_DSP_DON,Text_HCVR_Clear_Array},
+	{CCD_PCI_HCVR_CLEAR_ARRAY,"Clear Array",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_STOP_IDLE_MODE,"Stop Idling",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_RESUME_IDLE_MODE,"Resume Idling",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_READ_EXPOSURE_TIME,"Read Exposure Time",0,Text_HCVR_Read_Exposure_Time},
@@ -188,7 +193,8 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
 	{CCD_PCI_HCVR_OPEN_SHUTTER,"Open Shutter",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_CLOSE_SHUTTER,"Close Shutter",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_SET_ARRAY_TEMPERATURE,"Set Array Temperature",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_READ_ARRAY_TEMPERATURE,"Read Array Temperature",0xC60,NULL}/* 3168 - -127 C (-102) */
+	{CCD_PCI_HCVR_READ_ARRAY_TEMPERATURE,"Read Array Temperature",0xC60,NULL},/* 3168 - -127 C (-102) */
+	{CCD_PCI_HCVR_PCI_DOWNLOAD,"PCI Download",CCD_DSP_DON,NULL}
 };
 
 /**
@@ -205,7 +211,8 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
  */
 static struct Text_Command_Struct Text_Manual_Command_List[] = 
 {
-	{CCD_DSP_SGN,"Set Gain",CCD_DSP_DON,NULL}
+	{CCD_DSP_SGN,"Set Gain",CCD_DSP_DON,NULL},
+	{CCD_DSP_SOS,"Set Output Source",CCD_DSP_DON,NULL}
 };
 
 /**
@@ -287,14 +294,18 @@ void CCD_Text_Initialise(void)
 	Text_Error_Number = 0;
 	Text_Data.Ioctl_Request = 0;
 	Text_Data.HCVR_Command = 0;
+	Text_Data.HCTR_Register = 0;
 	Text_Data.Manual_Command = 0;
 	Text_Data.Destination = 0;
 	Text_Data.Argument_Count = 0;
 	for(i=0;i<TEXT_ARGUMENT_COUNT;i++)
 		Text_Data.Argument_List[i] = 0;
 	Text_Data.Reply = -1;
+	Text_Data.Controller_Status = 0;
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 		fprintf(Text_File_Ptr,"CCD_Text_Initialise\n");
+/* print some compile time information to stdout */
+	fprintf(stdout,"CCD_Text_Initialise:%s.\n",rcsid);
 }
 
 /**
@@ -327,7 +338,10 @@ int CCD_Text_Command(int request,int *argument)
 	Text_Error_Number = 0;
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 	{
-		if((request==CCD_PCI_IOCTL_CLEAR_REPLY)||(request==CCD_PCI_IOCTL_GET_REPLY))
+		/* some command arguments have interdetminate arguments 
+		** - the argument is not used or is filled in with a reply */
+		if((request==CCD_PCI_IOCTL_CLEAR_REPLY)||(request==CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER)||
+			(request==CCD_PCI_IOCTL_GET_REPLY)||(request==CCD_PCI_IOCTL_GET_HCTR))
 			fprintf(Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
 		else if(argument != NULL)
 			fprintf(Text_File_Ptr,"ioctl(%#x,%#x)\n",request,*argument);
@@ -350,6 +364,10 @@ int CCD_Text_Command(int request,int *argument)
 			break;
 		case CCD_PCI_IOCTL_GET_HCTR:
 			fprintf(Text_File_Ptr,"Request:Get Host Control Register:");
+			if(argument != NULL)
+				(*argument) = Text_Data.HCTR_Register;
+			else
+				fprintf(Text_File_Ptr,"HCTR not filled in:argument was NULL:");
 			break;
 		case CCD_PCI_IOCTL_GET_PROGRESS:
 			fprintf(Text_File_Ptr,"Request:Get Readout Progress:");
@@ -432,6 +450,7 @@ int CCD_Text_Command(int request,int *argument)
 			break;
 		case CCD_PCI_IOCTL_SET_HCTR:
 			fprintf(Text_File_Ptr,"Request:Set HCTR (Host Interface Control Register):");
+			Text_Data.HCTR_Register = *argument;
 			break;
 		case CCD_PCI_IOCTL_SET_HCVR:
 			fprintf(Text_File_Ptr,"Request:Set HCVR (Host Command Vector Register):");
@@ -492,6 +511,11 @@ int CCD_Text_Command(int request,int *argument)
 		case CCD_PCI_IOCTL_CLEAR_REPLY:
 			fprintf(Text_File_Ptr,"Request:Clear Reply Memory:");
 			/* clear reply sets the reply memory to -1 */
+			Text_Data.Reply = -1;
+			break;
+		case CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER:
+			fprintf(Text_File_Ptr,"Request:Flush Reply Memory:");
+			/* flush reply resets reply interrupt? */
 			Text_Data.Reply = -1;
 			break;
 		default:
@@ -661,25 +685,14 @@ static void Text_Get_Reply(int *argument)
 	{
 		finished = nanosleep(&delay_timespec,&delay_timespec);
 	}
-/* set reply value */
+/* It takes appox 5 seconds to clear the CCD array out,
+ ** the astropci device driver waits 10 seconds in read_reply before timing out.
+ ** Here we sleep for five seconds.
+ */
 	if(Text_Data.HCVR_Command == CCD_PCI_HCVR_CLEAR_ARRAY)
-	{
-#ifdef _POSIX_TIMERS
-		clock_gettime(CLOCK_REALTIME,&current_time);
-#else
-		gettimeofday(&gtod_current_time,NULL);
-		current_time.tv_sec = gtod_current_time.tv_sec;
-		current_time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
-#endif
-		if((current_time.tv_sec-Text_Data.Clear_Start_Time.tv_sec)>4)
-			(*argument) = CCD_DSP_DON;
-		else
-			(*argument) = -1;
-	}
-	else
-	{
-		(*argument) = Text_Data.Reply;
-	}
+		sleep(5);
+/* set reply value */
+	(*argument) = Text_Data.Reply;
 /* if it's a standard reply print out a text representation. */
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_REPLIES)
 	{
@@ -777,6 +790,32 @@ static void Text_Destination(int destination_number)
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
 		fprintf(Text_File_Ptr,":%s:Number of Arguments:%d:",Board_Name_List[Text_Data.Destination],
 			Text_Data.Argument_Count);
+}
+
+/**
+ * Function invoked from Text_HCVR when a READ_CONTROLLER_STATUS command is sent to the driver.
+ * This retrieves the current controller status.
+ * This function sets Text_Data.Reply to Text_Data.Controller_Status.
+ * @see #Text_HCVR
+ * @see ccd_pci.html#CCD_PCI_HCVR_READ_CONTROLLER_STATUS
+ */
+static void Text_HCVR_Read_Controller_Status(void)
+{
+	Text_Data.Reply = Text_Data.Controller_Status;
+}
+
+/**
+ * Function invoked from Text_HCVR when a WRITE_CONTROLLER_STATUS command is sent to the driver.
+ * This sets the current controller status.
+ * This function sets Text_Data.Reply to CCD_DSP_DON.
+ * It sets Text_Data.Controller_Status to Text_Data.Argument_List[0].
+ * @see #Text_HCVR
+ * @see ccd_pci.html#CCD_PCI_HCVR_READ_CONTROLLER_STATUS
+ */
+static void Text_HCVR_Write_Controller_Status(void)
+{
+	Text_Data.Reply = CCD_DSP_DON;
+	Text_Data.Controller_Status = Text_Data.Argument_List[0];
 }
 
 /**
@@ -938,30 +977,11 @@ static void Text_HCVR_Resume_Exposure(void)
 
 }
 
-/**
- * Function invoked from Text_HCVR when a CLEAR_ARRAY command is sent to the driver.
- * Text_Data sets the reply value to CCD_DSP_DON.
- * We set the Text_Data.Clear_Start_Time to the current time when the clearing started.
- * @see #Text_HCVR
- * @see ccd_pci.html#CCD_PCI_HCVR_CLEAR_ARRAY
- */
-static void Text_HCVR_Clear_Array(void)
-{
-#ifndef _POSIX_TIMERS
-	struct timeval gtod_current_time;
-#endif
-
-#ifdef _POSIX_TIMERS
-	clock_gettime(CLOCK_REALTIME,&(Text_Data.Clear_Start_Time));
-#else
-	gettimeofday(&gtod_current_time,NULL);
-	Text_Data.Clear_Start_Time.tv_sec = gtod_current_time.tv_sec;
-	Text_Data.Clear_Start_Time.tv_nsec = gtod_current_time.tv_usec*TEXT_ONE_MICROSECOND_NS;
-#endif
-}
-
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.12  2000/05/12 15:29:19  cjm
+** Fixed synthetic image output.
+**
 ** Revision 0.11  2000/05/09 15:17:44  cjm
 ** Changed data values returned from CCD_Text_Get_Reply_Data.
 **
