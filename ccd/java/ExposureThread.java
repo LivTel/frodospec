@@ -1,5 +1,5 @@
 // ExposureThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.8 1999-09-17 17:21:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.9 2000-01-24 16:33:10 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -9,14 +9,14 @@ import ngat.ccd.*;
  * This class extends thread to support the exposure of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway.
  * @author Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 class ExposureThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.8 1999-09-17 17:21:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.9 2000-01-24 16:33:10 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
@@ -102,15 +102,12 @@ class ExposureThread extends Thread
 	/**
 	 * This method will terminate a partly completed Exposure. If libccd is currently exposing
 	 * CCDExposureAbort is called which stops the exposure.
-	 * If libccd is currently reading out
-	 * CCDExposureAbortReadout is called which stops the CCD.
+	 * If libccd is currently reading out CCDExposureAbortReadout is called which stops the CCD
 	 * reading out. 
-	 * CCDDSPGetExposureStatus is used to determine
-	 * the current state of the exposure. In either case libccd will cause
-	 * CCDExposureExpose to stop what it is doing. This causes
+	 * CCDDSPGetExposureStatus is used to determine the current state of the exposure. 
+	 * In either case libccd will cause CCDExposureExpose to stop what it is doing. This causes
 	 * the <a href="#run">run</a> method to finish executing, and the 
-	 * <a href="#exposeException">exposeException</a>
-	 * will be non-null.
+	 * <a href="#exposeException">exposeException</a> will be non-null.
 	 * @see #getExposeException
 	 * @see #run
 	 */
@@ -125,9 +122,6 @@ class ExposureThread extends Thread
 				break;
 			case libccd.CCD_DSP_EXPOSURE_STATUS_READOUT:
 				libccd.CCDExposureAbortReadout();
-				break;
-			default:
-				stop();
 				break;
 		}
 	}
@@ -171,6 +165,9 @@ class ExposureThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.8  1999/09/17 17:21:59  cjm
+// Fixed Javadoc comments.
+//
 // Revision 0.7  1999/09/17 16:50:19  cjm
 // Changed due to CCDExposureExpose returning an exception on error rather than a boolean.
 //
