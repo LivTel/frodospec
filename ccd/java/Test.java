@@ -1,5 +1,5 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.9 1999-09-20 14:39:48 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.10 2000-02-03 16:59:21 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -8,7 +8,7 @@ import ngat.ccd.*;
 /**
  * This is the main test program.
  * @author Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 class Test
 {
@@ -84,10 +84,9 @@ class Test
 
 		abortThread = new AbortThread(this);
 		abortThread.setPriority(Thread.NORM_PRIORITY-1);
-		setupThread = new SetupThread(libccd,libccd.CCD_SETUP_FLAG_ALL,
-			libccd.CCD_SETUP_LOAD_APPLICATION,1,null,
-			libccd.CCD_SETUP_LOAD_APPLICATION,2,null,-123.0,libccd.CCD_SETUP_GAIN_FOUR,true,true,
-			CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,libccd.CCD_SETUP_DEINTERLACE_SPLIT_QUAD);
+		setupThread = new SetupThread(libccd,libccd.CCD_SETUP_LOAD_APPLICATION,1,null,
+			libccd.CCD_SETUP_LOAD_APPLICATION,2,null,-107.0,libccd.CCD_DSP_GAIN_FOUR,true,true,
+			CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,libccd.CCD_DSP_DEINTERLACE_SPLIT_QUAD);
 		setupThread.setPriority(Thread.NORM_PRIORITY-1);
 		setupThread.start();
 		abortThread.start();
@@ -102,16 +101,16 @@ class Test
 				System.err.println(this.getClass().getName()+e);
 			}
 		}
-		abortThread.stop();
+		abortThread.quit();
 		setupException = setupThread.getSetupException();
 		if(setupException == null)
 		{
-			System.out.println("Test:CCDSetupSetup Completed.");
+			System.out.println("Test:Setup Completed.");
 			retval = true;
 		}
 		else
 		{
-			System.err.println("Test:CCDSetupSetupCCD returned:"+setupException);
+			System.err.println("Test:Setup returned:"+setupException);
 			retval = false;
 		}
 		return retval;
@@ -164,7 +163,7 @@ class Test
 				System.err.println(this.getClass().getName()+e);
 			}
 		}
-		abortThread.stop();
+		abortThread.quit();
 		exposeException = exposureThread.getExposeException();
 		exposureAborted = exposureThread.getAbortStatus();
 		if(exposeException == null)
@@ -208,7 +207,7 @@ class Test
 				System.err.println(this.getClass().getName()+e);
 			}
 		}
-		abortThread.stop();
+		abortThread.quit();
 		readOutException = readOutThread.getReadOutException();
 		if(readOutException == null)
 			System.out.println("Test:CCDExposureReadOutCCD Completed.");
@@ -372,6 +371,9 @@ class Test
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.9  1999/09/20 14:39:48  cjm
+// Changed due to libccd native routines throwing CCDLibraryNativeException when errors occur.
+//
 // Revision 0.8  1999/09/10 15:55:30  cjm
 // Changed due to CCDLibrary moving to ngat.ccd. package.
 //

@@ -1,5 +1,5 @@
 // SetupThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.5 1999-09-20 10:27:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.6 2000-02-03 16:59:22 cjm Exp $
 import java.io.*;
 import java.lang.*;
 
@@ -9,116 +9,110 @@ import ngat.ccd.*;
  * This class extends thread to support the setup of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway..
  * @author Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 class SetupThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: SetupThread.java,v 0.5 1999-09-20 10:27:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: SetupThread.java,v 0.6 2000-02-03 16:59:22 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
 	private CCDLibrary libccd 		= null;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
-	 */
-	private int setup_flags 		= 0;
-	/**
-	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private int timing_load_type 		= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private int timing_application_number 	= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private String timing_filename 		= null;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private int utility_load_type 		= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private int utility_application_number 	= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private String utility_filename 	= null;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private double target_temperature 	= 0.0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private int gain 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private boolean gain_speed 		= true;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupStartup.
 	 */
 	private boolean idle 			= false;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupDimensions.
 	 */
 	private int ncols 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupDimensions.
 	 */
 	private int nrows 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupDimensions.
 	 */
 	private int nsbin 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupDimensions.
 	 */
 	private int npbin 			= 0;
 	/**
 	 * Private copy of variable to be passed into 
-	 * CCDSetupSetupCCD.
+	 * CCDSetupDimensions.
 	 */
 	private int deinterlace_type 		= 0;
 	/**
-	 * Private copy of any exception returned by CCDSetupSetupCCD. This will be null for successful
-	 * completion of the method.
+	 * Private copy of any exception returned by CCDSetupStartup and CCDSetupDimensions. 
+	 * This will be null for successful completion of the method.
 	 */
 	private CCDLibraryNativeException setupException = null;
 
 	/**
 	 * Constructor of the thread. Copys all the parameters, ready to pass them into
-	 * CCDSetupSetupCCD when the thread is run.
+	 * CCDSetupStartup and CCDSetupDimensions when the thread is run.
 	 */
-	public SetupThread(CCDLibrary libccd,int setup_flags,
+	public SetupThread(CCDLibrary libccd,
 		int timing_load_type,int timing_application_number,String timing_filename,
 		int utility_load_type,int utility_application_number,String utility_filename,
 		double target_temperature,int gain,boolean gain_speed,boolean idle,
 		int ncols,int nrows,int nsbin,int npbin,int deinterlace_type)
 	{
 		this.libccd = libccd;
-		this.setup_flags = setup_flags;
 		this.timing_load_type = timing_load_type;
 		this.timing_application_number = timing_application_number;
 		if(this.timing_filename != null)
@@ -144,7 +138,7 @@ class SetupThread extends Thread
 
 	/**
 	 * Run method of the thread. Calls
-	 * CCDSetupSetupCCD with the parameters passed into the
+	 * CCDSetupStartup and CCDSetupDimensions with the parameters passed into the
 	 * constructor. This causes the CCD to be setup for an exposure. The success or failure of the
 	 * operation is stored in <a href="#setupException">setupException</a>, which can be retieved using the 
 	 * <a href="#getSetupException">getSetupException</a> method. Setup can be aborted using the
@@ -154,13 +148,17 @@ class SetupThread extends Thread
 	 */
 	public void run()
 	{
+		CCDLibrarySetupWindow window_list[] = new CCDLibrarySetupWindow[4];
+
 		setupException = null;
+		for(int i=0;i<window_list.length;i++)
+			window_list[i] = new CCDLibrarySetupWindow();
 		try
 		{
-			libccd.CCDSetupSetupCCD(setup_flags,timing_load_type,timing_application_number,
+			libccd.CCDSetupStartup(timing_load_type,timing_application_number,
 				timing_filename,utility_load_type,utility_application_number,utility_filename,
-				target_temperature,gain,gain_speed,idle,
-				ncols,nrows,nsbin,npbin,deinterlace_type);
+				target_temperature,gain,gain_speed,idle);
+			libccd.CCDSetupDimensions(ncols,nrows,nsbin,npbin,deinterlace_type,0,window_list);
 		}
 		catch(CCDLibraryNativeException e)
 		{
@@ -171,7 +169,7 @@ class SetupThread extends Thread
 	/**
 	 * This method will terminate a partly completed Setup. It calls 
 	 * CCDSetupAbort which at the libccd level tells
-	 * CCDSetupSetupCCD to stop what it is doing. This causes
+	 * CCDSetupStartup and CCDSetupDimensions to stop what it is doing. This causes
 	 * the <a href="#run">run</a> method to finish halting the thread, the 
 	 * <a href="#setupException">setupException</a>
 	 * will be non-null.
@@ -184,7 +182,7 @@ class SetupThread extends Thread
 	}
 
 	/**
-	 * This returns the return value generated by CCDSetupSetupCCD
+	 * This returns the return value generated by CCDSetupStartup or CCDSetupDimensions
 	 * in the <a href="#run">run</a> method. If the thread hasn't been run yet it returns false. If the setup was
 	 * successfully completed it returns true, otherwise it returns false.
 	 * @see #run
@@ -197,6 +195,9 @@ class SetupThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.5  1999/09/20 10:27:40  cjm
+// Changed CCDSetupSetupCCD as it now throws an CCDLibraryNativeException on error.
+//
 // Revision 0.4  1999/09/10 15:55:11  cjm
 // Changed due to CCDLibrary moving to ngat.ccd. package.
 //
