@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.3 2000-01-28 16:19:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.4 2000-02-09 18:27:39 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -35,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.3 2000-01-28 16:19:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.4 2000-02-09 18:27:39 cjm Exp $";
 
 /* #defines */
 /**
@@ -316,7 +316,9 @@ int CCD_Text_Command(int request,int *argument)
 	Text_Error_Number = 0;
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 	{
-		if(argument != NULL)
+		if((request==CCD_PCI_IOCTL_CLEAR_REPLY)||(request==CCD_PCI_IOCTL_GET_REPLY))
+			fprintf(Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
+		else if(argument != NULL)
 			fprintf(Text_File_Ptr,"ioctl(%#x,%#x)\n",request,*argument);
 		else
 			fprintf(Text_File_Ptr,"ioctl(%#x,NULL)\n",request);
@@ -793,6 +795,11 @@ static void Text_HCVR_Start_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.3  2000/01/28 16:19:39  cjm
+** Added CCD_Text_Set_File_Pointer function.
+** Changed implementation of Clear Reply Memory and others so that linking with voodoo
+** produce required results.
+**
 ** Revision 0.2  2000/01/26 14:02:39  cjm
 ** Added low level printout for regression testing against voodoo.
 **
