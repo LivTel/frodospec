@@ -1,6 +1,6 @@
 /* ccd_temperature.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.1 2000-01-25 14:57:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.2 2000-02-22 16:07:55 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.1 $
+ * @version $Revision: 0.2 $
  */
 
 #include <stdio.h>
@@ -26,7 +26,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.1 2000-01-25 14:57:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.2 2000-02-22 16:07:55 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -189,12 +189,14 @@ int CCD_Temperature_Get(double *temperature)
 	float voltage;
 
 	Temperature_Error_Number = 0;
+	CCD_DSP_Set_Abort(FALSE);
 	adu = 0;
 	for (i = 0; i < TEMPERATURE_MAX_CHECKS; i++)
 	{
 		retval = CCD_DSP_Command_Read_Temperature();
 		if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 		{
+			CCD_DSP_Set_Abort(FALSE);
 			Temperature_Error_Number = 3;
 			sprintf(Temperature_Error_String,"CCD_Temperature_Get:Read temperature (%d) failed",i);
 			return FALSE;
@@ -239,6 +241,7 @@ int CCD_Temperature_Set(double target_temperature)
 	int adu = 0;
 
 	Temperature_Error_Number = 0;
+	CCD_DSP_Set_Abort(FALSE);
 	/* get the target adu count from target_temperature using the setup data */
 	adu = Temperature_Calc_Temp_ADU(Temperature_Data.Temp_Coeff,Temperature_Data.Temp_Coeff_Count,
 		Temperature_Data.V_Upper,Temperature_Data.V_Lower, 
@@ -246,6 +249,7 @@ int CCD_Temperature_Set(double target_temperature)
 	/* write the target to memory */
 	if(!CCD_DSP_Command_Set_Temperature(adu))
 	{
+		CCD_DSP_Set_Abort(FALSE);
 		Temperature_Error_Number = 2;
 		sprintf(Temperature_Error_String,"Setting CCD Temperature failed.");
 		return FALSE;
@@ -404,4 +408,7 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.1  2000/01/25 14:57:27  cjm
+** initial revision (PCI version).
+**
 */
