@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.17 2002-11-07 19:17:55 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.18 2002-11-08 12:14:52 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -17,9 +17,9 @@ BYTESWAPCFLAGS = -DCCD_EXPOSURE_BYTE_SWAP=1
 # Usually, we should actually move the filter wheel, but if we have a system with a camera but no filter wheels,
 # we can choose to fake the filter wheel.
 # Fake moving the filter wheel.
-FILTERWHEELFAKECFLAGS = -DCCD_FILTER_WHEEL_FAKE
+#FILTERWHEELFAKECFLAGS = -DCCD_FILTER_WHEEL_FAKE
 # Actually move the filter wheel
-#FILTERWHEELFAKECFLAGS = 
+FILTERWHEELFAKECFLAGS = 
 
 # The home input of the filter wheel mechanism can be either a proximity sensor
 # or a magnetic one. The inputs received by the SDSU electronics are reversed depending
@@ -161,6 +161,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.17  2002/11/07 19:17:55  cjm
+# Changes to make library work with SDSU version 1.7 DSP code.
+#
 # Revision 1.16  2002/05/27 13:20:03  cjm
 # Added FILTERWHEELFAKECFLAGS, which determines whether to fake filter wheel movements
 # or actually try to do them.
