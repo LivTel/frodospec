@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.28 2004-05-16 15:34:11 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.29 2004-06-03 16:23:23 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.28 $
+ * @version $Revision: 0.29 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.28 2004-05-16 15:34:11 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.29 2004-06-03 16:23:23 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -631,38 +631,18 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:AEX Abort command failed.");
 					return FALSE;
 				}
+				/* we now only abort when exposure status is STATUS_EXPOSE. */
+				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+				Exposure_Error_Number = 42;
+				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
+				return FALSE;
 			}
-			if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_PRE_READOUT)
-			{
-#if LOGGING > 4
-				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():"
-					   "Status is pre-readout, waiting %d ms and moving to readout status.",
-						      Exposure_Data.Readout_Remaining_Time);
-#endif
-				/* sleep until we are reading out */
-				sleep_time.tv_sec = Exposure_Data.Readout_Remaining_Time/CCD_GLOBAL_ONE_SECOND_MS;
-				sleep_time.tv_nsec = (Exposure_Data.Readout_Remaining_Time%CCD_GLOBAL_ONE_SECOND_MS)*
-					CCD_GLOBAL_ONE_MILLISECOND_NS;
-				nanosleep(&sleep_time,NULL);
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
-			}
-			if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT)
-			{
-#if LOGGING > 4
-				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Trying ABR.");
-#endif
-				if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
-				{
-					Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-					Exposure_Error_Number = 17;
-					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:ABR command failed.");
-					return FALSE;
-				}
-			}
-			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-			Exposure_Error_Number = 42;
-			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
-			return FALSE;
+			/* If the exposure status is PRE_READOUT, we should wait until it is READOUT,
+			** and the call ABR. */
+			/* If the exposure status is READOUT, we should call ABR.
+			** However ABR seems to be causing lockups even when called correctly.
+			** So for now we let the READOUT continue until it is finished,
+			** then an ABORT check after the exposure/readout loop will catch the abort. */
 		}
 		/* check - all pixels read out? */
 		if(current_pixel_count >= expected_pixel_count)
@@ -1891,6 +1871,9 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.28  2004/05/16 15:34:11  cjm
+** Added CCD_EXPOSURE_STATUS_NONE set if ABR failed.
+**
 ** Revision 0.27  2004/05/16 14:28:18  cjm
 ** Re-wrote abort code.
 **
