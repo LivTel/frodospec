@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.3 2000-02-02 15:58:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.4 2000-02-10 12:01:19 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.3 2000-02-02 15:58:32 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.4 2000-02-10 12:01:19 cjm Exp $";
 
 /* #defines */
 /**
@@ -310,6 +310,26 @@ int CCD_Setup_Shutdown(void)
 	Setup_Error_Number = 0;
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
+/* perform a power off */
+	if(!Setup_Power_Off())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
+	}
+/* diddly - magical VoodooMainWindowListener.java write memory
+** WRM PCI X:1 = 0.
+** Is this needed?
+*/
+/* Inform the PCI board that replies are no longer able to be recieved. 
+** Note this write memory will always fail to retuurn DON: we have told the SDSU CCD Controller
+** that it can't write replies! */
+	if(CCD_DSP_Command_WRM_No_Reply(CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,0)!= CCD_DSP_DON)
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Setup_Error_Number = 35;
+		sprintf(Setup_Error_String,"CCD_Setup_Shutdowm:Replies no longer able to be received failed.");
+		return FALSE;
+	}
 /* reset completion flags  */
 	Setup_Data.NCols = 0;
 	Setup_Data.NRows = 0;
@@ -330,12 +350,6 @@ int CCD_Setup_Shutdown(void)
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
-/* perform a power off */
-	if(!Setup_Power_Off())
-	{
-		CCD_DSP_Set_Abort(FALSE);
-		return FALSE;
-	}
 	return TRUE;
 }
 
@@ -1083,6 +1097,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.3  2000/02/02 15:58:32  cjm
+** Changed SETUP_ATTR to struct Setup_Struct.
+**
 ** Revision 0.2  2000/02/02 15:55:14  cjm
 ** Binning and windowing addded.
 **
