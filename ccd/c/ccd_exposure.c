@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.12 2000-07-11 10:42:24 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.13 2000-07-14 16:25:44 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.12 $
+ * @version $Revision: 0.13 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.12 2000-07-11 10:42:24 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.13 2000-07-14 16:25:44 cjm Exp $";
 
 /* external variables */
 
@@ -225,6 +225,14 @@ int CCD_Exposure_Bias(char *filename)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Clear array failed.");
 		return FALSE;
 	}
+/* stop idle clocking on the timing board */
+	if(!CCD_DSP_Command_STP())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 8;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Stop Idle clocking failed.");
+		return FALSE;
+	}
 /* remember, here DSP_Data.Exposure_Status has been set. 
 ** therefore we can't check for abort here. 
 ** If we did, we would have to IDL the Timing board clocks to stop
@@ -251,6 +259,15 @@ int CCD_Exposure_Bias(char *filename)
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 9;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Readout failed.");
+		return FALSE;
+	}
+/* re-start idle clocking on the timing board */
+/* diddly, what if idling is set to false in the configuration - we don't want to do this */
+	if(!CCD_DSP_Command_IDL())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 10;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Starting Idle clocking failed.");
 		return FALSE;
 	}
 	return TRUE;
@@ -598,6 +615,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.12  2000/07/11 10:42:24  cjm
+** Removed CCD_Exposure_Flush_CCD.
+**
 ** Revision 0.11  2000/06/20 12:53:07  cjm
 ** CCD_DSP_Command_Sex now automatically calls CCD_DSP_Command_RDI.
 **

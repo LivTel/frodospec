@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.25 2000-07-11 10:41:11 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.26 2000-07-14 16:25:44 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.25 $
+ * @version $Revision: 0.26 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.25 2000-07-11 10:41:11 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.26 2000-07-14 16:25:44 cjm Exp $";
 
 /* defines */
 /**
@@ -1605,14 +1605,11 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 		return FALSE;
 	}
 /* clear the array */
-/*
-** diddly
-**	if(!CCD_DSP_Command_CLR())
-**	{
-**		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
-**		return FALSE;
-**	}
-*/
+	if(!CCD_DSP_Command_CLR())
+	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+		return FALSE;
+	}
 /* if debugging, get PCI/timing board status and print */
 #if DEBUG == 1
 	debug = CCD_DSP_Command_Read_Controller_Status();	
@@ -2854,8 +2851,7 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
 	fprintf(stdout,"SET_EXPTIME:value:%d\n",msecs);
 	fflush(stdout);
 #endif
-/* diddly bodge fix!!!
-** We need to review whether this set destination call is needed.
+/* We need to review whether this set destination call is needed.
 ** Acording to the Voodoo code it is, according to the DSP code it is not.
 */
 	if(!DSP_Set_Destination(CCD_DSP_UTIL_BOARD_ID,1))
@@ -4150,6 +4146,10 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.25  2000/07/11 10:41:11  cjm
+** Fixed Exposure Status errors.
+** Added read PCI status routines.
+**
 ** Revision 0.24  2000/06/20 12:53:07  cjm
 ** CCD_DSP_Command_Sex now automatically calls CCD_DSP_Command_RDI.
 **
