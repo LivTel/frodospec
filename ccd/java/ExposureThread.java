@@ -1,5 +1,5 @@
 // ExposureThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.3 1999-03-05 14:42:02 dev Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.4 1999-05-28 09:54:18 dev Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -7,14 +7,14 @@ import java.io.*;
  * This class extends thread to support the exposure of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway.
  * @author Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 class ExposureThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.3 1999-03-05 14:42:02 dev Exp $");
+	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.4 1999-05-28 09:54:18 dev Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 * @see CCDLibrary
@@ -54,12 +54,12 @@ class ExposureThread extends Thread
 	 * If we abort an exposure at any point,we need to save the exposure status at that point
 	 * to determine which operations we can do to recover the situation. Specifcally, if we abort
 	 * during exposure(rather than readout) we can subsequently readout any data that accumulated during exposure.
-	 * @see CCDLibrary#DSP_EXPOSURE_STATUS_NONE
-	 * @see CCDLibrary#DSP_EXPOSURE_STATUS_EXPOSE
-	 * @see CCDLibrary#DSP_EXPOSURE_STATUS_READOUT
+	 * @see CCDLibrary#CCD_DSP_EXPOSURE_STATUS_NONE
+	 * @see CCDLibrary#CCD_DSP_EXPOSURE_STATUS_EXPOSE
+	 * @see CCDLibrary#CCD_DSP_EXPOSURE_STATUS_READOUT
 	 * @see #abort
 	 */
-	private int abortExposureStatus = libccd.DSP_EXPOSURE_STATUS_NONE;
+	private int abortExposureStatus = libccd.CCD_DSP_EXPOSURE_STATUS_NONE;
 	/**
 	 * Private copy of the Return value of 
 	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a>.
@@ -125,10 +125,10 @@ class ExposureThread extends Thread
 		abortExposureStatus = libccd.CCDDSPGetExposureStatus();
 		switch(abortExposureStatus)
 		{
-			case libccd.DSP_EXPOSURE_STATUS_EXPOSE:
+			case libccd.CCD_DSP_EXPOSURE_STATUS_EXPOSE:
 				libccd.CCDExposureAbort();
 				break;
-			case libccd.DSP_EXPOSURE_STATUS_READOUT:
+			case libccd.CCD_DSP_EXPOSURE_STATUS_READOUT:
 				libccd.CCDExposureAbortReadout();
 				break;
 			default:
@@ -162,11 +162,11 @@ class ExposureThread extends Thread
 	 * This returns the status of the exposure when the exposure was aborted. This variable
 	 * is set when an exposure is aborted using <a href="#abort">abort</a>.
 	 * @return If the exposure was not aborted 
-	 * <a href="CCDLibrary.html#DSP_EXPOSURE_STATUS_NONE">DSP_EXPOSURE_STATUS_NONE</a> is returned.
+	 * <a href="CCDLibrary.html#CCD_DSP_EXPOSURE_STATUS_NONE">CCD_DSP_EXPOSURE_STATUS_NONE</a> is returned.
 	 * If the exposure was waiting for the exposure time to complete
-	 * <a href="CCDLibrary.html#DSP_EXPOSURE_STATUS_EXPOSE">DSP_EXPOSURE_STATUS_EXPOSE</a> is returned.
+	 * <a href="CCDLibrary.html#CCD_DSP_EXPOSURE_STATUS_EXPOSE">CCD_DSP_EXPOSURE_STATUS_EXPOSE</a> is returned.
 	 * If the exposure was reading out from the CCD
-	 * <a href="CCDLibrary.html#DSP_EXPOSURE_STATUS_READOUT">DSP_EXPOSURE_STATUS_READOUT</a> is returned.
+	 * <a href="CCDLibrary.html#CCD_DSP_EXPOSURE_STATUS_READOUT">CCD_DSP_EXPOSURE_STATUS_READOUT</a> is returned.
 	 */
 	public int getAbortExposureStatus()
 	{
@@ -176,6 +176,9 @@ class ExposureThread extends Thread
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.3  1999/03/05 14:42:02  dev
+// Backup
+//
 // Revision 0.2  1999/02/23 11:08:00  dev
 // backup/transfer to ltccd1.
 //

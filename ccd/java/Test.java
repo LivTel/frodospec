@@ -1,11 +1,11 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.5 1999-05-20 16:37:58 dev Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.6 1999-05-28 09:54:18 dev Exp $
 import java.lang.*;
 import java.io.*;
 /**
  * This is the main test program.
  * @author Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 class Test
 {
@@ -62,8 +62,8 @@ class Test
 	{
 		libccd = new CCDLibrary();
 
-		libccd.CCDInitialise(libccd.INTERFACE_DEVICE_TEXT);
-		libccd.CCDTextSetPrintLevel(libccd.TEXT_PRINT_LEVEL_COMMANDS);//libccd.TEXT_PRINT_LEVEL_ALL
+		libccd.CCDInitialise(libccd.CCD_INTERFACE_DEVICE_TEXT);
+		libccd.CCDTextSetPrintLevel(libccd.CCD_TEXT_PRINT_LEVEL_COMMANDS);//libccd.CCD_TEXT_PRINT_LEVEL_ALL
 		libccd.CCDInterfaceOpen();
 	}
 
@@ -79,9 +79,10 @@ class Test
 
 		abortThread = new AbortThread(this);
 		abortThread.setPriority(Thread.NORM_PRIORITY-1);
-		setupThread = new SetupThread(libccd,libccd.SETUP_FLAG_ALL,libccd.SETUP_LOAD_APPLICATION,1,null,
-			libccd.SETUP_LOAD_APPLICATION,2,null,-123.0,libccd.SETUP_GAIN_FOUR,true,true,
-			CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,libccd.SETUP_DEINTERLACE_SPLIT_QUAD);
+		setupThread = new SetupThread(libccd,libccd.CCD_SETUP_FLAG_ALL,
+			libccd.CCD_SETUP_LOAD_APPLICATION,1,null,
+			libccd.CCD_SETUP_LOAD_APPLICATION,2,null,-123.0,libccd.CCD_SETUP_GAIN_FOUR,true,true,
+			CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,libccd.CCD_SETUP_DEINTERLACE_SPLIT_QUAD);
 		setupThread.setPriority(Thread.NORM_PRIORITY-1);
 		setupThread.start();
 		abortThread.start();
@@ -250,7 +251,7 @@ class Test
 	{
 		int reply;
 
-		if(exposureThread.getAbortExposureStatus() == libccd.DSP_EXPOSURE_STATUS_EXPOSE)
+		if(exposureThread.getAbortExposureStatus() == libccd.CCD_DSP_EXPOSURE_STATUS_EXPOSE)
 		{
 			System.out.println(this.getClass().getName()+":Exposure Aborted:"+
 				"Try to readout data? (y/n)");
