@@ -1,5 +1,5 @@
 /* ccd_exposure.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.5 2002-11-07 19:16:51 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.6 2002-12-16 16:56:55 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
@@ -32,14 +32,20 @@
  * <li>CCD_EXPOSURE_STATUS_NONE means the library is not currently performing an exposure.
  * <li>CCD_EXPOSURE_STATUS_CLEAR means the library is currently clearing the ccd.
  * <li>CCD_EXPOSURE_STATUS_EXPOSE means the library is currently performing an exposure.
+ * <li>CCD_EXPOSURE_STATUS_PRE_READOUT means the library is currently exposing, but is about
+ * 	to start reading out data from the ccd (so don't start any commands that won't work in readout). 
  * <li>CCD_EXPOSURE_STATUS_READOUT means the library is currently reading out data from the ccd.
+ * <li>CCD_EXPOSURE_STATUS_POST_READOUT means the library has finished reading out, but is post processing
+ * 	the data (byte swap/de-interlacing/saving to disk).
  * </ul>
+ * If these values are changed, the relevant values in ngat.ccd.CCDLibrary should be updated to match.
  * @see #CCD_DSP_Get_Exposure_Status
  */
 enum CCD_EXPOSURE_STATUS
 {
 	CCD_EXPOSURE_STATUS_NONE,CCD_EXPOSURE_STATUS_CLEAR,
-	CCD_EXPOSURE_STATUS_EXPOSE,CCD_EXPOSURE_STATUS_READOUT
+	CCD_EXPOSURE_STATUS_EXPOSE,CCD_EXPOSURE_STATUS_PRE_READOUT,CCD_EXPOSURE_STATUS_READOUT,
+	CCD_EXPOSURE_STATUS_POST_READOUT
 };
 
 /**
@@ -58,8 +64,8 @@ extern int CCD_Exposure_Open_Shutter(void);
 extern int CCD_Exposure_Close_Shutter(void);
 extern int CCD_Exposure_Pause(void);
 extern int CCD_Exposure_Resume(void);
-extern void CCD_Exposure_Abort(void);
-extern void CCD_Exposure_Abort_Readout(void);
+extern int CCD_Exposure_Abort(void);
+extern int CCD_Exposure_Abort_Readout(void);
 extern int CCD_Exposure_Read_Out_CCD(char *filename);
 
 extern int CCD_Exposure_Set_Exposure_Status(enum CCD_EXPOSURE_STATUS status);
