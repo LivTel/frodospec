@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.18 2000-05-22 16:28:12 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.19 2000-05-23 10:33:44 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.18 $
+ * @version $Revision: 0.19 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.18 2000-05-22 16:28:12 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.19 2000-05-23 10:33:44 cjm Exp $";
 
 /* defines */
 /**
@@ -1687,6 +1687,26 @@ int CCD_DSP_Get_Readout_Remaining_Time(void)
 }
 
 /**
+ * Routine to set the Exposure_Start_Time of DSP_Data, to the current time of the real time clock.
+ * clock_gettime or gettimeofday is used, depending on whether _POSIX_TIMERS is defined.
+ * @see #DSP_Data
+ */
+void CCD_DSP_Set_Exposure_Start_Time(void)
+{
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
+
+#ifdef _POSIX_TIMERS
+	clock_gettime(CLOCK_REALTIME,&(DSP_Data.Exposure_Start_Time));
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	DSP_Data.Exposure_Start_Time.tv_sec = gtod_current_time.tv_sec;
+	DSP_Data.Exposure_Start_Time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
+}
+
+/**
  * Get the current value of ccd_dsp's error number.
  * @return The current value of ccd_dsp's error number.
  */
@@ -2225,13 +2245,8 @@ static int DSP_Send_Sex(struct timespec start_time)
 	}/* end if */
 /* switch status to exposing and store the actual time the exposure is going to start */
 	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_EXPOSE;
-#ifdef _POSIX_TIMERS
-	clock_gettime(CLOCK_REALTIME,&(DSP_Data.Exposure_Start_Time));
-#else
-	gettimeofday(&gtod_current_time,NULL);
-	DSP_Data.Exposure_Start_Time.tv_sec = gtod_current_time.tv_sec;
-	DSP_Data.Exposure_Start_Time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
-#endif
+	CCD_DSP_Set_Exposure_Start_Time();
+/* start exposure and return result */
 	return DSP_Send_Command(CCD_PCI_HCVR_START_EXPOSURE,NULL,0);
 }
 
@@ -3207,6 +3222,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.18  2000/05/22 16:28:12  cjm
+** DSP_Save now updates DATE,DATE-OBS and UTSTART keywords.
+**
 ** Revision 0.17  2000/05/10 16:51:02  cjm
 ** Added DSP_Byte_Swap.
 ** Tidied RDC command (numbytes).
