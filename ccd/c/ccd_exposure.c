@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.1 2000-01-25 14:57:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.2 2000-02-01 17:50:01 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.1 $
+ * @version $Revision: 0.2 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.1 2000-01-25 14:57:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.2 2000-02-01 17:50:01 cjm Exp $";
 
 /* external variables */
 
@@ -55,8 +55,7 @@ void CCD_Exposure_Initialise(void)
 /**
  * Routine to perform an exposure.
  * <dl>
- * <dd>It checks to ensure CCD Setup has been successfully completed using
- * 	<a href="ccd_setup.html#CCD_Setup_Setup_CCD">CCD_Setup_Setup_CCD</a>.</dd>
+ * <dd>It checks to ensure CCD Setup has been successfully completed using CCD_Setup_Get_Setup_Complete.</dd>
  * <dd>It gets the number of rows,columns and the deinterlace type from setup.</dd>
  * <dd>If open_shutter is TRUE is sets the shutter to open.</dd>
  * <dd>If readout_ccd is TRUE it performs the exposure by calling 
@@ -71,6 +70,7 @@ void CCD_Exposure_Initialise(void)
  * @param filename The filename to save the exposure into.
  * @return Returns TRUE if the exposure succeeds and the file is saved, returns FALSE if an error
  *	occurs or the exposure is aborted.
+ * @see ccd_setup.html#CCD_Setup_Get_Setup_Complete
  */
 int CCD_Exposure_Expose(int open_shutter,int readout_ccd,int msecs,char *filename)
 {
@@ -372,8 +372,7 @@ void CCD_Exposure_Abort_Readout(void)
  * This routine is not called as part of the normal exposure sequence. It is used to read out a ccd exposure
  * under manual control or to read out an aborted exposure. 
  * <dl>
- * <dd>It checks to ensure CCD Setup has been successfully completed using
- * 	<a href="ccd_setup.html#CCD_Setup_Setup_CCD">CCD_Setup_Setup_CCD</a>.</dd>
+ * <dd>It checks to ensure CCD Setup has been successfully completed using CCD_Setup_Get_Setup_Complete.</dd>
  * <dd>It gets the number of rows,columns and the deinterlace type from setup.</dd>
  * <dd>It executes a RDC command to read out the CCD, using 
  * 	<a href="ccd_dsp.html#CCD_DSP_Command_RDC">CCD_DSP_Command_RDC</a>.</dd>
@@ -382,6 +381,7 @@ void CCD_Exposure_Abort_Readout(void)
  * @param filename The filename to save the exposure into.
  * @return Returns TRUE if the readout succeeds and the file is saved, returns FALSE if an error
  *	occurs or the readout is aborted.
+ * @see ccd_setup.html#CCD_Setup_Get_Setup_Complete
  */
 int CCD_Exposure_Read_Out_CCD(char *filename)
 /* a seperarate command to the main exposure sequence */
@@ -553,4 +553,7 @@ static int Exposure_Readout_CCD(int ncols,int nrows,int msecs,enum CCD_DSP_DEINT
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.1  2000/01/25 14:57:27  cjm
+** initial revision (PCI version).
+**
 */
