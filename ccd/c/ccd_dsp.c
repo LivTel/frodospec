@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.40 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.41 2002-11-08 12:13:19 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.40 $
+ * @version $Revision: 0.41 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.40 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.41 2002-11-08 12:13:19 cjm Exp $";
 
 /* defines */
 /**
@@ -120,7 +120,7 @@ static int DSP_Send_Pex(int *reply_value);
 static int DSP_Send_Pon(int *reply_value);
 static int DSP_Send_Pof(int *reply_value);
 static int DSP_Send_Rex(int *reply_value);
-static int DSP_Send_Sex(struct timespec start_time,int *reply_value);
+static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *reply_value);
 static int DSP_Send_Reset(int *reply_value);
 static int DSP_Send_Rcc(int *reply_value);
 static int DSP_Send_PCI_Download(void);
@@ -1157,13 +1157,14 @@ int CCD_DSP_Command_REX(void)
  * and receiving a reply from it.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
+ * @param exposure_length The length of exposure we are about to start. Passed to DSP_Send_Sex.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_EXPOSURE_MAX_LENGTH
  * @see #DSP_Data
  * @see #DSP_Send_Sex
  * @see #DSP_Check_Reply
  */
-int CCD_DSP_Command_SEX(struct timespec start_time)
+int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_length)
 {
 	int retval;
 
@@ -1175,7 +1176,7 @@ int CCD_DSP_Command_SEX(struct timespec start_time)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Sex(start_time,&retval))
+	if(!DSP_Send_Sex(start_time,exposure_length,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -2130,8 +2131,11 @@ static int DSP_Send_Rex(int *reply_value)
  * If the tv_sec field of start_time is non-zero, we want to open the shutter as near as possible to the 
  * passed in time, allowing for some transmission delay (DSP_Data.Start_Exposure_Offset_Time).
  * Sets the DSP_Data.Exposure_Start_Time to start of the exposure.
+ * Sets the exposure status to either EXPOSING or READOUT (if the exposure length is small).
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
+ * @param exposure_length The length of exposure we are about to start. This used in conjunction with
+ * 	CCD_Exposure_Get_Readout_Remaining_Time, to see whether to change status to EXPOSING or READOUT.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Data
@@ -2139,10 +2143,12 @@ static int DSP_Send_Rex(int *reply_value)
  * @see ccd_pci.html#CCD_PCI_HCVR_START_EXPOSURE
  * @see ccd_exposure.html#CCD_Exposure_Set_Exposure_Start_Time
  * @see ccd_exposure.html#CCD_Exposure_Set_Exposure_Status
- * @see ccd_exposure.html#CCD_Exposure_Get_Start_Exposure_Offset_Time(
+ * @see ccd_exposure.html#CCD_Exposure_Get_Start_Exposure_Offset_Time
+ * @see ccd_exposure.html#CCD_Exposure_Get_Readout_Remaining_Time
  */
-static int DSP_Send_Sex(struct timespec start_time,int *reply_value)
+static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *reply_value)
 {
+	enum CCD_EXPOSURE_STATUS exposure_status;
 	struct timespec current_time,sleep_time;
 #ifndef _POSIX_TIMERS
 	struct timeval gtod_current_time;
@@ -2198,10 +2204,15 @@ static int DSP_Send_Sex(struct timespec start_time,int *reply_value)
 		}/* end while */
 	}/* end if */
 /* switch status to exposing and store the actual time the exposure is going to start */
-	if(!CCD_Exposure_Set_Exposure_Status(CCD_EXPOSURE_STATUS_EXPOSE))
+/* If the exposure length is small, we go directly into READOUT status. */
+	if(exposure_length < CCD_Exposure_Get_Readout_Remaining_Time())
+		exposure_status = CCD_EXPOSURE_STATUS_READOUT;
+	else
+		exposure_status = CCD_EXPOSURE_STATUS_EXPOSE;
+	if(!CCD_Exposure_Set_Exposure_Status(exposure_status))
 	{
 		DSP_Error_Number = 16;
-		sprintf(DSP_Error_String,"DSP_Send_Sex:Setting exposure status failed.");
+		sprintf(DSP_Error_String,"DSP_Send_Sex:Setting exposure status %d failed.",exposure_status);
 		return FALSE;
 	}
 	CCD_Exposure_Set_Exposure_Start_Time();
@@ -2598,6 +2609,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.40  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.39  2001/07/11 10:08:21  cjm
 ** Added MJD FITS keyword to exposure save routine.
 **

@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.20 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.21 2002-11-08 12:13:19 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.20 $
+ * @version $Revision: 0.21 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -115,7 +115,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.20 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.21 2002-11-08 12:13:19 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -441,13 +441,13 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 	/* Exposure status is set in CCD_DSP_Command_SEX, as this routine sleeps before starting
 	** the exposure. */
-	if(!CCD_DSP_Command_SEX(start_time))
+	if(!CCD_DSP_Command_SEX(start_time,exposure_time))
 	{
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 39;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed(%ld,%ld).",
-			start_time.tv_sec,start_time.tv_nsec);
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed(%ld,%ld,%d).",
+			start_time.tv_sec,start_time.tv_nsec,exposure_time);
 		return FALSE;
 	}
 /* wait while the exposure is taken and read out */
@@ -1651,6 +1651,9 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.20  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.19  2001/06/04 14:38:00  cjm
 ** Changed DEBUG to LOGGING.
 ** Added readout process priority changes and memory locking code.
