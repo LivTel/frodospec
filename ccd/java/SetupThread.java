@@ -1,5 +1,5 @@
 // SetupThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.6 2000-02-03 16:59:22 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/SetupThread.java,v 0.7 2000-06-12 14:12:43 cjm Exp $
 import java.io.*;
 import java.lang.*;
 
@@ -9,14 +9,14 @@ import ngat.ccd.*;
  * This class extends thread to support the setup of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway..
  * @author Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
 class SetupThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: SetupThread.java,v 0.6 2000-02-03 16:59:22 cjm Exp $");
+	public final static String RCSID = new String("$Id: SetupThread.java,v 0.7 2000-06-12 14:12:43 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
@@ -155,10 +155,12 @@ class SetupThread extends Thread
 			window_list[i] = new CCDLibrarySetupWindow();
 		try
 		{
-			libccd.CCDSetupStartup(timing_load_type,timing_application_number,
-				timing_filename,utility_load_type,utility_application_number,utility_filename,
+			libccd.CCDSetupStartup(CCDLibrary.CCD_SETUP_LOAD_ROM,null,
+				timing_load_type,timing_application_number,timing_filename,
+				utility_load_type,utility_application_number,utility_filename,
 				target_temperature,gain,gain_speed,idle);
-			libccd.CCDSetupDimensions(ncols,nrows,nsbin,npbin,deinterlace_type,0,window_list);
+			libccd.CCDSetupDimensions(ncols,nrows,nsbin,npbin,CCDLibrary.CCD_DSP_AMPLIFIER_LEFT,
+				deinterlace_type,0,window_list);
 		}
 		catch(CCDLibraryNativeException e)
 		{
@@ -195,6 +197,9 @@ class SetupThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.6  2000/02/03 16:59:22  cjm
+// Changed for new ngat.ccd.CCLibrary interface to setup methods.
+//
 // Revision 0.5  1999/09/20 10:27:40  cjm
 // Changed CCDSetupSetupCCD as it now throws an CCDLibraryNativeException on error.
 //
