@@ -1,11 +1,11 @@
 /* ccd_global.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.6 2000-12-19 16:23:56 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.7 2001-04-17 09:37:55 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <time.h>
+#include <stdarg.h>
 #include "ccd_global.h"
 #include "ccd_pci.h"
 #include "ccd_text.h"
@@ -33,9 +34,47 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.6 2000-12-19 16:23:56 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.7 2001-04-17 09:37:55 cjm Exp $";
 
-/* external functions */
+/* data types */
+/**
+ * Data type holding local data to ccd_global. This consists of the following:
+ * <dl>
+ * <dt>Global_Log_Handler</dt> <dd>Function pointer to the routine that will log messages passed to it.</dd>
+ * <dt>Global_Log_Filter</dt> <dd>Function pointer to the routine that will filter log messages passed to it.
+ * 		The funtion will return TRUE if the message should be logged, and FALSE if it shouldn't.</dd>
+ * <dt>Global_Log_Filter_Level</dt> <dd>A globally maintained log filter level. 
+ * 		This is set using CCD_Global_Set_Log_Filter_Level.
+ * 		CCD_Global_Log_Filter_Level_Absolute and CCD_Global_Log_Filter_Level_Bitwise test it against
+ * 		message levels to determine whether to log messages.</dd>
+ * </dl>
+ * @see #CCD_Global_Log
+ * @see #CCD_Global_Set_Log_Filter_Level
+ * @see #CCD_Global_Log_Filter_Level_Absolute
+ * @see #CCD_Global_Log_Filter_Level_Bitwise
+ */
+struct Global_Struct
+{
+	void (*Global_Log_Handler)(int level,char *string);
+	int (*Global_Log_Filter)(int level,char *string);
+	int Global_Log_Filter_Level;
+};
+
+/* internal data */
+/**
+ * The instance of Global_Struct that contains local data for this module.
+ * @see #Global_Struct
+ */
+static struct Global_Struct Global_Data = {NULL,NULL,0};
+/**
+ * General buffer used for string formatting during logging.
+ * @see #CCD_GLOBAL_ERROR_STRING_LENGTH
+ */
+static char Global_Buff[CCD_GLOBAL_ERROR_STRING_LENGTH];
+
+/* ----------------------------------------------------------------------------
+** 		external functions 
+** ---------------------------------------------------------------------------- */
 /**
  * This routine calls all initialisation routines for modules in libccd. These routines are generally used to
  * initialise parts of the library. This routine should be called at the start of a program.
@@ -46,6 +85,7 @@ static char rcsid[] = "$Id: ccd_global.c,v 0.6 2000-12-19 16:23:56 cjm Exp $";
  * @param interface_device The device the library will write DSP commands to. The routine calls
  * 	<a href="ccd_interface.html#CCD_Interface_Set_Device">CCD_Interface_Set_Device</a> to set the
  * 	device.
+ * @see #Global_Data
  * @see ccd_interface.html#CCD_Interface_Set_Device
  * @see ccd_interface.html#CCD_Interface_Initialise
  * @see ccd_dsp.html#CCD_DSP_Initialise
@@ -235,8 +275,134 @@ void CCD_Global_Get_Current_Time_String(char *time_string,int string_length)
 	else
 		strncpy(time_string,"Unknown time",string_length);
 }
+
+/**
+ * Routine to log a message to a defined logging mechanism. This routine has an arbitary number of arguments,
+ * and uses vsprintf to format them i.e. like fprintf. The Global_Buff is used to hold the created string,
+ * therefore the total length of the generated string should not be longer than CCD_GLOBAL_ERROR_STRING_LENGTH.
+ * CCD_Global_Log is then called to handle the log message.
+ * @param level An integer, used to decide whether this particular message has been selected for
+ * 	logging or not.
+ * @param format A string, with formatting statements the same as fprintf would use to determine the type
+ * 	of the following arguments.
+ * @see #CCD_Global_Log
+ * @see #Global_Buff
+ * @see #CCD_GLOBAL_ERROR_STRING_LENGTH
+ */
+void CCD_Global_Log_Format(int level,char *format,...)
+{
+	va_list ap;
+
+/* format the arguments */
+	va_start(ap,format);
+	vsprintf(Global_Buff,format,ap);
+	va_end(ap);
+/* call the log routine to log the results */
+	CCD_Global_Log(level,Global_Buff);
+}
+
+/**
+ * Routine to log a message to a defined logging mechanism. If the string or Global_Data.Global_Log_Handler are NULL
+ * the routine does not log the message. If the Global_Data.Global_Log_Filter function pointer is non-NULL, the
+ * message is passed to it to determoine whether to log the message.
+ * @param level An integer, used to decide whether this particular message has been selected for
+ * 	logging or not.
+ * @param string The message to log.
+ * @see #Global_Data
+ */
+void CCD_Global_Log(int level,char *string)
+{
+/* If the string is NULL, don't log. */
+	if(string == NULL)
+		return;
+/* If there is no log handler, return */
+	if(Global_Data.Global_Log_Handler == NULL)
+		return;
+/* If there's a log filter, check it returns TRUE for this message */
+	if(Global_Data.Global_Log_Filter != NULL)
+	{
+		if(Global_Data.Global_Log_Filter(level,string) == FALSE)
+			return;
+	}
+/* We can log the message */
+	(*Global_Data.Global_Log_Handler)(level,string);
+}
+
+/**
+ * Routine to set the Global_Data.Global_Log_Handler used by CCD_Global_Log.
+ * @param log_fn A function pointer to a suitable handler.
+ * @see #Global_Data
+ * @see #CCD_Global_Log
+ */
+void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(int level,char *string))
+{
+	Global_Data.Global_Log_Handler = log_fn;
+}
+
+/**
+ * Routine to set the Global_Data.Global_Log_Filter used by CCD_Global_Log.
+ * @param log_fn A function pointer to a suitable filter function.
+ * @see #Global_Data
+ * @see #CCD_Global_Log
+ */
+void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string))
+{
+	Global_Data.Global_Log_Filter = filter_fn;
+}
+
+/**
+ * A log handler to be used for the Global_Data.Global_Log_Handler function.
+ * Just prints the message to stdout, terminated by a newline.
+ * @param level The log level for this message.
+ * @param string The log message to be logged. 
+ */
+void CCD_Global_Log_Handler_Stdout(int level,char *string)
+{
+	if(string == NULL)
+		return;
+	fprintf(stdout,"%s\n",string);
+}
+
+/**
+ * Routine to set the Global_Data.Global_Log_Filter_Level.
+ * @see #Global_Data
+ */
+void CCD_Global_Set_Log_Filter_Level(int level)
+{
+	Global_Data.Global_Log_Filter_Level = level;
+}
+
+/**
+ * A log message filter routine, to be used for the Global_Data.Global_Log_Filter function pointer.
+ * @param level The log level of the message to be tested.
+ * @param string The log message to be logged, not used in this filter. 
+ * @return The routine returns TRUE if the level is less than or equal to the Global_Data.Global_Log_Filter_Level,
+ * 	otherwise it returns FALSE.
+ * @see #Global_Data
+ */
+int CCD_Global_Log_Filter_Level_Absolute(int level,char *string)
+{
+	return (level <= Global_Data.Global_Log_Filter_Level);
+}
+
+/**
+ * A log message filter routine, to be used for the Global_Data.Global_Log_Filter function pointer.
+ * @param level The log level of the message to be tested.
+ * @param string The log message to be logged, not used in this filter. 
+ * @return The routine returns TRUE if the level has bits set that are also set in the 
+ * 	Global_Data.Global_Log_Filter_Level, otherwise it returns FALSE.
+ * @see #Global_Data
+ */
+int CCD_Global_Log_Filter_Level_Bitwise(int level,char *string)
+{
+	return ((level & Global_Data.Global_Log_Filter_Level) > 0);
+}
+
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.6  2000/12/19 16:23:56  cjm
+** Added filter wheel module calls.
+**
 ** Revision 0.5  2000/06/13 17:14:13  cjm
 ** Changes to make Ccs agree with voodoo.
 **
