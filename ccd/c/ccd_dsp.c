@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.43 2002-12-16 16:49:36 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.44 2003-03-26 15:44:48 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.43 $
+ * @version $Revision: 0.44 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.43 2002-12-16 16:49:36 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.44 2003-03-26 15:44:48 cjm Exp $";
 
 /* defines */
 /**
@@ -111,6 +111,8 @@ static int DSP_Send_Idl(int *reply_value);
 static int DSP_Send_Sbv(int *reply_value);
 static int DSP_Send_Sgn(enum CCD_DSP_GAIN gain,int speed,int *reply_value);
 static int DSP_Send_Sos(enum CCD_DSP_AMPLIFIER amplifier,int *reply_value);
+static int DSP_Send_Ssp(int y_offset,int x_offset,int bias_x_offset,int *reply_value);
+static int DSP_Send_Sss(int bias_width,int box_width,int box_height,int *reply_value);
 static int DSP_Send_Stp(int *reply_value);
 
 static int DSP_Send_Aex(int *reply_value);
@@ -831,6 +833,134 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
 #if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SOS(%#x) returned %#x.",
 		amplifier,retval);
+#endif
+	return retval;
+}
+
+/**
+ * SSP command routine. Timing board command that means Set Subarray Position. 
+ * This sets the position of a subarray box on the chip. This should be called after
+ * CCD_DSP_Command_SSS, which resets the number of subarray boxes to zero.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @param y_offset The number of rows (parallel) to clear AFTER THE LAST BOX (in pixels).
+ * @param x_offset The number of columns (serial) to clear from the left hand edge of the chip (in pixels).
+ * @param bias_x_offset The number of columns (serial) gap to leave between the right hand side of
+ *        the subarray box and the start of the bias strip (in pixels).
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Ssp
+ * @see #DSP_Check_Reply
+ */
+int CCD_DSP_Command_SSP(int y_offset,int x_offset,int bias_x_offset)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#if LOGGING > 4
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SSP(y_offset=%d,x_offset=%d,"
+			      "bias_x_offset=%d) started.",y_offset,x_offset,bias_x_offset);
+#endif
+	if(y_offset < 0)
+	{
+		DSP_Error_Number = 28;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SSP:Illegal Y Offset '%d'.",y_offset);
+		return FALSE;
+	}
+	if(x_offset < 0)
+	{
+		DSP_Error_Number = 30;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SSP:Illegal X Offset '%d'.",x_offset);
+		return FALSE;
+	}
+	if(bias_x_offset < 0)
+	{
+		DSP_Error_Number = 32;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SSP:Illegal Bias X Offset '%d'.",bias_x_offset);
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Ssp(y_offset,x_offset,bias_x_offset,&retval))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	/* check reply - DON should be returned */
+	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
+		return FALSE;
+#if LOGGING > 4
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SSP() returned %#x.",retval);
+#endif
+	return retval;
+}
+
+/**
+ * SSS command routine. Timing board command that means Set Subarray Size. 
+ * This sets the width and heights of all the subarray boxes.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @param bias_width The width of the bias strip (in pixels).
+ * @param box_width The width of the subarray box (in pixels).
+ * @param box_height The height of the subarray box (in pixels).
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Sss
+ * @see #DSP_Check_Reply
+ */
+int CCD_DSP_Command_SSS(int bias_width,int box_width,int box_height)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#if LOGGING > 4
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SSS(bias_width=%d,box_width=%d,"
+			      "box_height=%d) started.",bias_width,box_width,box_height);
+#endif
+	if(bias_width < 0)
+	{
+		DSP_Error_Number = 21;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SSS:Illegal bias width '%d'.",bias_width);
+		return FALSE;
+	}
+	if(box_width < 0)
+	{
+		DSP_Error_Number = 25;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SSS:Illegal box width '%d'.",box_width);
+		return FALSE;
+	}
+	if(box_height < 0)
+	{
+		DSP_Error_Number = 27;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_SSS:Illegal box height '%d'.",box_height);
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Sss(bias_width,box_width,box_height,&retval))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	/* check reply - DON should be returned */
+	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
+		return FALSE;
+#if LOGGING > 4
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_SSS() returned %#x.",retval);
 #endif
 	return retval;
 }
@@ -2027,6 +2157,51 @@ static int DSP_Send_Sos(enum CCD_DSP_AMPLIFIER amplifier,int *reply_value)
 }
 
 /**
+ * Internal DSP command to set the subbarray box positions. 
+ * @param y_offset The number of rows (parallel) to clear AFTER THE LAST BOX (in pixels).
+ * @param x_offset The number of columns (serial) to clear from the left hand edge of the chip (in pixels).
+ * @param bias_x_offset The number of columns (serial) gap to leave between the right hand side of
+ *        the subarray box and the start of the bias strip (in pixels).
+ * @param reply_value The address of an integer to store the value returned from the SDSU board.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #CCD_DSP_BOARD_ID
+ * @see #CCD_DSP_SSS
+ * @see #DSP_Send_Manual_Command
+ */
+static int DSP_Send_Ssp(int y_offset,int x_offset,int bias_x_offset,int *reply_value)
+{
+	int argument_list[3];
+	int argument_count = 0;
+
+	argument_list[argument_count++] = y_offset;
+	argument_list[argument_count++] = x_offset;
+	argument_list[argument_count++] = bias_x_offset;
+	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SSP,argument_list,argument_count,reply_value);
+}
+
+/**
+ * Internal DSP command to set the subbarray size. 
+ * @param bias_width The width of the bias strip (in pixels).
+ * @param box_width The width of the subarray box (in pixels).
+ * @param box_height The height of the subarray box (in pixels).
+ * @param reply_value The address of an integer to store the value returned from the SDSU board.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #CCD_DSP_BOARD_ID
+ * @see #CCD_DSP_SSS
+ * @see #DSP_Send_Manual_Command
+ */
+static int DSP_Send_Sss(int bias_width,int box_width,int box_height,int *reply_value)
+{
+	int argument_list[3];
+	int argument_count = 0;
+
+	argument_list[argument_count++] = bias_width;
+	argument_list[argument_count++] = box_width;
+	argument_list[argument_count++] = box_height;
+	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SSS,argument_list,argument_count,reply_value);
+}
+
+/**
  * Internal DSP command to come out of idle mode.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
@@ -2632,6 +2807,10 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.43  2002/12/16 16:49:36  cjm
+** Fixed status problems.
+** Removed Error routines resetting error number to zero.
+**
 ** Revision 0.42  2002/12/03 17:13:19  cjm
 ** Added DSP_Manual_Command_To_String routine, for better error messages.
 ** Made a note of error codes that are used in the Java layer, to stop
