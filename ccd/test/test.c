@@ -1,6 +1,7 @@
 /* test.c  -*- mode: Fundamental;-*-
 */
 #include <stdio.h>
+#include <time.h>
 #include "ccd_setup.h"
 #include "ccd_exposure.h"
 #include "ccd_dsp.h"
@@ -22,6 +23,7 @@ static void Test_Fits_Header_Error(int status);
 int main(int argc, char *argv[])
 {
 	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
+	struct timespec start_time;
 	int retval;
 	char *exposure_data = NULL;
 	double temperature = 0.0;
@@ -62,7 +64,9 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"Test:Saving FITS headers failed.\n");
 	fprintf(stdout,"Test:Saving FITS headers completed.\n");
 
-	if(!CCD_Exposure_Expose(TRUE,TRUE,10000,"test.fits"))
+	start_time.tv_sec = 0;
+	start_time.tv_nsec = 0;
+	if(!CCD_Exposure_Expose(TRUE,TRUE,start_time,10000,"test.fits"))
 		CCD_Global_Error();
 	fprintf(stdout,"Test:CCD_Exposure_Expose finished\n");
 
