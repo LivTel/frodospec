@@ -1,5 +1,5 @@
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.22 2002-11-08 12:14:18 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.23 2003-03-26 15:50:00 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -341,6 +341,8 @@ extern int CCD_DSP_Command_IDL(void);
 extern int CCD_DSP_Command_SBV(void);
 extern int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed);
 extern int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier);
+extern int CCD_DSP_Command_SSP(int y_offset,int x_offset,int bias_x_offset);
+extern int CCD_DSP_Command_SSS(int bias_width,int box_width,int box_height);
 extern int CCD_DSP_Command_STP(void);
 
 extern int CCD_DSP_Command_AEX(void);
