@@ -1,11 +1,11 @@
 /* ccd_global.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.9 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.10 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -141,7 +141,7 @@ struct Global_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.9 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.10 2002-12-16 16:49:36 cjm Exp $";
 /**
  * Variable holding error code of last operation performed by ccd_dsp.
  */
@@ -324,7 +324,6 @@ void CCD_Global_Error(void)
 		fprintf(stderr,"\t\t\t");
 		CCD_Global_Get_Current_Time_String(time_string,32);
 		fprintf(stderr,"%s CCD_Global:Error(%d) : %s\n",time_string,Global_Error_Number,Global_Error_String);
-		Global_Error_Number = 0;
 	}
 	if(!found)
 	{
@@ -413,7 +412,6 @@ void CCD_Global_Error_String(char *error_string)
 		CCD_Global_Get_Current_Time_String(time_string,32);
 		sprintf(error_string+strlen(error_string),"%s CCD_Global:Error(%d) : %s\n",time_string,
 			Global_Error_Number,Global_Error_String);
-		Global_Error_Number = 0;
 	}
 	if(strlen(error_string) == 0)
 	{
@@ -880,6 +878,9 @@ int CCD_Global_Memory_UnLock_All(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.9  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.8  2001/06/04 14:41:05  cjm
 ** Added conditionally compiled process priority change routines, and (readout)
 ** memory locking routines.

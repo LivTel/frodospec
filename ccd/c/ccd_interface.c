@@ -1,13 +1,13 @@
 /* ccd_interface.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.4 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.5 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +24,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.4 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.5 2002-12-16 16:49:36 cjm Exp $";
 
 /* external variables */
 
@@ -306,7 +306,6 @@ void CCD_Interface_Error(void)
 	if(Interface_Error_Number == 0)
 		sprintf(Interface_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_Interface:Error(%d) : %s\n",time_string,Interface_Error_Number,Interface_Error_String);
-	Interface_Error_Number = 0;
 }
 
 /**
@@ -329,11 +328,13 @@ void CCD_Interface_Error_String(char *error_string)
 		sprintf(Interface_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_Interface:Error(%d) : %s\n",time_string,
 		Interface_Error_Number,Interface_Error_String);
-	Interface_Error_Number = 0;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.3  2000/06/13 17:14:13  cjm
 ** Changes to make Ccs agree with voodoo.
 **

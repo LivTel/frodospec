@@ -1,6 +1,6 @@
 /* ccd_temperature.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.8 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.9 2002-12-16 16:49:36 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.8 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.9 2002-12-16 16:49:36 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -455,7 +455,6 @@ void CCD_Temperature_Error(void)
 		sprintf(Temperature_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_Temperature:Error(%d) : %s\n",time_string,
 		Temperature_Error_Number,Temperature_Error_String);
-	Temperature_Error_Number = 0;
 }
 
 /**
@@ -478,7 +477,6 @@ void CCD_Temperature_Error_String(char *error_string)
 		sprintf(Temperature_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_Temperature:Error(%d) : %s\n",time_string,
 		Temperature_Error_Number,Temperature_Error_String);
-	Temperature_Error_Number = 0;
 }
 
 /* -----------------------------------------------------------------------------
@@ -595,6 +593,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.7  2001/07/13 09:48:48  cjm
 ** Added CCD_Temperature_Get_Heater_ADU.
 **

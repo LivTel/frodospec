@@ -1,12 +1,12 @@
 /* ccd_text.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.21 2002-12-03 17:13:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.22 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.21 $
+ * @version $Revision: 0.22 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -36,7 +36,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.21 2002-12-03 17:13:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.22 2002-12-16 16:49:36 cjm Exp $";
 
 /* #defines */
 /**
@@ -722,7 +722,6 @@ void CCD_Text_Error(void)
 	if(Text_Error_Number == 0)
 		sprintf(Text_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_Text:Error(%d) : %s\n",time_string,Text_Error_Number,Text_Error_String);
-	Text_Error_Number = 0;
 }
 
 /**
@@ -745,7 +744,6 @@ void CCD_Text_Error_String(char *error_string)
 		sprintf(Text_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_Text:Error(%d) : %s\n",time_string,
 		Text_Error_Number,Text_Error_String);
-	Text_Error_Number = 0;
 }
 
 /**
@@ -763,7 +761,6 @@ void CCD_Text_Warning(void)
 	if(Text_Error_Number == 0)
 		sprintf(Text_Error_String,"Logic Error:No Warning defined");
 	fprintf(stderr,"%s CCD_Text:Warning(%d) : %s\n",time_string,Text_Error_Number,Text_Error_String);
-	Text_Error_Number = 0;
 }
 
 /* -------------------------------------------------------------------
@@ -1130,6 +1127,9 @@ static void Text_Manual_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.21  2002/12/03 17:13:19  cjm
+** Added fake pressure gauge ADUs.
+**
 ** Revision 0.20  2002/11/07 19:13:39  cjm
 ** Changes to make library work with SDSU version 1.7 DSP code.
 **

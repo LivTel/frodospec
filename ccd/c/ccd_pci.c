@@ -1,12 +1,12 @@
 /* ccd_pci.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.5 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.6 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_pci.c will implement a specific interface that connects the SDSU CCD Controller system with a host
  * computer using a PCI interface.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_pci.c,v 0.5 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_pci.c,v 0.6 2002-12-16 16:49:36 cjm Exp $";
 
 /* #defines */
 /**
@@ -335,7 +335,6 @@ void CCD_PCI_Error(void)
 	if(PCI_Error_Number == 0)
 		sprintf(PCI_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_PCI:Error(%d) : %s\n",time_string,PCI_Error_Number,PCI_Error_String);
-	PCI_Error_Number = 0;
 }
 
 /**
@@ -358,7 +357,6 @@ void CCD_PCI_Error_String(char *error_string)
 		sprintf(PCI_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_PCI:Error(%d) : %s\n",time_string,
 		PCI_Error_Number,PCI_Error_String);
-	PCI_Error_Number = 0;
 }
 
 /**
@@ -376,11 +374,13 @@ void CCD_PCI_Warning(void)
 	if(PCI_Error_Number == 0)
 		sprintf(PCI_Error_String,"Logic Error:No Warning defined");
 	fprintf(stderr,"%s CCD_PCI:Warning(%d) : %s\n",time_string,PCI_Error_Number,PCI_Error_String);
-	PCI_Error_Number = 0;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.5  2002/11/07 19:13:39  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 0.4  2000/06/19 08:48:34  cjm
 ** Backup.
 **

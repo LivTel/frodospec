@@ -1,11 +1,11 @@
 /* ccd_dsp_download.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.1 2002-11-07 19:13:39 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.2 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_dsp_download.c contains the code to download DSP code to the SDSU controller.
  * @author SDSU, Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -33,7 +33,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.1 2002-11-07 19:13:39 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.2 2002-12-16 16:49:36 cjm Exp $";
 
 /* defines */
 /**
@@ -201,7 +201,6 @@ void CCD_DSP_Download_Error(void)
 		sprintf(DSP_Download_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_DSP_Download:Error(%d) : %s\n",time_string,DSP_Download_Error_Number,
 		DSP_Download_Error_String);
-	DSP_Download_Error_Number = 0;
 }
 
 /**
@@ -224,7 +223,6 @@ void CCD_DSP_Download_Error_String(char *error_string)
 		sprintf(DSP_Download_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_DSP_Download:Error(%d) : %s\n",time_string,
 		DSP_Download_Error_Number,DSP_Download_Error_String);
-	DSP_Download_Error_Number = 0;
 }
 
 /* ----------------------------------------------------------------
@@ -746,4 +744,7 @@ static int DSP_Download_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID boa
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2002/11/07 19:13:39  cjm
+** Initial revision
+**
 */

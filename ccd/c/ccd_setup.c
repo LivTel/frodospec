@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.21 2002-12-03 17:13:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.22 2002-12-16 16:49:36 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.21 $
+ * @version $Revision: 0.22 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -32,7 +32,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.21 2002-12-03 17:13:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.22 2002-12-16 16:49:36 cjm Exp $";
 
 /* #defines */
 /**
@@ -1128,7 +1128,6 @@ void CCD_Setup_Error(void)
 	if(Setup_Error_Number == 0)
 		sprintf(Setup_Error_String,"Logic Error:No Error defined");
 	fprintf(stderr,"%s CCD_Setup:Error(%d) : %s\n",time_string,Setup_Error_Number,Setup_Error_String);
-	Setup_Error_Number = 0;
 }
 
 /**
@@ -1151,7 +1150,6 @@ void CCD_Setup_Error_String(char *error_string)
 		sprintf(Setup_Error_String,"Logic Error:No Error defined");
 	sprintf(error_string+strlen(error_string),"%s CCD_Setup:Error(%d) : %s\n",time_string,
 		Setup_Error_Number,Setup_Error_String);
-	Setup_Error_Number = 0;
 }
 
 /**
@@ -1169,7 +1167,6 @@ void CCD_Setup_Warning(void)
 	if(Setup_Error_Number == 0)
 		sprintf(Setup_Error_String,"Logic Error:No Warning defined");
 	fprintf(stderr,"%s CCD_Setup:Warning(%d) : %s\n",time_string,Setup_Error_Number,Setup_Error_String);
-	Setup_Error_Number = 0;
 }
 
 /* ------------------------------------------------------------------
@@ -1791,6 +1788,9 @@ static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct win
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.21  2002/12/03 17:13:19  cjm
+** Added CCD_Setup_Get_Vacuum_Gauge_MBar, CCD_Setup_Get_Vacuum_Gauge_ADU routines.
+**
 ** Revision 0.20  2002/11/08 10:35:43  cjm
 ** Reversed order of calls of CCD_Interface_Memory_Map and Setup_PCI_Board.
 ** CCD_Interface_Memory_Map calls mmap, which in the device driver calls a HCVR
