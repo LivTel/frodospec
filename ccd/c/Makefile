@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.15 2001-07-11 10:11:21 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.16 2002-05-27 13:20:03 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -46,6 +46,14 @@ INPUTHOMETYPE = MAGNETIC
 # define PROXIMITY/MAGNETIC and CCD_FILTER_WHEEL_INPUT_HOME
 FILTERWHEELINPUTHOMECFLAGS = -DPROXIMITY=1 -DMAGNETIC=2 -DCCD_FILTER_WHEEL_INPUT_HOME=$(INPUTHOMETYPE)
 
+# Whether to fake filter wheel movements or actually do them
+# Usually, we shoudl actually move the filter wheel, but if we have a system with a camera but no filter wheels,
+# we can choose to fake the filter wheel.
+# Fake moving the filter wheel.
+#FILTERWHEELFAKECFLAGS = -DCCD_FILTER_WHEEL_FAKE
+# Actually move the filter wheel
+FILTERWHEELFAKECFLAGS = 
+
 # when reading out it helps if we are running at a better priority
 # This can be done by using priority change code and running as root.
 # - No priority changes in library, code will run as user.
@@ -85,7 +93,7 @@ LOGGINGCFLAGS = -DLOGGING=0
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) -L$(LT_LIB_HOME) \
 	$(FITSCFLAGS) $(MJDFLAGS) $(MUTEXCFLAGS) \
 	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(UTILEXPOSURECHECKFLAGS) $(BYTESWAPCFLAGS) \
-	$(FILTERWHEELINPUTHOMECFLAGS) $(PRIORITYCFLAGS) $(MLOCKCFLAGS) $(LOGGINGCFLAGS)
+	$(FILTERWHEELINPUTHOMECFLAGS) $(FILTERWHEELFAKECFLAGS) $(PRIORITYCFLAGS) $(MLOCKCFLAGS) $(LOGGINGCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
@@ -153,6 +161,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.15  2001/07/11 10:11:21  cjm
+# Added SLALIB compilation flags.
+#
 # Revision 1.14  2001/06/04 14:55:56  cjm
 # More flags:logging, memory locking, process priority...
 #
