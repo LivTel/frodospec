@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.41 2002-11-08 12:13:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.42 2002-12-03 17:13:19 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.41 $
+ * @version $Revision: 0.42 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.41 2002-11-08 12:13:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.42 2002-12-03 17:13:19 cjm Exp $";
 
 /* defines */
 /**
@@ -141,6 +141,7 @@ static int DSP_Check_Reply(int reply,int expected_reply);
 static int DSP_Mutex_Lock(void);
 static int DSP_Mutex_Unlock(void);
 #endif
+static char *DSP_Manual_Command_To_String(int manual_command);
 
 /* external functions */
 
@@ -322,8 +323,8 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
 #endif
-		DSP_Error_Number = 64;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_RDM failed:Exposure Status non zero (%d) when"
+		DSP_Error_Number = 64; /* this error code is checked for in the Java layer */
+		sprintf(DSP_Error_String,"CCD_DSP_Command_RDM failed:Illegal Exposure Status (%d) when"
 			" reading from the utility board.", CCD_Exposure_Get_Exposure_Status());
 		return FALSE;
 	}
@@ -396,8 +397,8 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
 #endif
-		DSP_Error_Number = 65;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_TDL failed:Exposure Status non zero (%d) when"
+		DSP_Error_Number = 65; /* this error code is checked for in the Java layer */
+		sprintf(DSP_Error_String,"CCD_DSP_Command_TDL failed:Illegal Exposure Status (%d) when"
 			" testing the utility board.",CCD_Exposure_Get_Exposure_Status());
 		return FALSE;
 	}
@@ -490,8 +491,8 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
 #endif
-		DSP_Error_Number = 91;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM failed:Exposure Status non zero (%d) when"
+		DSP_Error_Number = 91; /* this error code is checked for in the Java layer */
+		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM failed:Illegal Exposure Status (%d) when"
 			" writing to the utility board.",CCD_Exposure_Get_Exposure_Status());
 		return FALSE;
 	}
@@ -1523,7 +1524,7 @@ int CCD_DSP_Command_RET(void)
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
 #endif
-		DSP_Error_Number = 17;
+		DSP_Error_Number = 17; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RET failed:Illegal Exposure Status (%d) when"
 			" reading from the utility board.", CCD_Exposure_Get_Exposure_Status());
 		return FALSE;
@@ -2410,8 +2411,8 @@ static int DSP_Send_Fwr(int wheel,int *reply_value)
  * @return Returns true if no error occurs. If the command fails returns false.
  * @see ccd_interface.html#CCD_Interface_Command_List
  * @see ccd_pci.html#CCD_PCI_IOCTL_COMMAND
- * @see #CCD_DSP_Command_Flush_Reply_Buffer
  * @see #DSP_Send_Command
+ * @see #DSP_Manual_Command_To_String
  * @see #CCD_DSP_BOARD_ID
  */
 static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,int *argument_list,int argument_count,
@@ -2429,7 +2430,8 @@ static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,in
 	if(DSP_Data.Abort)
 	{
 		DSP_Error_Number = 31;
-		sprintf(DSP_Error_String,"DSP_Send_Manual_Command: %#x Aborted.",command);
+		sprintf(DSP_Error_String,"DSP_Send_Manual_Command: %s (%#x) Aborted.",
+			DSP_Manual_Command_To_String(command),command);
 		return FALSE;
 	}
 /* Setup header word. The second byte contains the board_id. The least significant byte contains
@@ -2455,15 +2457,17 @@ static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,in
 	}
 /* send the command to device driver */
 #if LOGGING > 9
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"COMMAND:value:%#x.",command);
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"COMMAND:value:%s (%#x).",
+			DSP_Manual_Command_To_String(command),command);
 #endif
 	if(!CCD_Interface_Command_List(CCD_PCI_IOCTL_COMMAND,ioctl_argument_list,argument_count+2))
 	{
 		DSP_Error_Number = 33;
-		sprintf(DSP_Error_String,"DSP_Send_Manual_Command:Sending command %#x failed.",command);
+		sprintf(DSP_Error_String,"DSP_Send_Manual_Command:Sending command %s (%#x) failed.",
+			DSP_Manual_Command_To_String(command),command);
 		return FALSE;
 	}
-/* copy reply_value from  ioctl_argument_list[0] to reply_value */
+/* copy reply_value from ioctl_argument_list[0] to reply_value */
 	(*reply_value) = ioctl_argument_list[0];
 	return TRUE;
 }
@@ -2478,7 +2482,6 @@ static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,in
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if no error occurs. If the command fails returns false.
  * @see ccd_interface.html#CCD_Interface_Command
- * @see #CCD_DSP_Command_Flush_Reply_Buffer
  */
 static int DSP_Send_Command(int hcvr_command,int *reply_value)
 {
@@ -2607,8 +2610,31 @@ static int DSP_Mutex_Unlock(void)
 }
 #endif
 
+/**
+ * Internal routine to translate a manual command number to a string three letter command name.
+ * @param manual_command The command to translate.
+ * @return A pointer to a string containing the command string. The pointer points to some static memory
+ * 	in the function, this value will be overwritten by the next call to this routine. However, the
+ * 	returned memory does <b>NOT</b> have to be freed. The string is always 3 characters long, plus a NULL
+ * 	terminator.
+ */
+static char *DSP_Manual_Command_To_String(int manual_command)
+{
+	static char command_string[4];
+
+	command_string[0] = (char)((manual_command >> 16)&0xFF);
+	command_string[1] = (char)((manual_command >>  8)&0xFF);
+	command_string[2] = (char)( manual_command &      0xFF);
+	command_string[3] = '\0';
+	return command_string;
+}
+
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.41  2002/11/08 12:13:19  cjm
+** CCD_DSP_Command_SEX now changes the exposure status to READOUT immediately,
+** if the exposure length is small enough.
+**
 ** Revision 0.40  2002/11/07 19:13:39  cjm
 ** Changes to make library work with SDSU version 1.7 DSP code.
 **
