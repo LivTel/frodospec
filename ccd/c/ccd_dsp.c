@@ -1,12 +1,12 @@
- /* ccd_dsp.c -*- mode: Fundamental;-*-
+/* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.24 2000-06-20 12:53:07 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.25 2000-07-11 10:41:11 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.24 $
+ * @version $Revision: 0.25 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.24 2000-06-20 12:53:07 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.25 2000-07-11 10:41:11 cjm Exp $";
 
 /* defines */
 /**
@@ -122,9 +122,19 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.24 2000-06-20 12:53:07 cjm Exp $";
 /**
  * The default amount of time, in milleseconds, remaining for an exposure when we stop sleeping and tell the
  * interface to enter readout mode. Note, because the exposure time is read every second, it is best
- * not have have this constant an exact multiple of 1000.
+ * not have have this constant an exact multiple of 1000. This must be bigger than the number in the
+ * DSP code that is being used (currently 5000 in the SDSU LT DSP code). As this is checked every second,
+ * make it over 1000 greater than this value to ensure the host is in readout mode (no commands can be
+ * sent over the link) before the timing board DSP code enters readout mode.
  */
-#define DSP_DEFAULT_READOUT_REMAINING_TIME	(5100)
+#define DSP_DEFAULT_READOUT_REMAINING_TIME	(6100)
+/**
+ * The amount of time, in milliseconds, the PCI DSP code uses to automaticaly set the RDI status bit.
+ * If the exposure time in less than or equal to this time, the PCI DSP START_EXPOSURE code automaticallly
+ * issues the READ_IMAGE command, to stop HOST - timing board latencies destroying image readout.
+ * <b>This value must be the same as the one defined in pciboot.asm.</b>
+ */
+#define DSP_AUTO_READOUT_EXPOSURE_TIME		(5000)
 
 /* structure */
 /**
@@ -232,6 +242,7 @@ static int DSP_Send_Sex(struct timespec start_time);
 static int DSP_Send_Reset(void);
 static int DSP_Send_Read_Controller_Status(void);
 static int DSP_Send_Write_Controller_Status(int bit_value);
+static int DSP_Send_Read_PCI_Status(void);
 static int DSP_Send_Set_Exposure_Time(int msecs);
 static int DSP_Send_Read_Exposure_Time(void);
 
@@ -624,9 +635,13 @@ int CCD_DSP_Command_ABR(void)
  * clocks out any stored charge on the CCD, leaving the CCD ready for an exposure.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * The DSP_Data's Exposure_Status is set to CCD_DSP_EXPOSURE_STATUS_CLEAR. It is <b>not</b> reset at the 
+ * end of the routines, as this routine must be followed by a readout or idle command.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Clr
  * @see #DSP_Get_Reply
+ * @see #DSP_Data
+ * @see #CCD_DSP_EXPOSURE_STATUS_CLEAR
  */
 int CCD_DSP_Command_CLR(void)
 {
@@ -647,13 +662,22 @@ int CCD_DSP_Command_CLR(void)
 		return FALSE;
 	}
 	/* get reply - DON should be returned */
-	retval = DSP_Get_Reply(CCD_DSP_DON);
-	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+	if(DSP_Get_Reply(CCD_DSP_DON) != CCD_DSP_DON)
+	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
+	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		return FALSE;
+	}
 #endif
-	return retval;
+	return CCD_DSP_DON;
 }
 
 /**
@@ -661,39 +685,59 @@ int CCD_DSP_Command_CLR(void)
  * sends the RDC command to the timing board, which starts the CCD reading out. This command is normally
  * issused internally on the timing board during a SEX command. If this command is issed, it must be followed
  * by a RDI command to tell the PCI card to expect image data and to read the image data out.
+ * The Exposure_Status variable in <a href="#DSP_Data">DSP_Data</a> is maintained to show the current
+ * status of the exposure.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Data
  * @see #CCD_DSP_Command_SEX
  * @see #CCD_DSP_Command_RDI
  * @see #DSP_Send_Rdc
- * @see #DSP_Get_Reply
  */
 int CCD_DSP_Command_RDC(void)
 {
-	int retval;
+#if DEBUG == 1
+	int debug;
+#endif
 
 	DSP_Error_Number = 0;
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	debug = CCD_DSP_Command_Read_Controller_Status();	
+	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+	debug = CCD_DSP_Command_Read_PCI_Status();	
+	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+	fflush(stdout);
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
+	{
+		/* we may be in clearing mode if CLR was sent, reset if this is the case */
+		if(DSP_Data.Exposure_Status == CCD_DSP_EXPOSURE_STATUS_CLEAR)
+			DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		return FALSE;
+	}
 #endif
+/* set exposure status */
+	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_READOUT;
 	if(!DSP_Send_Rdc())
 	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
 #endif
 		return FALSE;
 	}
-	/* get reply - DON should be returned */
-/* diddly should I expect a DON here, or after the read (RDI) ?
-** I don't think so, START_EXPOSURE (pciboot.asm) and START_EXPOSURE (timmisc.asm) both generate one...*/
-/*	retval = DSP_Get_Reply(CCD_DSP_DON);*/
+/* no reply is generated for a RDC command. */
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
+	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		return FALSE;
+	}
 #endif
-	return retval;
+	return TRUE;
 }
 
 /**
@@ -736,8 +780,13 @@ int CCD_DSP_Command_IDL(void)
  * This routine executes the ReaD Image (RDI) command on a SDSU Controller board. 
  * This prepares the PCI board to receive image data from the timing board, and should be issued after a
  * SEX or RDC has been issued to that board.
+ * The Exposure_Status variable in <a href="#DSP_Data">DSP_Data</a> is maintained to show the current
+ * status of the exposure.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
- * and receiving a reply from it.
+ * and receiving a reply from it. If send_rdi is TRUE, this routine is responsible for locking 
+ * around the RDI and read image. If send_rdi is FALSE, this routine was entered with the
+ * controller thinking it is already in readout mode, hence the CCD_DSP_Command_SEX routine is responsible for
+ * for the mutex locking.
  * @param ncols The number of columns in the image. This must be a positive non-zero integer.
  * @param nrows The number of rows in the image to be readout from the CCD. This must be a positive non-zero integer.
  * @param deinterlace_type The algorithm to use for deinterlacing the resulting data. The data needs to be
@@ -752,6 +801,8 @@ int CCD_DSP_Command_IDL(void)
  * 	it automatically sends an RDI command, so we don't have to.
  * @param filename The filename to save the exposure into.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #CCD_DSP_Command_SEX
+ * @see #DSP_Data
  * @see #DSP_Send_Rdi
  * @see #DSP_Image_Transfer
  * @see #DSP_Get_Reply
@@ -764,6 +815,8 @@ int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 	/* number of columns must be a positive number */
 	if(ncols <= 0)
 	{
+		/* we may be in readout mode already if RDC sent, reset if this is the case */
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 10;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal ncols '%d'.",ncols);
 		return FALSE;
@@ -771,31 +824,49 @@ int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 	/* number of rows must be a positive number */
 	if(nrows <= 0)
 	{
+		/* we may be in readout mode already if RDC sent, reset if this is the case */
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 11;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal nrows '%d'.",nrows);
 		return FALSE;
 	}
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
+		/* we may be in readout mode already if RDC sent, reset if this is the case */
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 13;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal deinterlace type '%d'.",deinterlace_type);
 		return FALSE;
 	}
 	if(!CCD_GLOBAL_IS_BOOLEAN(send_rdi))
 	{
+		/* we may be in readout mode already if RDC sent, reset if this is the case */
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 90;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDI:Illegal send RDI '%d'.",send_rdi);
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
-		return FALSE;
+/* only lock if we are going to send RDI, otherwise we are already locked
+** as the controller is in readout mode. */
+	if(send_rdi)
+	{
+		if(!DSP_Mutex_Lock())
+		{
+			/* we may be in readout mode already if RDC sent, reset if this is the case */
+			DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+			return FALSE;
+		}
+	}
 #endif
+/* set exposure status */
+	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_READOUT;
 /* send a read image command to trigger an image readout, if we need to */
 	if(send_rdi)
 	{
 		if(!DSP_Send_Rdi())
 		{
+			DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 #ifdef CCD_DSP_MUTEXED
 			DSP_Mutex_Unlock();
 #endif
@@ -805,16 +876,23 @@ int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinte
 	/* DSP_Image_Transfer saves the exposed image into a filename */
 	if(!DSP_Image_Transfer(ncols,nrows,deinterlace_type,filename))
 	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		if(send_rdi)
+			DSP_Mutex_Unlock();
 #endif
 		return FALSE;
 	}
-	/* get reply - DON should be returned */
+/* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
+/* set exposure status */
+	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
-		return FALSE;
+	if(send_rdi)
+	{
+		if(!DSP_Mutex_Unlock())
+			return FALSE;
+	}
 #endif
 	return retval;
 }
@@ -1240,8 +1318,19 @@ int CCD_DSP_Command_PON(void)
 int CCD_DSP_Command_POF(void)
 {
 	int retval;
+#if DEBUG == 1
+	int debug;
+#endif
 
 	DSP_Error_Number = 0;
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	debug = CCD_DSP_Command_Read_Controller_Status();	
+	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+	debug = CCD_DSP_Command_Read_PCI_Status();	
+	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+	fflush(stdout);
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1445,6 +1534,9 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 	struct timeval gtod_current_time;
 #endif
 	int dsp_exposure_time,remaining_exposure_time,done;
+#if DEBUG == 1
+	int debug;
+#endif
 
 	DSP_Error_Number = 0;
 /* exposure time must be greater than zero */
@@ -1521,6 +1613,14 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 **		return FALSE;
 **	}
 */
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	debug = CCD_DSP_Command_Read_Controller_Status();	
+	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+	debug = CCD_DSP_Command_Read_PCI_Status();	
+	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+	fflush(stdout);
+#endif
 /* start the exposure */
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
@@ -1544,11 +1644,21 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
-		return FALSE;
+/* Unlock only if exposure time is greater than 5000,
+** otherwise we are already in readout mode.
+*/
+	if(exposure_time>DSP_AUTO_READOUT_EXPOSURE_TIME)
+	{
+		if(!DSP_Mutex_Unlock())
+		{
+			DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+			return FALSE;
+		}
+	}
 #endif
 /* wait until we are about ready to read out */
-	while((remaining_exposure_time > DSP_Data.Readout_Remaining_Time)&&(DSP_Data.Abort == FALSE))
+	while((remaining_exposure_time > DSP_Data.Readout_Remaining_Time)&&
+		(remaining_exposure_time > DSP_AUTO_READOUT_EXPOSURE_TIME)&&(DSP_Data.Abort == FALSE))
 	{
 		sleep_time.tv_sec = 1;
 		sleep_time.tv_nsec = 0;
@@ -1566,19 +1676,49 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 	}/* end while exposing */
 	if(DSP_Data.Abort)
 	{
+#ifdef CCD_DSP_MUTEXED
+		if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
+			DSP_Mutex_Unlock();
+#endif
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 21;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Aborted.");
 		return FALSE;
 	}
-/* read out the ccd. */
-	if(!CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,exposure_time>5000,filename))
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	if(exposure_time>DSP_AUTO_READOUT_EXPOSURE_TIME)
 	{
+		debug = CCD_DSP_Command_Read_Controller_Status();	
+		fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+		debug = CCD_DSP_Command_Read_PCI_Status();	
+		fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+		fflush(stdout);
+	}
+#endif
+/* read out the ccd. */
+	if(!CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,exposure_time>DSP_AUTO_READOUT_EXPOSURE_TIME,filename))
+	{
+#ifdef CCD_DSP_MUTEXED
+		if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
+			DSP_Mutex_Unlock();
+#endif
 		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 99;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:RDI command failed.");
 		return FALSE;
 	}
+#ifdef CCD_DSP_MUTEXED
+/* Unlock only if exposure time is less than 5000, otherwise we have already done this. */
+	if(exposure_time<=DSP_AUTO_READOUT_EXPOSURE_TIME)
+	{
+		if(!DSP_Mutex_Unlock())
+		{
+			DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+			return FALSE;
+		}
+	}
+#endif
 	return CCD_DSP_DON;
 }
 
@@ -1595,8 +1735,19 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 int CCD_DSP_Command_Reset(void)
 {
 	int retval;
+#if DEBUG == 1
+	int debug;
+#endif
 
 	DSP_Error_Number = 0;
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	debug = CCD_DSP_Command_Read_Controller_Status();	
+	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+	debug = CCD_DSP_Command_Read_PCI_Status();	
+	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+	fflush(stdout);
+#endif
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
 		return FALSE;
@@ -1706,6 +1857,41 @@ int CCD_DSP_Command_Write_Controller_Status(int bit_value)
 	}
 /* get reply - DON should be returned */
 	retval = DSP_Get_Reply(CCD_DSP_DON);
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
+}
+
+/**
+ * Routine to read the current PCI status. This is held in the PCI interface.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @return The routine returns the current PCI status word if the operation succeeds, FALSE otherwise.
+ * 	To differentiate between a zero controller status word and an error test whether DSP_Error_Number is
+ * 	non-zero.
+ * @see #DSP_Send_Read_PCI_Status
+ * @see #DSP_Get_Reply
+ */
+int CCD_DSP_Command_Read_PCI_Status(void)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Read_PCI_Status())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+/* get reply - the current PCI status value should be returned */
+	retval = DSP_Get_Reply(DSP_ACTUAL_VALUE);
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Unlock())
 		return FALSE;
@@ -2632,6 +2818,18 @@ static int DSP_Send_Write_Controller_Status(int bit_value)
 }
 
 /**
+ * Internal DSP command to read the PCI status. This uses DSP_Send_Command to set the HCVR to
+ * CCD_PCI_HCVR_READ_PCI_STATUS with no arguments.
+ * @return Returns TRUE if the command was sent without error, FALSE otherwise.
+ * @see #DSP_Send_Command
+ * @see ccd_pci.html#CCD_PCI_HCVR_READ_PCI_STATUS
+ */
+static int DSP_Send_Read_PCI_Status(void)
+{
+	return DSP_Send_Command(CCD_PCI_HCVR_READ_PCI_STATUS,NULL,0);
+}
+
+/**
  * Internal DSP command to set exposure time. This does not set the PCI HCVR (Host Command Vector Register)
  * like most commands, but uses it's own PCI ioctl request number CCD_PCI_IOCTL_SET_EXPTIME.
  * @return Returns TRUE if the command was sent without error, FALSE otherwise.
@@ -3020,7 +3218,18 @@ static int DSP_Download_PCI_Interface(char *filename)
 	char *value_string = NULL;
 	int host_control_reg,argument,done,word_count,address,retval;
 	int word_number = 0;
+#if DEBUG == 1
+	int debug;
+#endif
 
+/* if debugging, get PCI/timing board status and print */
+#if DEBUG == 1
+	debug = CCD_DSP_Command_Read_Controller_Status();	
+	fprintf(stdout,"CONTROLLER_STATUS = %#x\n",debug);
+	debug = CCD_DSP_Command_Read_PCI_Status();	
+	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
+	fflush(stdout);
+#endif
 /* try to open the file */
 	if((download_fp = fopen(filename,"r")) == NULL)
 	{
@@ -3399,8 +3608,6 @@ static int DSP_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
  * <li>It deinterlaces the image using <a href="#DSP_DeInterlace">DSP_DeInterlace</a>.
  * <li>The image is then saved using <a href="#DSP_Save">DSP_Save</a> to a file and the image data freed.
  * </ul>
- * The Exposure_Status variable in <a href="#DSP_Data">DSP_Data</a> is maintained to show the current
- * status of the exposure.
  * If at any point the exposure is aborted using <a href="#CCD_DSP_Set_Abort">CCD_DSP_Set_Abort</a> the routine
  * aborts when it next checks the Abort flag.
  * @param ncols The number of columns the CCD has.
@@ -3423,7 +3630,6 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 /* if we have aborted stop here */
 	if(DSP_Data.Abort)
 	{
-		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 42;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Aborted.");
 		return FALSE;
@@ -3431,11 +3637,9 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 /* calculate number of bytes in the image */
 	numbytes = ncols*nrows*CCD_GLOBAL_BYTES_PER_PIXEL;
 /* start reading out image */
-	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_READOUT;
 	exposure_data = (unsigned short *)malloc(numbytes);
 	if(exposure_data == NULL)
 	{
-		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 43;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Memory Allocation Error(%d).",numbytes);
 		return FALSE;
@@ -3453,7 +3657,6 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 	{
 		if(exposure_data != NULL)
 			free(exposure_data);
-		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 44;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Failed to get reply data.");
 		return FALSE;
@@ -3469,12 +3672,10 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 	{
 		if(exposure_data != NULL)
 			free(exposure_data);
-		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		DSP_Error_Number = 46;
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Aborted.");
 		return FALSE;
 	}
-	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 /* byte swap to get into right order */
 	DSP_Byte_Swap(exposure_data,nrows*ncols);
 /* Do deinterlacing. The image returned from the boards may not be in the correct order
@@ -3949,6 +4150,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.24  2000/06/20 12:53:07  cjm
+** CCD_DSP_Command_Sex now automatically calls CCD_DSP_Command_RDI.
+**
 ** Revision 0.23  2000/06/19 08:48:34  cjm
 ** Backup.
 **
