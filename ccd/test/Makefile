@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.9 2002-11-07 19:23:31 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.10 2002-12-03 17:19:53 cjm Exp $
 
 include ../../Makefile.common
 include ../Makefile.common
@@ -15,7 +15,7 @@ SRCS 		= test.c test_filter_wheel.c ccd_read_memory.c ccd_write_memory.c posix_t
 			ccd_read_memory_17.c ccd_test_data_link_17.c test_dsp_download.c test_reset_controller.c \
 			test_data_link.c test_idle_clocking.c test_analogue_power.c test_temperature.c \
 			test_setup_startup.c test_setup_dimensions.c test_setup_shutdown.c test_exposure.c \
-			test_shutter.c test_abort.c
+			test_shutter.c test_abort.c test_vacuum_gauge.c
 OBJS 		= $(SRCS:%.c=%.o)
 PROGS 		= $(SRCS:%.c=$(BINDIR)/%)
 DOCS 		= $(SRCS:%.c=$(DOCSDIR)/%.html)
@@ -69,6 +69,9 @@ $(BINDIR)/test_shutter: test_shutter.o
 
 $(BINDIR)/test_abort: test_abort.o
 	cc -o $@ test_abort.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+
+$(BINDIR)/test_vacuum_gauge: test_vacuum_gauge.o
+	cc -o $@ test_vacuum_gauge.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
 
 $(BINDIR)/ccd_read_memory_17: ccd_read_memory_17.o
 	cc -o $@ ccd_read_memory_17.o -lm -lc
