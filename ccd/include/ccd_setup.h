@@ -1,5 +1,5 @@
 /* ccd_setup.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.7 2000-06-13 17:15:02 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.8 2000-12-19 17:53:23 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -95,7 +95,6 @@ extern int CCD_Setup_Shutdown(void);
 extern int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	enum CCD_DSP_AMPLIFIER amplifier,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,
 	int window_flags,struct CCD_Setup_Window_Struct window_list[]);
-extern int CCD_Setup_Filter_Wheel(int position_one,int position_two);
 extern int CCD_Setup_Hardware_Test(int test_count);
 extern void CCD_Setup_Abort(void);
 extern int CCD_Setup_Get_NCols(void);
@@ -106,7 +105,6 @@ extern enum CCD_DSP_DEINTERLACE_TYPE CCD_Setup_Get_DeInterlace_Type(void);
 extern enum CCD_DSP_GAIN CCD_Setup_Get_Gain(void);
 extern int CCD_Setup_Get_Window_Flags(void);
 extern int CCD_Setup_Get_Window(int window_index,struct CCD_Setup_Window_Struct *window);
-extern int CCD_Setup_Get_Filter_Wheel_Position(int wheel_number,int *position);
 extern int CCD_Setup_Get_Setup_Complete(void);
 extern int CCD_Setup_Get_Setup_In_Progress(void);
 extern int CCD_Setup_Get_Error_Number(void);

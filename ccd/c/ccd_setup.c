@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.14 2000-06-19 08:48:34 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.15 2000-12-19 17:52:47 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.14 $
+ * @version $Revision: 0.15 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,14 +29,9 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.14 2000-06-19 08:48:34 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.15 2000-12-19 17:52:47 cjm Exp $";
 
 /* #defines */
-/**
- * The number of filter wheels this controller knows about.
- * @see #Setup_Struct
- */
-#define SETUP_FILTER_WHEEL_POSITION_COUNT	(2)
 /**
  * Used when performing a short hardware test (in <a href="#CCD_Setup_Hardware_Test">CCD_Setup_Hardware_Test</a>),
  * This is the number of times each board's data link is tested using the 
@@ -71,8 +66,6 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.14 2000-06-19 08:48:34 cjm Exp $";
  * 	are in use for this setup.</dd>
  * <dt>Window_List</dt> <dd>A list of window positions on the CCD. Theere are a maximum of CCD_SETUP_WINDOW_COUNT
  * 	windows. The windows should not overlap in either dimension.</dd>
- * <dt>Filter_Wheel_Position_List</dt> <dd>A list of positions the filter wheel has attained. There are
- * 	SETUP_FILTER_WHEEL_COUNT filter wheels.</dd>
  * <dt>Power_Complete</dt> <dd>A boolean value indicating whether the power cycling operation was completed
  * 	successfully.</dd>
  * <dt>PCI_Complete</dt> <dd>A boolean value indicating whether the PCI interface program was completed
@@ -97,7 +90,6 @@ struct Setup_Struct
 	enum CCD_DSP_AMPLIFIER Amplifier;
 	int Window_Flags;
 	struct CCD_Setup_Window_Struct Window_List[CCD_SETUP_WINDOW_COUNT];
-	int Filter_Wheel_Position_List[SETUP_FILTER_WHEEL_POSITION_COUNT];
 	int Power_Complete;
 	int PCI_Complete;
 	int Timing_Complete;
@@ -161,8 +153,6 @@ void CCD_Setup_Initialise(void)
 		Setup_Data.Window_List[i].X_End = -1;
 		Setup_Data.Window_List[i].Y_End = -1;
 	}
-	for(i=0;i<SETUP_FILTER_WHEEL_POSITION_COUNT;i++)
-		Setup_Data.Filter_Wheel_Position_List[i] = -1;
 	Setup_Data.Power_Complete = FALSE;
 	Setup_Data.PCI_Complete = FALSE;
 	Setup_Data.Timing_Complete = FALSE;
@@ -390,8 +380,6 @@ int CCD_Setup_Shutdown(void)
 		Setup_Data.Window_List[i].X_End = -1;
 		Setup_Data.Window_List[i].Y_End = -1;
 	}
-	for(i=0;i<SETUP_FILTER_WHEEL_POSITION_COUNT;i++)
-		Setup_Data.Filter_Wheel_Position_List[i] = -1;
 	Setup_Data.Power_Complete = FALSE;
 	Setup_Data.PCI_Complete = FALSE;
 	Setup_Data.Timing_Complete = FALSE;
@@ -510,32 +498,6 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 }
 
 /**
- * Routine to setup the filter wheel at the required positions.
- * This routine can be aborted with CCD_Setup_Abort.
- * @param position_one The position the first filter wheel has to attain.
- * @param position_two The position the second filter wheel has to attain.
- * @return Returns TRUE if the configuration has succeeded, FALSE if it fails.
- * @see #CCD_Setup_Abort
- */
-int CCD_Setup_Filter_Wheel(int position_one,int position_two)
-{
-	Setup_Error_Number = 0;
-/* we are in a setup routine */
-	Setup_Data.Setup_In_Progress = TRUE;
-/* reset abort flag - we havn't aborted yet! */
-	CCD_DSP_Set_Abort(FALSE);
-/* set data */
-/* diddly
-** calls CCD_DSP routine to move filter wheel to new position, possibly based on old position */
-	Setup_Data.Filter_Wheel_Position_List[0] = position_one;
-	Setup_Data.Filter_Wheel_Position_List[1] = position_two;
-/* reset in progress information */
-	Setup_Data.Setup_In_Progress = FALSE;
-	CCD_DSP_Set_Abort(FALSE);
-	return TRUE;
-}
-
-/**
  * Routine that performs a hardware test on the PCI, timing and utility boards. It does this by doing 
  * sending TDL commands to the boards and testing the results. This routine is called from
  * CCD_Setup_Startup.
@@ -631,7 +593,6 @@ int CCD_Setup_Hardware_Test(int test_count)
  * to return FALSE as it will fail to complete the setup.
  * @see #CCD_Setup_Startup
  * @see #CCD_Setup_Dimensions
- * @see #CCD_Setup_Filter_Wheel
  */
 void CCD_Setup_Abort(void)
 {
@@ -754,34 +715,6 @@ int CCD_Setup_Get_Window(int window_index,struct CCD_Setup_Window_Struct *window
 		return FALSE;
 	}
 	(*window) = Setup_Data.Window_List[window_index];
-	return TRUE;
-}
-
-/**
- * Routine that returns the position number of a filter wheel.
- * @param wheel_number The wheel number to get the position of: less then SETUP_FILTER_WHEEL_POSITION_COUNT.
- * @param position The address of a integer memory location to store the position of the wheel.
- * @return Returns TRUE if the operation succeeded, FALSE if it fails.
- * @see #CCD_Setup_Dimensions
- * @see #Setup_Data
- * @see #SETUP_FILTER_WHEEL_POSITION_COUNT
- */
-int CCD_Setup_Get_Filter_Wheel_Position(int wheel_number,int *position)
-{
-	if((wheel_number < 0)||(wheel_number>=SETUP_FILTER_WHEEL_POSITION_COUNT))
-	{
-		Setup_Error_Number = 37;
-		sprintf(Setup_Error_String,"CCD_Setup_Get_Filter_Wheel_Position:Illegal value:"
-			"Wheel Number '%d' of '%d'",wheel_number,SETUP_FILTER_WHEEL_POSITION_COUNT);
-		return FALSE;
-	}
-	if(position == NULL)
-	{
-		Setup_Error_Number = 38;
-		sprintf(Setup_Error_String,"CCD_Setup_Get_Filter_Wheel_Position:Position is NULL.");
-		return FALSE;
-	}
-	(*position) = Setup_Data.Filter_Wheel_Position_List[wheel_number];
 	return TRUE;
 }
 
@@ -1367,6 +1300,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.14  2000/06/19 08:48:34  cjm
+** Backup.
+**
 ** Revision 0.13  2000/06/13 17:14:13  cjm
 ** Changes to make Ccs agree with voodoo.
 **

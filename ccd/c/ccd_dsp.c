@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.28 2000-09-25 09:51:28 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.29 2000-12-19 17:52:47 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.28 $
+ * @version $Revision: 0.29 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.28 2000-09-25 09:51:28 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.29 2000-12-19 17:52:47 cjm Exp $";
 
 /* defines */
 /**
@@ -135,6 +135,19 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.28 2000-09-25 09:51:28 cjm Exp $";
  * <b>This value must be the same as the one defined in pciboot.asm.</b>
  */
 #define DSP_AUTO_READOUT_EXPOSURE_TIME		(5000)
+/**
+ * The number of steps we give the filter wheel stepper motors to make them move one position.
+ */
+#define DSP_DEFAULT_FILTER_WHEEL_STEPS_PER_POS	(57)
+/**
+ * The number of milliseconds it takes to do one step. The stepper motor currently runs at 20Hz,
+ * so this is 50ms per step.
+ */
+#define DSP_DEFAULT_FILTER_WHEEL_MS_PER_STEP	(50)
+/**
+ * The maximum number of positions in a filter wheel.
+ */
+#define DSP_FILTER_WHEEL_MAX_POSN_COUNT		(7)
 
 /* structure */
 /**
@@ -154,6 +167,11 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.28 2000-09-25 09:51:28 cjm Exp $";
  * 	remaining for an exposure when we stop sleeping and tell the interface to enter readout mode.</dd>
  * <dt>Exposure_Length</dt> <dd>The last exposure length to be set.</dd>
  * <dt>Exposure_Start_Time</dt> <dd>The time stamp when the START_EXPOSURE command was sent to the controller.</dd>
+ * <dt>Filter_Wheel_Abort</dt> <dd>Whether the current filter wheel operation has been aborted.</dd>
+ * <dt>Filter_Wheel_Steps_Per_Position</dt> <dd>The number of steps a filter wheel stepper motor has to make
+ * 	to move one position.</dd>
+ * <dt>Filter_Wheel_Milliseconds_Per_Step</dt> <dd>The number of milliseonds it takes to move the stepper motor
+ * 	one step.</dd>
  * </dl>
  */
 struct DSP_Attr_Struct
@@ -168,6 +186,9 @@ struct DSP_Attr_Struct
 	int Readout_Remaining_Time;
 	int Exposure_Length;
 	struct timespec Exposure_Start_Time;
+	volatile int Filter_Wheel_Abort;
+	int Filter_Wheel_Steps_Per_Position;
+	int Filter_Wheel_Milliseconds_Per_Step;
 };
 
 /* external variables */
@@ -192,12 +213,17 @@ static char DSP_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
  * <dt>Readout_Remaining_Time</dt> <dd>DSP_DEFAULT_READOUT_REMAINING_TIME</dd>
  * <dt>Exposure_Length</dt> <dd>0</dd>
  * <dt>Exposure_Start_Time</dt> <dd>{0L,0L}</dd>
+ * <dt>Filter_Wheel_Abort</dt>FALSE<dd>
+ * <dt>Filter_Wheel_Steps_Per_Position</dt>DSP_DEFAULT_FILTER_WHEEL_STEPS_PER_POS<dd>
+ * <dt>Filter_Wheel_Milliseconds_Per_Step</dt>DSP_DEFAULT_FILTER_WHEEL_MS_PER_STEP<dd>
  * </dl>
  * @see #DSP_Attr_Struct
  * @see #CCD_DSP_EXPOSURE_STATUS
  * @see #DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME
  * @see #DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME
  * @see #DSP_DEFAULT_READOUT_REMAINING_TIME
+ * @see #DSP_DEFAULT_FILTER_WHEEL_STEPS_PER_POS
+ * @see #DSP_DEFAULT_FILTER_WHEEL_MS_PER_STEP
  */
 static struct DSP_Attr_Struct DSP_Data = 
 {
@@ -208,7 +234,8 @@ static struct DSP_Attr_Struct DSP_Data =
 	DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME,
 	DSP_DEFAULT_READOUT_REMAINING_TIME,
 	0,
-	{0L,0L}
+	{0L,0L},
+	FALSE,DSP_DEFAULT_FILTER_WHEEL_STEPS_PER_POS,DSP_DEFAULT_FILTER_WHEEL_MS_PER_STEP
 };
 
 /* internal functions */
@@ -246,6 +273,9 @@ static int DSP_Send_PCI_PC_Reset(void);
 static int DSP_Send_Read_PCI_Status(void);
 static int DSP_Send_Set_Exposure_Time(int msecs);
 static int DSP_Send_Read_Exposure_Time(void);
+static int DSP_Send_Fwa(void);
+static int DSP_Send_Fwm(int wheel,int direction,int posn_count);
+static int DSP_Send_Fwr(int wheel);
 
 static int DSP_Set_Destination(enum CCD_DSP_BOARD_ID board_id,int argument_count);
 static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argument_count);
@@ -289,6 +319,8 @@ static int DSP_Mutex_Unlock(void);
  * @see #DSP_DEFAULT_START_EXPOSURE_CLEAR_TIME
  * @see #DSP_DEFAULT_START_EXPOSURE_OFFSET_TIME
  * @see #DSP_DEFAULT_READOUT_REMAINING_TIME
+ * @see #DSP_DEFAULT_FILTER_WHEEL_STEPS_PER_POS
+ * @see #DSP_DEFAULT_FILTER_WHEEL_MS_PER_STEP
  */
 int CCD_DSP_Initialise(void)
 {
@@ -302,6 +334,9 @@ int CCD_DSP_Initialise(void)
 	DSP_Data.Exposure_Length = 0;
 	DSP_Data.Exposure_Start_Time.tv_sec = 0;
 	DSP_Data.Exposure_Start_Time.tv_nsec = 0;
+	DSP_Data.Filter_Wheel_Abort = FALSE;
+	DSP_Data.Filter_Wheel_Steps_Per_Position = DSP_DEFAULT_FILTER_WHEEL_STEPS_PER_POS;
+	DSP_Data.Filter_Wheel_Milliseconds_Per_Step = DSP_DEFAULT_FILTER_WHEEL_MS_PER_STEP;
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_DSP_Initialise:%s.\n",rcsid);
 #ifdef CCD_DSP_MUTEXED
@@ -1992,6 +2027,278 @@ int CCD_DSP_Command_Read_Exposure_Time(void)
 }
 
 /**
+ * This routine executes the Filter Wheel Abort (FWA) command on the SDSU utility board.
+ * This stops any filter wheel movement taking place.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Fwa
+ * @see #DSP_Get_Reply
+ * @see #DSP_Data
+ */
+int CCD_DSP_Command_FWA(void)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Fwa())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+	/* get reply - DON should be returned */
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+/* set filter wheel abort whilst still in mutex */
+	DSP_Data.Filter_Wheel_Abort = TRUE;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
+}
+
+/**
+ * This routine executes the Filter Wheel Move (FWM) command on the SDSU utility board.
+ * This moves a specified filter wheel in a specified direction a specified number of positions.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * Note the FWM command sends two replies back to the host, A DON to indicate the command has started, and
+ * a DON to indicate the filter wheel move has completed. If either reply is not DON an error is returned.
+ * Mutex locking (if enabled) only occurs until the first DON is returned, as we can send other commands
+ * to the board whilst the wheel is moving (including FWA).
+ * @param wheel Which wheel to move. An integer, either zero or one.
+ * @param direction Which direction to move the wheel. An integer, either zero or one.
+ * @param posn_count How many positions to move the filter wheel.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Fwm
+ * @see #DSP_Get_Reply
+ * @see #DSP_Data
+ */
+int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count)
+{
+	struct timespec start_time,sleep_time,current_time;
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
+	int done,retval,wait_time;
+
+	DSP_Error_Number = 0;
+/* check parameters */
+	if(!CCD_GLOBAL_IS_BOOLEAN(wheel))
+	{
+		DSP_Error_Number = 88;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal wheel '%d'.",wheel);
+		return FALSE;
+	}
+	if(!CCD_GLOBAL_IS_BOOLEAN(direction))
+	{
+		DSP_Error_Number = 99;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal direction '%d'.",direction);
+		return FALSE;
+	}
+	if(posn_count <= 0)
+	{
+		DSP_Error_Number = 100;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal position count '%d'.",posn_count);
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Fwm(wheel,direction,posn_count))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+/* check first DON returned that indicates FWM command started. */
+	if(DSP_Get_Reply(CCD_DSP_DON) != CCD_DSP_DON)
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+/* set filter wheel abort whilst still in mutex */
+	DSP_Data.Filter_Wheel_Abort = FALSE;
+/* We unlock the mutex BEFORE waiting for the second DON (that tells us the operation has completed).
+** This is because we can now send other commands to the utility board successfully.
+** We need the ability to send the FWA command to the utility board to abort this operation. */
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+/* we need to wait until the filter wheel is about finished before requesting the second DON,
+** if it is more than a 10 second wait the reply may time out. */
+#ifdef _POSIX_TIMERS
+	clock_gettime(CLOCK_REALTIME,&start_time);
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	start_time.tv_sec = gtod_current_time.tv_sec;
+	start_time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
+/* calculate how long we have to wait for the second DON, in seconds.
+** This is (the number of positions * the steps per position * the number of ms per step) 
+** / the number of ms in a second in seconds.
+*/
+	wait_time = (posn_count*DSP_Data.Filter_Wheel_Steps_Per_Position*DSP_Data.Filter_Wheel_Milliseconds_Per_Step)/
+		DSP_ONE_SECOND_MS;
+	done = FALSE;
+	while(done == FALSE)
+	{
+#ifdef _POSIX_TIMERS
+		clock_gettime(CLOCK_REALTIME,&current_time);
+#else
+		gettimeofday(&gtod_current_time,NULL);
+		current_time.tv_sec = gtod_current_time.tv_sec;
+		current_time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
+	/* if we've time, sleep for a second */
+		if((current_time.tv_sec - start_time.tv_sec) < wait_time)
+		{
+			sleep_time.tv_sec = 1;
+			sleep_time.tv_nsec = 0;
+			nanosleep(&sleep_time,NULL);
+		}
+		else
+			done = TRUE;
+	/* check - have we been aborted? */
+		if(DSP_Data.Filter_Wheel_Abort)
+			done = TRUE;
+	}/* end while */
+	if(DSP_Data.Filter_Wheel_Abort)
+	{
+		DSP_Error_Number = 102;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Aborted.");
+		return FALSE;
+	}
+/* get second reply - DON should be returned. This means the FWM operation has completed. */
+/* diddly */
+fprintf(stderr," CCD_DSP_Command_FWM:Getting second reply.\n");
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+	return retval;
+}
+
+/**
+ * This routine executes the Filter Wheel Reset (FWR) command on the SDSU utility board.
+ * This tries to drive the specified filter wheel back to it's home position.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * Note the FWM command sends two replies back to the host, A DON to indicate the command has started, and
+ * a DON to indicate the filter wheel move has completed. If either reply is not DON an error is returned.
+ * Mutex locking (if enabled) only occurs until the first DON is returned, as we can send other commands
+ * to the board whilst the wheel is moving (including FWA).
+ * @param wheel Which wheel to move. An integer, either zero or one.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #DSP_Send_Fwr
+ * @see #DSP_Get_Reply
+ * @see #DSP_Data
+ * @see #DSP_FILTER_WHEEL_MAX_POSN_COUNT
+ */
+int CCD_DSP_Command_FWR(int wheel)
+{
+	struct timespec start_time,sleep_time,current_time;
+#ifndef _POSIX_TIMERS
+	struct timeval gtod_current_time;
+#endif
+	int done,retval,wait_time;
+
+	DSP_Error_Number = 0;
+/* check parameters */
+	if(!CCD_GLOBAL_IS_BOOLEAN(wheel))
+	{
+		DSP_Error_Number = 101;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal wheel '%d'.",wheel);
+		return FALSE;
+	}
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Fwr(wheel))
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+/* check first DON returned that indicates FWR command started. */
+	if(DSP_Get_Reply(CCD_DSP_DON) != CCD_DSP_DON)
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+/* set filter wheel abort whilst still in mutex */
+	DSP_Data.Filter_Wheel_Abort = FALSE;
+/* We unlock the mutex BEFORE waiting for the second DON (that tells us the operation has completed).
+** This is because we can now send other commands to the utility board successfully.
+** We need the ability to send the FWA command to the utility board to abort this operation. */
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+/* we need to wait until the filter wheel is about finished before requesting the second DON,
+** if it is more than a 10 second wait the reply may time out. */
+#ifdef _POSIX_TIMERS
+	clock_gettime(CLOCK_REALTIME,&start_time);
+#else
+	gettimeofday(&gtod_current_time,NULL);
+	start_time.tv_sec = gtod_current_time.tv_sec;
+	start_time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
+/* calculate how long we have to wait for the second DON, in seconds.
+** This is (the maximum number of positions * the steps per position * the number of ms per step) 
+** / the number of ms in a second in seconds.
+*/
+	wait_time = (DSP_FILTER_WHEEL_MAX_POSN_COUNT*DSP_Data.Filter_Wheel_Steps_Per_Position*
+		DSP_Data.Filter_Wheel_Milliseconds_Per_Step)/DSP_ONE_SECOND_MS;
+	done = FALSE;
+	while(done == FALSE)
+	{
+#ifdef _POSIX_TIMERS
+		clock_gettime(CLOCK_REALTIME,&current_time);
+#else
+		gettimeofday(&gtod_current_time,NULL);
+		current_time.tv_sec = gtod_current_time.tv_sec;
+		current_time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
+#endif
+	/* if we've time, sleep for a second */
+		if((current_time.tv_sec - start_time.tv_sec) < wait_time)
+		{
+			sleep_time.tv_sec = 1;
+			sleep_time.tv_nsec = 0;
+			nanosleep(&sleep_time,NULL);
+		}
+		else
+			done = TRUE;
+	/* check - have we been aborted? */
+		if(DSP_Data.Filter_Wheel_Abort)
+			done = TRUE;
+	}/* end while */
+	if(DSP_Data.Filter_Wheel_Abort)
+	{
+		DSP_Error_Number = 103;
+		sprintf(DSP_Error_String,"CCD_DSP_Command_FWR:Aborted.");
+		return FALSE;
+	}
+/* get second reply - DON should be returned. This means the FWR operation has completed. */
+/* diddly */
+fprintf(stderr," CCD_DSP_Command_FWR:Getting second reply.\n");
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+	return retval;
+}
+
+/**
  * Downloads some DSP code to one of the boards from filename.
  * @param board The board to send the command to.
  * @param filename The filename of compiled DSP commends to send to the board.
@@ -2185,6 +2492,30 @@ void CCD_DSP_Set_Exposure_Start_Time(void)
 	DSP_Data.Exposure_Start_Time.tv_sec = gtod_current_time.tv_sec;
 	DSP_Data.Exposure_Start_Time.tv_nsec = gtod_current_time.tv_usec*DSP_ONE_MICROSECOND_NS;
 #endif
+}
+
+/**
+ * A routine to set the number of steps we give the filter wheel stepper motors to make them move one position.
+ * This depends on whether the filter wheel is a five or seven position wheel.
+ * @param steps The number of stepper motor steps to move the whell one position.
+ * @see #DSP_Data
+ * @see #DSP_DEFAULT_FILTER_WHEEL_STEPS_PER_POS
+ */
+void CCD_DSP_Set_Filter_Wheel_Steps_Per_Position(int steps)
+{
+	DSP_Data.Filter_Wheel_Steps_Per_Position = steps;
+}
+
+/**
+ * A routine to set the number of milliseconds it takes to do one step. 
+ * By default the stepper motor currently runs at 20Hz, so this equates to 50ms per step.
+ * @param ms The time to do one step, in milliseconds. This should be greater than zero.
+ * @see #DSP_Data
+ * @see #DSP_DEFAULT_FILTER_WHEEL_MS_PER_STEP
+ */
+void CCD_DSP_Set_Filter_Wheel_Milliseconds_Per_Step(int ms)
+{
+	DSP_Data.Filter_Wheel_Milliseconds_Per_Step = ms;
 }
 
 /**
@@ -2906,6 +3237,68 @@ static int DSP_Send_Read_Exposure_Time(void)
 	fflush(stdout);
 #endif
 	return DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0);
+}
+
+/**
+ * Internal DSP command to send the filter wheel abort command. Uses DSP_Set_Destination to set
+ * manual command destination to the utility board.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #CCD_DSP_BOARD_ID
+ * @see #CCD_DSP_FWA
+ * @see #DSP_Set_Destination
+ * @see #DSP_Send_Manual_Command
+ */
+static int DSP_Send_Fwa(void)
+{
+	if(!DSP_Set_Destination(CCD_DSP_UTIL_BOARD_ID,0))
+		return FALSE;
+	return DSP_Send_Manual_Command(CCD_DSP_FWA,NULL,0);
+}
+
+/**
+ * Internal DSP command to send the filter wheel move command. Uses DSP_Set_Destination to set
+ * manual command destination to the utility board.
+ * @param wheel Which wheel to move.
+ * @param direction The direction to move the specified wheel.
+ * @param posn_count The number of positions to move the wheel.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #CCD_DSP_BOARD_ID
+ * @see #CCD_DSP_FWM
+ * @see #DSP_Set_Destination
+ * @see #DSP_Send_Manual_Command
+ */
+static int DSP_Send_Fwm(int wheel,int direction,int posn_count)
+{
+	int argument_list[3];
+	int argument_count = 0;
+
+	argument_list[argument_count++] = wheel;
+	argument_list[argument_count++] = direction;
+	argument_list[argument_count++] = posn_count;
+	if(!DSP_Set_Destination(CCD_DSP_UTIL_BOARD_ID,argument_count))
+		return FALSE;
+	return DSP_Send_Manual_Command(CCD_DSP_FWM,argument_list,argument_count);
+}
+
+/**
+ * Internal DSP command to send the filter wheel reset command. Uses DSP_Set_Destination to set
+ * manual command destination to the utility board.
+ * @param wheel Which wheel to reset to home.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #CCD_DSP_BOARD_ID
+ * @see #CCD_DSP_FWR
+ * @see #DSP_Set_Destination
+ * @see #DSP_Send_Manual_Command
+ */
+static int DSP_Send_Fwr(int wheel)
+{
+	int argument_list[1];
+	int argument_count = 0;
+
+	argument_list[argument_count++] = wheel;
+	if(!DSP_Set_Destination(CCD_DSP_UTIL_BOARD_ID,argument_count))
+		return FALSE;
+	return DSP_Send_Manual_Command(CCD_DSP_FWR,argument_list,argument_count);
 }
 
 /**
@@ -4187,6 +4580,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.28  2000/09/25 09:51:28  cjm
+** Changes to use with v1.4 SDSU DSP code.
+**
 ** Revision 0.27  2000/08/11 13:55:50  cjm
 ** Removed extraneous error code setting in CCD_DSP_Command_SEX if
 ** CCD_DSP_Command_RDI fails: it already sets up the error code.

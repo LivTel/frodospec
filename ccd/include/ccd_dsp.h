@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.16 2000-09-25 09:52:00 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.17 2000-12-19 17:53:23 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -189,6 +189,33 @@ enum CCD_DSP_AMPLIFIER
  * @see #CCD_DSP_AMPLIFIER
  */
 #define CCD_DSP_SOS		(0x534f53)	/* SOS */
+/**
+ * Utility board command that means Filter Wheel Abort. This stops any filter wheel movement taking place. 
+ * It takes no arguments.
+ * @see #CCD_DSP_FWM
+ * @see #CCD_DSP_FWR
+ */
+#define CCD_DSP_FWA		(0x465741)	/* FWA */
+/**
+ * Utility board command that means Filter Wheel Move. This moves a specified filter wheel in a specified direction
+ * a specified number of positions. 
+ * It takes three arguments:
+ * <ul>
+ * <li><b>wheel</b>. Which wheel to move, [0|1].
+ * <li><b>direction</b>. Which direction to move the wheel, either [0|1].
+ * <li><b>no. of positions</b>. The number of positions to move in the specified direction, a number, usually less than
+ * 	seven and greater than zero.
+ * </ul>
+ */
+#define CCD_DSP_FWM		(0x46574d)	/* FWM */
+/**
+ * Utility board command that means Filter Wheel Reset. This drives a specified filter wheel into it's home position. 
+ * It takes one argument:
+ * <ul>
+ * <li><b>wheel</b>. Which wheel to move, [0|1].
+ * </ul>
+ */
+#define CCD_DSP_FWR		(0x465752)	/* FWR */
 
 /**
  * This hash definition represents one of the bits present in the controller status word, which is on
@@ -258,6 +285,9 @@ extern int CCD_DSP_Command_PCI_PC_Reset(void);
 extern int CCD_DSP_Command_Read_PCI_Status(void);
 extern int CCD_DSP_Command_Set_Exposure_Time(int msecs);
 extern int CCD_DSP_Command_Read_Exposure_Time(void);
+extern int CCD_DSP_Command_FWA(void);
+extern int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count);
+extern int CCD_DSP_Command_FWR(int wheel);
 extern int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename);
 extern int CCD_DSP_Get_Abort(void);
 extern int CCD_DSP_Set_Abort(int value);
@@ -271,6 +301,8 @@ extern int CCD_DSP_Get_Start_Exposure_Offset_Time(void);
 extern void CCD_DSP_Set_Readout_Remaining_Time(int time);
 extern int CCD_DSP_Get_Readout_Remaining_Time(void);
 extern void CCD_DSP_Set_Exposure_Start_Time(void);
+extern void CCD_DSP_Set_Filter_Wheel_Steps_Per_Position(int steps);
+extern void CCD_DSP_Set_Filter_Wheel_Milliseconds_Per_Step(int ms);
 extern int CCD_DSP_Get_Error_Number(void);
 extern void CCD_DSP_Error(void);
 extern void CCD_DSP_Error_String(char *error_string);
