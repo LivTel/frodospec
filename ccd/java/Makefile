@@ -1,48 +1,31 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.6 1999-06-24 12:38:57 dev Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.7 1999-08-23 13:53:53 cjm Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
-INCDIR = ../include
-DOCSDIR = ../javadocs
+INCDIR = $(CCD_SRC_HOME)/include
+BINDIR = $(CCD_BIN_HOME)/java
+DOCSDIR = $(CCD_DOC_HOME)/javadocs
 DOCFLAGS = -version -author -private
 
 SRCS = CCDLibrary.java CCDLibraryDouble.java CCDLibraryFormatException.java ExposureThread.java Test.java SetupThread.java AbortThread.java ReadOutThread.java
-OBJS = $(SRCS:%.java=%.class)
+OBJS = $(SRCS:%.java=$(BINDIR)/%.class)
 DOCS = $(SRCS:%.java=$(DOCSDIR)/%.html)
 
-top: $(OBJS) $(DOCS)
+top: $(OBJS) docs
 
-CCDLibrary.class: CCDLibrary.java
-	$(JAVAC) $(JAVAC_OPTIONS) CCDLibrary.java
-	$(JAVAH) -jni CCDLibrary
-	$(MV) CCDLibrary.h $(INCDIR)
+$(BINDIR)/CCDLibrary.class: CCDLibrary.java
+	$(JAVAC) $(JAVAC_OPTIONS) -d $(BINDIR) CCDLibrary.java
+	$(JAVAH) -jni -d $(INCDIR) CCDLibrary
 
-CCDLibraryFormatException.class: CCDLibraryFormatException.java
-	$(JAVAC) $(JAVAC_OPTIONS) CCDLibraryFormatException.java
-
-CCDLibraryDouble.class: CCDLibraryDouble.java
-	$(JAVAC) $(JAVAC_OPTIONS) CCDLibraryDouble.java
+$(BINDIR)/%.class:%.java CCDLibrary.class
+	$(JAVAC) $(JAVAC_OPTIONS) -d $(BINDIR) $<
 
 Test.class: Test.java CCDLibrary.class ExposureThread.class AbortThread.class SetupThread.class ReadOutThread.class
-	$(JAVAC) $(JAVAC_OPTIONS) Test.java
+	$(JAVAC) $(JAVAC_OPTIONS) -d $(BINDIR) Test.java
 
-ExposureThread.class: ExposureThread.java CCDLibrary.class
-	$(JAVAC) $(JAVAC_OPTIONS) ExposureThread.java
-
-AbortThread.class: AbortThread.java CCDLibrary.class
-	$(JAVAC) $(JAVAC_OPTIONS) AbortThread.java
-
-SetupThread.class: SetupThread.java CCDLibrary.class
-	$(JAVAC) $(JAVAC_OPTIONS) SetupThread.java
-
-ReadOutThread.class: ReadOutThread.java CCDLibrary.class
-	$(JAVAC) $(JAVAC_OPTIONS) ReadOutThread.java
-
-$(DOCSDIR)/CCDLibrary.html $(DOCSDIR)/CCDLibraryDouble.html $(DOCSDIR)/SetupThread.html \
-$(DOCSDIR)/ExposureThread.html $(DOCSDIR)/ReadOutThread.html: CCDLibrary.java CCDLibraryDouble.java \
-SetupThread.java ExposureThread.java ReadOutThread.java
-	$(JAVADOC) -d $(DOCSDIR) $(DOCFLAGS) *.java
+docs: $(SRCS)
+	$(JAVADOC) -d $(DOCSDIR) $(DOCFLAGS) $(SRCS)
 
 clean:
 	$(RM) $(RM_OPTIONS) $(OBJS) $(TIDY_OPTIONS)
