@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.27 2004-05-16 14:28:18 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.28 2004-05-16 15:34:11 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.27 $
+ * @version $Revision: 0.28 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.27 2004-05-16 14:28:18 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.28 2004-05-16 15:34:11 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -653,6 +653,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 				if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
 				{
+					Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 					Exposure_Error_Number = 17;
 					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:ABR command failed.");
 					return FALSE;
@@ -1890,6 +1891,9 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.27  2004/05/16 14:28:18  cjm
+** Re-wrote abort code.
+**
 ** Revision 0.26  2003/12/08 15:04:00  cjm
 ** CCD_EXPOSURE_STATUS_WAIT_START added.
 **
