@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.14 2000-03-21 16:37:14 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.15 2000-04-13 13:19:52 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.14 $
+ * @version $Revision: 0.15 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.14 2000-03-21 16:37:14 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.15 2000-04-13 13:19:52 cjm Exp $";
 
 /* defines */
 /**
@@ -1699,15 +1699,19 @@ int CCD_DSP_Get_Error_Number(void)
 
 /**
  * The error routine that reports any errors occuring in ccd_dsp in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_DSP_Error(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(DSP_Error_Number == 0)
 		sprintf(DSP_Error_String,"Logic Error:No Error defined");
-	fprintf(stderr,"CCD_DSP:Error(%d) : %s\n",DSP_Error_Number,DSP_Error_String);
+	fprintf(stderr,"%s CCD_DSP:Error(%d) : %s\n",time_string,DSP_Error_Number,DSP_Error_String);
 	DSP_Error_Number = 0;
 }
 
@@ -1717,29 +1721,38 @@ void CCD_DSP_Error(void)
  * @param error_string A string to put the generated error in. This string should be initialised before
  * being passed to this routine. The routine will try to concatenate it's error string onto the end
  * of any string already in existance.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_DSP_Error_String(char *error_string)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an error message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an error to display */
 	if(DSP_Error_Number == 0)
 		sprintf(DSP_Error_String,"Logic Error:No Error defined");
-	sprintf(error_string+strlen(error_string),"CCD_DSP:Error(%d) : %s\n",DSP_Error_Number,DSP_Error_String);
+	sprintf(error_string+strlen(error_string),"%s CCD_DSP:Error(%d) : %s\n",time_string,
+		DSP_Error_Number,DSP_Error_String);
 	DSP_Error_Number = 0;
 }
 
 /**
  * The warning routine that reports any warnings occuring in ccd_dsp in a standard way.
+ * @see ccd_global.html#CCD_Global_Get_Current_Time_String
  */
 void CCD_DSP_Warning(void)
 {
+	char time_string[32];
+
+	CCD_Global_Get_Current_Time_String(time_string,32);
 	/* if the error number is zero an warning message has not been set up
 	** This is in itself an error as we should not be calling this routine
 	** without there being an warning to display */
 	if(DSP_Error_Number == 0)
 		sprintf(DSP_Error_String,"Logic Error:No Warning defined");
-	fprintf(stderr,"CCD_DSP:Warning(%d) : %s\n",DSP_Error_Number,DSP_Error_String);
+	fprintf(stderr,"%s CCD_DSP:Warning(%d) : %s\n",time_string,DSP_Error_Number,DSP_Error_String);
 	DSP_Error_Number = 0;
 }
 
@@ -3102,6 +3115,9 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.14  2000/03/21 16:37:14  cjm
+** Added mutex compilation print.
+**
 ** Revision 0.13  2000/03/20 11:45:17  cjm
 ** Added _POSIX_TIMERS feature test macros around calls to clock_gettime, to allow the
 ** library to compile under Linux. Note nanosleep should also be tested, but this exists under
