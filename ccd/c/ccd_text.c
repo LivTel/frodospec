@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.7 2000-03-01 10:50:06 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.8 2000-03-08 14:32:45 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -31,7 +31,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.7 2000-03-01 10:50:06 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.8 2000-03-08 14:32:45 cjm Exp $";
 
 /* #defines */
 /**
@@ -55,6 +55,7 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.7 2000-03-01 10:50:06 cjm Exp $";
  * <dt>Reply</dt> <dd>What we think the reply value should be.</dd>
  * <dt>Exposure_Time</dt> <dd>Set when the exposure time is set.</dd>
  * <dt>Exposure_Start_Time</dt> <dd>The time the exposure was started.</dd>
+ * <dt>Pause_Start_Time</dt> <dd>The time the last pause was started.</dd>
  * <dt>Clear_Start_Time</dt> <dd>The time the CLEAR_ARRAY operation was started.</dd>
  * </dl>
  * @see #TEXT_ARGUMENT_COUNT
@@ -70,6 +71,7 @@ struct Text_Struct
 	int Reply;
 	int Exposure_Time;
 	struct timespec Exposure_Start_Time;
+	struct timespec Pause_Start_Time;
 	struct timespec Clear_Start_Time;
 };
 
@@ -119,6 +121,8 @@ static void Text_HCVR_Test_Data_Link(void);
 static void Text_HCVR_Read_Memory(void);
 static void Text_HCVR_Read_Exposure_Time(void);
 static void Text_HCVR_Start_Exposure(void);
+static void Text_HCVR_Pause_Exposure(void);
+static void Text_HCVR_Resume_Exposure(void);
 static void Text_HCVR_Clear_Array(void);
 
 /* local variables */
@@ -171,8 +175,8 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
 	{CCD_PCI_HCVR_READ_IMAGE,"Readout Image",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_ABORT_READOUT,"Abort Readout",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_ABORT_EXPOSURE,"Abort Exposure",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_PAUSE_EXPOSURE,"Pause Exposure",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_RESUME_EXPOSURE,"Resume Exposure",CCD_DSP_DON,NULL},
+	{CCD_PCI_HCVR_PAUSE_EXPOSURE,"Pause Exposure",CCD_DSP_DON,Text_HCVR_Pause_Exposure},
+	{CCD_PCI_HCVR_RESUME_EXPOSURE,"Resume Exposure",CCD_DSP_DON,Text_HCVR_Resume_Exposure},
 	{CCD_PCI_HCVR_OPEN_SHUTTER,"Open Shutter",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_CLOSE_SHUTTER,"Close Shutter",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_SET_ARRAY_TEMPERATURE,"Set Array Temperature",CCD_DSP_DON,NULL},
@@ -779,8 +783,10 @@ static void Text_HCVR_Read_Memory(void)
 
 /**
  * Function invoked from Text_HCVR when a READ_EXPOSURE_TIME command is sent to the driver.
- * This should set the return argument to the elapsed time of exposure.
+ * This should set the return argument to the elapsed time of exposure, in milliseconds.
  * Text_Data.Reply is set to the elapsed time, measured as the current time minus Text_Data.Exposure_Start_Time. 
+ * However, if the exposure is currently paused Text_Data.Pause_Start_Time is non zero. In this case the 
+ * current elapsed exposure time is the pause start time minus the exposure start time.
  * @see #Text_HCVR
  * @see ccd_pci.html#CCD_PCI_HCVR_READ_EXPOSURE_TIME
  */
@@ -790,12 +796,21 @@ static void Text_HCVR_Read_Exposure_Time(void)
 	long int elapsed_time;
 
 	clock_gettime(CLOCK_REALTIME,&(current_time));
-	elapsed_time = (current_time.tv_sec-Text_Data.Exposure_Start_Time.tv_sec)*1000;
-/* voodoo waits until elapsed time returns zero before assuming timing has started.
-** This hack makes the first exposure time we return zero (assuming we request exposure time within one second
-** of starting an exposure). */
-	if(elapsed_time > 0)
-		elapsed_time += (current_time.tv_nsec-Text_Data.Exposure_Start_Time.tv_nsec)/1000000;
+/* if we are currently paused */
+	if(Text_Data.Pause_Start_Time.tv_sec > 0)
+	{
+		elapsed_time = (Text_Data.Pause_Start_Time.tv_sec-Text_Data.Exposure_Start_Time.tv_sec)*1000;
+		elapsed_time += (Text_Data.Pause_Start_Time.tv_nsec-Text_Data.Exposure_Start_Time.tv_nsec)/1000000;
+	}
+	else
+	{
+		elapsed_time = (current_time.tv_sec-Text_Data.Exposure_Start_Time.tv_sec)*1000;
+		/* voodoo waits until elapsed time returns zero before assuming timing has started.
+		** This hack makes the first exposure time we return zero 
+		** (assuming we request exposure time within one second of starting an exposure). */
+		if(elapsed_time > 0)
+			elapsed_time += (current_time.tv_nsec-Text_Data.Exposure_Start_Time.tv_nsec)/1000000;
+	}
 	Text_Data.Reply = elapsed_time;
 }
 
@@ -803,12 +818,53 @@ static void Text_HCVR_Read_Exposure_Time(void)
  * Function invoked from Text_HCVR when a START_EXPOSURE command is sent to the driver.
  * Text_Data sets the reply value to CCD_DSP_DON.
  * We set the Text_Data.Exposure_Start_Time to the current time when the exposure started.
+ * We also reset Text_Data.Pause_Start_Time to zero - we are starting an exposure - we can't be paused.
  * @see #Text_HCVR
  * @see ccd_pci.html#CCD_PCI_HCVR_START_EXPOSURE
  */
 static void Text_HCVR_Start_Exposure(void)
 {
 	clock_gettime(CLOCK_REALTIME,&(Text_Data.Exposure_Start_Time));
+/* reset pause time */
+	Text_Data.Pause_Start_Time.tv_sec = 0;
+	Text_Data.Pause_Start_Time.tv_nsec = 0;
+}
+
+/**
+ * Function invoked from Text_HCVR when a PAUSE_EXPOSURE command is sent to the driver.
+ * Text_Data sets the reply value to CCD_DSP_DON.
+ * We set the Text_Data.Pause_Start_Time to the current time when the exposure started.
+ * @see #Text_HCVR
+ * @see ccd_pci.html#CCD_PCI_HCVR_PAUSE_EXPOSURE
+ */
+static void Text_HCVR_Pause_Exposure(void)
+{
+	clock_gettime(CLOCK_REALTIME,&(Text_Data.Pause_Start_Time));
+}
+
+/**
+ * Function invoked from Text_HCVR when a RESUME_EXPOSURE command is sent to the driver.
+ * Text_Data sets the reply value to CCD_DSP_DON.
+ * We get the current time and calculate the time elapsed from the Text_Data.Pause_Start_Time. We add the elapsed time
+ * to the Text_Data.Exposure_Start_Time so that subsequent calls to get the elapsed exposure time do not
+ * include the paused time. The Text_Data.Pause_Start_Time is reset.
+ * Note the paused time is calculated only to the nearest second for simplicity.
+ * @see #Text_HCVR
+ * @see ccd_pci.html#CCD_PCI_HCVR_RESUME_EXPOSURE
+ */
+static void Text_HCVR_Resume_Exposure(void)
+{
+	struct timespec resume_time;
+	time_t paused_time;
+
+	clock_gettime(CLOCK_REALTIME,&(resume_time));
+/* add amount of paused time to Exposure_Start_Time, so returned elapsed time is sensible */
+	paused_time = resume_time.tv_sec - Text_Data.Pause_Start_Time.tv_sec;
+	Text_Data.Exposure_Start_Time.tv_sec += paused_time;
+/* reset pause time */
+	Text_Data.Pause_Start_Time.tv_sec = 0;
+	Text_Data.Pause_Start_Time.tv_nsec = 0;
+
 }
 
 /**
@@ -825,6 +881,9 @@ static void Text_HCVR_Clear_Array(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.7  2000/03/01 10:50:06  cjm
+** Fixed Text_Get_Reply print for CLR case.
+**
 ** Revision 0.6  2000/02/24 11:42:38  cjm
 ** Made exposure time depend on real time clock.
 ** Made Clear array take some time.
