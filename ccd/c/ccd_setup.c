@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.6 2000-02-14 17:09:35 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.7 2000-02-23 11:54:00 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.6 2000-02-14 17:09:35 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.7 2000-02-23 11:54:00 cjm Exp $";
 
 /* #defines */
 /**
@@ -210,19 +210,6 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_appli
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
-/* diddly - magical Voodoo.java write memory
-** WRM PCI X:1 = 1.
-** Is this needed? The new device driver does this, but voodoo does this as well.
-*/
-/* Inform the PCI board that replies are ready to be recieved. */
-	if(CCD_DSP_Command_WRM(CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,1)!=CCD_DSP_DON)
-	{
-		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
-		Setup_Error_Number = 1;
-		sprintf(Setup_Error_String,"CCD_Setup_Startup:Replies ready to be received failed.");
-		return FALSE;
-	}
 /* reset controller */
 	if(!Setup_Reset_Controller())
 	{
@@ -314,20 +301,6 @@ int CCD_Setup_Shutdown(void)
 	if(!Setup_Power_Off())
 	{
 		CCD_DSP_Set_Abort(FALSE);
-		return FALSE;
-	}
-/* diddly - magical VoodooMainWindowListener.java write memory
-** WRM PCI X:1 = 0.
-** Is this needed? The new device driver does this.
-*/
-/* Inform the PCI board that replies are no longer able to be recieved. 
-** Note this write memory will always fail to retuurn DON: we have told the SDSU CCD Controller
-** that it can't write replies! */
-	if(CCD_DSP_Command_WRM_No_Reply(CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,0)!= CCD_DSP_DON)
-	{
-		CCD_DSP_Set_Abort(FALSE);
-		Setup_Error_Number = 35;
-		sprintf(Setup_Error_String,"CCD_Setup_Shutdowm:Replies no longer able to be received failed.");
 		return FALSE;
 	}
 /* reset completion flags  */
@@ -1184,6 +1157,14 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.6  2000/02/14 17:09:35  cjm
+** Added some get routines to get data from Setup_Data:
+** CCD_Setup_Get_NSBin
+** CCD_Setup_Get_NPBin
+** CCD_Setup_Get_Window_Flags
+** CCD_Setup_Get_Filter_Wheel_Position
+** These are to be used for get status commands.
+**
 ** Revision 0.5  2000/02/10 12:07:38  cjm
 ** Added interface board to hardware test.
 **
