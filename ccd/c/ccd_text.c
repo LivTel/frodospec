@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.10 2000-04-13 13:11:35 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.11 2000-05-09 15:17:44 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.10 $
+ * @version $Revision: 0.11 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.10 2000-04-13 13:11:35 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.11 2000-05-09 15:17:44 cjm Exp $";
 
 /* #defines */
 /**
@@ -517,6 +517,7 @@ int CCD_Text_Command(int request,int *argument)
  */
 int CCD_Text_Get_Reply_Data(char *data,int byte_count)
 {
+	unsigned short *ushort_data = NULL;
 	int i;
 
 	Text_Error_Number = 0;
@@ -536,11 +537,12 @@ int CCD_Text_Get_Reply_Data(char *data,int byte_count)
 		sprintf(Text_Error_String,"CCD_Text_Get_Reply_Data:byte_count is too small:%d.",byte_count);
 		return -1;
 	}
-	/* fill data with return values - in this case it happens to be ASCII characters we can print out! */
+	/* fill data with return values */
+	ushort_data = (unsigned short *)data;
 	i=0;
-	while((i<byte_count)&&(!CCD_DSP_Get_Abort()))
+	while((i<(byte_count/sizeof(unsigned short)))&&(!CCD_DSP_Get_Abort()))
 	{
-		data[i] = (i%(128-32))+32;
+		ushort_data[i] = (i%(2<<16));
 		i++;
 	}
 	return byte_count;
@@ -960,6 +962,9 @@ static void Text_HCVR_Clear_Array(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.10  2000/04/13 13:11:35  cjm
+** Added current time to error routines.
+**
 ** Revision 0.10  2000/04/13 13:01:27  cjm
 ** Modified error routine to print current time.
 **
