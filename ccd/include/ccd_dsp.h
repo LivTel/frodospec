@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.17 2000-12-19 17:53:23 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.18 2000-12-21 11:54:43 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -102,6 +102,23 @@ enum CCD_DSP_EXPOSURE_STATUS
 {
 	CCD_DSP_EXPOSURE_STATUS_NONE,CCD_DSP_EXPOSURE_STATUS_CLEAR,
 	CCD_DSP_EXPOSURE_STATUS_EXPOSE,CCD_DSP_EXPOSURE_STATUS_READOUT
+};
+
+/* These #define/enum definitions should match with those in CCDLibrary.java */
+/**
+ * Return value from <a href="#CCD_DSP_Get_Filter_Wheel_Status">CCD_DSP_Get_Filter_Wheel_Status</a>. 
+ * <ul>
+ * <li>CCD_DSP_FILTER_WHEEL_STATUS_NONE means the library is not currently doing anything with the filter wheels.
+ * <li>CCD_DSP_FILTER_WHEEL_STATUS_MOVING means the library is moving the filter wheels.
+ * <li>CCD_DSP_FILTER_WHEEL_STATUS_RESETING means the library is reseting the filter wheels.
+ * <li>CCD_DSP_FILTER_WHEEL_STATUS_ABORTED means the library is aborting the filter wheels.
+ * </ul>
+ * @see #CCD_DSP_Get_Filter_Wheel_Status
+ */
+enum CCD_DSP_FILTER_WHEEL_STATUS
+{
+	CCD_DSP_FILTER_WHEEL_STATUS_NONE,CCD_DSP_FILTER_WHEEL_STATUS_MOVING,CCD_DSP_FILTER_WHEEL_STATUS_RESETING,
+	CCD_DSP_FILTER_WHEEL_STATUS_ABORTED
 };
 
 /* These enum definitions should match with those in CCDLibrary.java */
@@ -301,6 +318,7 @@ extern int CCD_DSP_Get_Start_Exposure_Offset_Time(void);
 extern void CCD_DSP_Set_Readout_Remaining_Time(int time);
 extern int CCD_DSP_Get_Readout_Remaining_Time(void);
 extern void CCD_DSP_Set_Exposure_Start_Time(void);
+extern enum CCD_DSP_FILTER_WHEEL_STATUS CCD_DSP_Get_Filter_Wheel_Status(void);
 extern void CCD_DSP_Set_Filter_Wheel_Steps_Per_Position(int steps);
 extern void CCD_DSP_Set_Filter_Wheel_Milliseconds_Per_Step(int ms);
 extern int CCD_DSP_Get_Error_Number(void);
