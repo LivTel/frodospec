@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.20 2002-11-08 10:35:43 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.21 2002-12-03 17:13:19 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.20 $
+ * @version $Revision: 0.21 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
+#include <math.h>
 #include "ccd_global.h"
 #include "ccd_dsp.h"
 #include "ccd_dsp_download.h"
@@ -31,7 +32,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.20 2002-11-08 10:35:43 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.21 2002-12-03 17:13:19 cjm Exp $";
 
 /* #defines */
 /**
@@ -87,6 +88,11 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.20 2002-11-08 10:35:43 cjm Exp $";
  * where the digitized ADU counts for the negative low voltage (-15v) supply voltage are stored.
  */
 #define SETUP_MINUS_LOW_VOLTAGE_ADDRESS	(0xa)
+/**
+ * The SDSU controller address, on the Utility board, Y memory space, 
+ * where the digitized ADU counts for the vacuum gauge (if present) are stored.
+ */
+#define SETUP_VACUUM_GAUGE_ADDRESS	(0xf)
 
 /**
  * Memory buffer size for mmap/malloc.
@@ -983,6 +989,122 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu)
 }
 
 /**
+ * Routine to get the Analogue to Digital digitized value of the vacuum gauge.
+ * This is read from the SETUP_VACUUM_GAUGE_ADDRESS memory location, in Y memory space on the utility board.
+ * @param gauge_adu The address of an integer to store the adus.
+ * return Returns TRUE if the adus were read, FALSE otherwise.
+ * @see #SETUP_VACUUM_GAUGE_ADDRESS
+ * @see ccd_dsp.html#CCD_DSP_Command_RDM
+ * @see ccd_dsp.html#CCD_DSP_BOARD_ID
+ * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
+ * @see ccd_dsp.html#CCD_DSP_Set_Abort
+ * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
+ * @see ccd_global.html#CCD_Global_Log
+ * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
+ */
+int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
+{
+	int retval;
+
+	Setup_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU() started.");
+#endif
+	CCD_DSP_Set_Abort(FALSE);
+	if(gauge_adu == NULL)
+	{
+		Setup_Error_Number = 57;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:adu was NULL.");
+		return FALSE;
+	}
+	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_VACUUM_GAUGE_ADDRESS);
+	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Setup_Error_Number = 58;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Read memory failed.");
+		return FALSE;
+	}
+	(*gauge_adu) = retval;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU() returned %#x.",
+		(*gauge_adu));
+#endif
+	return TRUE;
+}
+
+/**
+ * Routine to get the value of the dewar vacuum gauge pressure, in mbar.
+ * We use CCD_Setup_Get_Vacuum_Gauge_ADU to get the gauge ADUs.
+ * @param gauge_mbar The address of an double to store the pressure, in mbar.
+ * return Returns TRUE if the read was successful, FALSE otherwise.
+ * @see #SETUP_VACUUM_GAUGE_ADDRESS
+ * @see ccd_dsp.html#CCD_DSP_Command_RDM
+ * @see ccd_dsp.html#CCD_DSP_BOARD_ID
+ * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
+ * @see ccd_dsp.html#CCD_DSP_Set_Abort
+ * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
+ * @see ccd_global.html#CCD_Global_Log
+ * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
+ */
+int CCD_Setup_Get_Vacuum_Gauge_MBar(double *gauge_mbar)
+{
+	int retval,gauge_adu;
+	double gauge_voltage,power_value;
+
+	Setup_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_MBar() started.");
+#endif
+	CCD_DSP_Set_Abort(FALSE);
+	if(gauge_mbar == NULL)
+	{
+		Setup_Error_Number = 59;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_MBar:address was NULL.");
+		return FALSE;
+	}
+	if(!CCD_Setup_Get_Vacuum_Gauge_ADU(&gauge_adu))
+		return FALSE;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_MBar(): Gauge ADU = %d.",gauge_adu);
+#endif
+	/* 
+	** gauge_adu is in the range 0..4096, with 0=-3v, 2048 = 0v and 4096 = 3v.
+	** The gauge returns 0..10v, with a amplifier stage converting to 0..3v
+	** The gauge is out of range with voltages less than 1.9v and greater than 10v
+	*/
+	gauge_voltage = ((((double)gauge_adu)-2048.0)*10.0)/(2048.0);
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,
+			      "CCD_Setup_Get_Vacuum_Gauge_MBar(): Gauge voltage (0..10v) = %.2fv.",gauge_voltage);
+#endif
+	/*
+	** At 2v, the pressure is 5x10^-4 mbar
+	** At 10v, the pressure is 1x10^3 mbar
+	** The scale is logorithmic (base 10).
+	** log(p) = mv + c (p=pressure, m=slope, v=voltage, c=constant)
+	** m = (log(10^3) - log(5x10^-4))/(10 -2)
+	**   = (3 - -3.3)/8
+	** m = 0.7578
+	** Plugging back into log(p) = mv + c, c = log(p) - mv
+	** c = -3.3  - ( 0.7578 x 2.0 )
+	** c = -4.875
+	** Therefore:
+	** p(mbar) = 10 ^ ((0.7875 x v) + -4.875)
+	*/
+	power_value = ((0.7875 * gauge_voltage)-4.875);
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_MBar(): 10 ^ %g.",power_value);
+#endif
+	(*gauge_mbar) = pow(10.0,power_value);
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_MBar() returned %g mbar.",
+		(*gauge_mbar));
+#endif
+	return TRUE;
+}
+
+/**
  * Get the current value of ccd_setup's error number.
  * @return The current value of ccd_setup's error number.
  */
@@ -1669,6 +1791,12 @@ static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct win
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.20  2002/11/08 10:35:43  cjm
+** Reversed order of calls of CCD_Interface_Memory_Map and Setup_PCI_Board.
+** CCD_Interface_Memory_Map calls mmap, which in the device driver calls a HCVR
+** command. Normally this ordering makes no difference, but it does
+** when the PCI rom is not correct.
+**
 ** Revision 0.19  2002/11/07 19:13:39  cjm
 ** Changes to make library work with SDSU version 1.7 DSP code.
 **
