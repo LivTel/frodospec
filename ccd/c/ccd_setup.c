@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.23 2003-03-26 15:44:48 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.24 2003-06-06 12:36:01 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.23 $
+ * @version $Revision: 0.24 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -22,6 +22,11 @@
 #include <signal.h>
 #include <errno.h>
 #include <math.h>
+#include <time.h>
+#include <unistd.h>
+#ifndef _POSIX_TIMERS
+#include <sys/time.h>
+#endif
 #include "ccd_global.h"
 #include "ccd_dsp.h"
 #include "ccd_dsp_download.h"
@@ -32,7 +37,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.23 2003-03-26 15:44:48 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.24 2003-06-06 12:36:01 cjm Exp $";
 
 /* #defines */
 /**
@@ -93,6 +98,11 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.23 2003-03-26 15:44:48 cjm Exp $";
  * where the digitized ADU counts for the vacuum gauge (if present) are stored.
  */
 #define SETUP_VACUUM_GAUGE_ADDRESS	(0xf)
+/**
+ * How many times to read the vacuum guage memory on the utility board, when
+ * sampling the voltage returned by the vacuum gauge. 
+ */
+#define SETUP_VACUUM_GAUGE_SAMPLE_COUNT	(10)
 
 /**
  * Memory buffer size for mmap/malloc.
@@ -186,7 +196,7 @@ static int Setup_Gain(enum CCD_DSP_GAIN gain,int speed);
 static int Setup_Idle(int idle);
 static int Setup_Binning(int nsbin,int npbin);
 static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
-static int Setup_Dimensions(void);
+static int Setup_Dimensions(int ncols,int nrows);
 static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct window_list[]);
 static int Setup_Controller_Windows(void);
 
@@ -555,7 +565,7 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 		return FALSE;
 	}
 /* setup final calculated dimensions */
-	if(!Setup_Dimensions())
+	if(!Setup_Dimensions(Setup_Data.NCols,Setup_Data.NRows))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
 		CCD_DSP_Set_Abort(FALSE);
@@ -1140,10 +1150,17 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu)
 
 /**
  * Routine to get the Analogue to Digital digitized value of the vacuum gauge.
- * This is read from the SETUP_VACUUM_GAUGE_ADDRESS memory location, in Y memory space on the utility board.
+ * <ul>
+ * <li>The vacuum gauage is switched on using CCD_DSP_Command_VON.
+ * <li>We enter a loop doing SETUP_VACUUM_GAUGE_SAMPLE_COUNT samples.
+ * <li>A sample is read from the SETUP_VACUUM_GAUGE_ADDRESS memory location, in Y memory space on the utility board.
+ * <li>We sleep for atleast 1 ms, to allow the 1ms utility board loop to re-sample the analogue input.
+ * <li>We return the average sample.
+ * </ul>
  * @param gauge_adu The address of an integer to store the adus.
  * return Returns TRUE if the adus were read, FALSE otherwise.
  * @see #SETUP_VACUUM_GAUGE_ADDRESS
+ * @see #SETUP_VACUUM_GAUGE_SAMPLE_COUNT
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_dsp.html#CCD_DSP_BOARD_ID
  * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
@@ -1151,10 +1168,13 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu)
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
+ * @see ccd_global.html#CCD_GLOBAL_ONE_MILLISECOND_NS
  */
 int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
 {
-	int retval;
+	struct timespec sleep_time;
+	int adu_total;
+	int retval,i;
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
@@ -1167,18 +1187,64 @@ int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:adu was NULL.");
 		return FALSE;
 	}
-	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_VACUUM_GAUGE_ADDRESS);
-	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU():Switch on gauge.");
+#endif
+	retval = CCD_DSP_Command_VON();
+	if(retval == 0)
 	{
 		CCD_DSP_Set_Abort(FALSE);
-		Setup_Error_Number = 58;
-		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Read memory failed.");
+		Setup_Error_Number = 65;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Switch on gauge failed.");
 		return FALSE;
 	}
-	(*gauge_adu) = retval;
+	/* sleep for a while after switching on the Vacuum gauage, to allow the electronics to settle. 
+	** Note this effects the GET_STATUS return time. */
+	sleep_time.tv_sec = 1;
+	sleep_time.tv_nsec = 0;
+	nanosleep(&sleep_time,NULL);
+	/* start reading analogue voltages. */
+	adu_total = 0;
+	for(i=0;i<SETUP_VACUUM_GAUGE_SAMPLE_COUNT;i++)
+	{
 #if LOGGING > 0
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU() returned %#x.",
-		(*gauge_adu));
+		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,
+			       "CCD_Setup_Get_Vacuum_Gauge_ADU():Read analogue voltage(%d).",i);
+#endif
+		retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_VACUUM_GAUGE_ADDRESS);
+		if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
+		{
+			CCD_DSP_Set_Abort(FALSE);
+			Setup_Error_Number = 58;
+			sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Read memory failed(%d).",i);
+			return FALSE;
+		}
+#if LOGGING > 0
+		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,
+				      "CCD_Setup_Get_Vacuum_Gauge_ADU() sample %d returned %d.",i,retval);
+#endif
+		adu_total += retval;
+		/* sleep for at least 1 ms, to allow the controller electronics to re-sample the
+		** relevant analogue IO value */
+		sleep_time.tv_sec = 0;
+		sleep_time.tv_nsec = CCD_GLOBAL_ONE_MILLISECOND_NS;
+		nanosleep(&sleep_time,NULL);
+	}/* end for */
+	(*gauge_adu) = adu_total/SETUP_VACUUM_GAUGE_SAMPLE_COUNT;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU() returned %d.",(*gauge_adu));
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU():Switch off gauge.");
+#endif
+	retval = CCD_DSP_Command_VOF();
+	if(retval == 0)
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Setup_Error_Number = 66;
+		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Switch off gauge failed.");
+		return FALSE;
+	}
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU():Finished.");
 #endif
 	return TRUE;
 }
@@ -1808,6 +1874,10 @@ static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEIN
 /**
  * Internal routine to set up the CCD dimensions for the SDSU CCD Controller. This routines writes the
  * dimension values to the controller boards using WRM.  This routine is called from CCD_Setup_Dimensions.
+ * @param ncols The number of columns. This is usually Setup_Data.NCols, but will be different when
+ *        windowing.
+ * @param nrows The number of rows. This is usually Setup_Data.NRows, but will be different when
+ *        windowing.
  * @return Returns TRUE if the operation succeeds, FALSE if it fails.
  * @see #CCD_Setup_Dimensions
  * @see #SETUP_ADDRESS_DIMENSION_COLS
@@ -1815,20 +1885,20 @@ static int Setup_DeInterlace(enum CCD_DSP_AMPLIFIER amplifier, enum CCD_DSP_DEIN
  * @see ccd_dsp.html#CCD_DSP_Command_WRM
  * @see ccd_dsp.html#CCD_DSP_WRM
  */
-static int Setup_Dimensions(void)
+static int Setup_Dimensions(int ncols,int nrows)
 {
 	if(CCD_DSP_Command_WRM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_DIMENSION_COLS,
-		Setup_Data.NCols) != CCD_DSP_DON)
+		ncols) != CCD_DSP_DON)
 	{
 		Setup_Error_Number = 22;
-		sprintf(Setup_Error_String,"Setting Dimensions:Column Setup failed(%d)",Setup_Data.NCols);
+		sprintf(Setup_Error_String,"Setting Dimensions:Column Setup failed(%d)",ncols);
 		return FALSE;
 	}
 	if(CCD_DSP_Command_WRM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_DIMENSION_ROWS,
-		Setup_Data.NRows) != CCD_DSP_DON)
+		nrows) != CCD_DSP_DON)
 	{
 		Setup_Error_Number = 23;
-		sprintf(Setup_Error_String,"Setting Dimensions:Row Setup failed(%d)",Setup_Data.NRows);
+		sprintf(Setup_Error_String,"Setting Dimensions:Row Setup failed(%d)",nrows);
 		return FALSE;
 	}
 	return TRUE;
@@ -1932,6 +2002,11 @@ static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct win
 
 /**
  * Actually write the calculated Setup_Data windows to the SDSU controller, using SSS and SSP.
+ * If no windowing is taking place, we use SSS to reset the window sizes to zero (turning them off in the DSP code).
+ * We also call Setup_Dimensions to set NSR and NPR to an area equivalent to the total number of pixels
+ * written back from the timing board to the PCI board.
+ * @return The routine returns TRUE on success, and FALSE if something fails.
+ * @see #Setup_Dimensions
  * @see #Setup_Data
  * @see #CCD_Setup_Window_Struct
  * @see #SETUP_WINDOW_BIAS_WIDTH
@@ -1940,11 +2015,19 @@ static int Setup_Controller_Windows(void)
 {
 	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
 	int bias_width,box_width,box_height,window_count;
-	int y_offset,x_offset,bias_x_offset,i;
+	int y_offset,x_offset,bias_x_offset,i,total_ncols;
 
-	/* if no windows - return */
+	/* if no windows - reset window sizes and return */
 	if(Setup_Data.Window_Flags == 0)
+	{
+		if(CCD_DSP_Command_SSS(0,0,0) != CCD_DSP_DON)
+		{
+			Setup_Error_Number = 64;
+			sprintf(Setup_Error_String,"Reseting Subarray Sizes to zero failed.");
+			return FALSE;
+		}
 		return TRUE;
+	}
 	/* setup window_list/count, for each window defined in real list */
 	window_count = 0;
 	if(Setup_Data.Window_Flags&CCD_SETUP_WINDOW_ONE)
@@ -1966,6 +2049,7 @@ static int Setup_Controller_Windows(void)
 			box_height);
 		return FALSE;
 	}
+	total_ncols = 0;
 	/* send SSP for each window */
 	for(i=0; i < window_count;i++)
 	{
@@ -1974,7 +2058,8 @@ static int Setup_Controller_Windows(void)
 		else
 			y_offset = window_list[i].Y_Start-window_list[i-1].Y_End;
 		x_offset = window_list[i].X_Start;
-		/* diddly 2048 + a bit - got from somewhere (2048+SETUP_WINDOW_BIAS_WIDTH(53) = 2101) */
+		/* diddly 2048 + a bit
+	        ** Full Width(2154)-bias strip width (53) = 2101 : correct calculation for this value. */
 		bias_x_offset = 2101-window_list[i].X_End;
 		if(CCD_DSP_Command_SSP(y_offset,x_offset,bias_x_offset) != CCD_DSP_DON)
 		{
@@ -1983,12 +2068,26 @@ static int Setup_Controller_Windows(void)
 				x_offset,bias_x_offset);
 			return FALSE;
 		}
+		/* total up number of columns to readout.
+		** We assume number of rows are identical in each case, this is a DSP restriction and
+		** is tested for in Setup_Window_List */
+		total_ncols += bias_width+box_width;
 	}
+	/* we now need to set the dimensions of the CCD.
+	** For windowing, the total area of all the windows must be set as the CCD dimensions,
+	** as NSR and NPR are written back from the timing board to the PCI board as part of the
+	** RDA command, which tells the PCI board how many pixels is should expect from the timing board. */
+	if(Setup_Dimensions(total_ncols,box_height) == FALSE)
+		return FALSE;
 	return TRUE;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.23  2003/03/26 15:44:48  cjm
+** Added windowing implementation.
+** Note Bias offsets etc hardcodeed at the moment.
+**
 ** Revision 0.22  2002/12/16 16:49:36  cjm
 ** Removed Error routines resetting error number to zero.
 **
