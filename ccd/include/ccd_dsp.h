@@ -1,5 +1,5 @@
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.21 2002-11-07 19:16:51 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.22 2002-11-08 12:14:18 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -350,7 +350,7 @@ extern int CCD_DSP_Command_PEX(void);
 extern int CCD_DSP_Command_PON(void);
 extern int CCD_DSP_Command_POF(void);
 extern int CCD_DSP_Command_REX(void);
-extern int CCD_DSP_Command_SEX(struct timespec start_time);
+extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_length);
 extern int CCD_DSP_Command_Reset(void);
 extern int CCD_DSP_Command_Get_HSTR(int *value);
 extern int CCD_DSP_Command_Get_Readout_Progress(int *value);
