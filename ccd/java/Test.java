@@ -1,11 +1,11 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.6 1999-05-28 09:54:18 dev Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.7 1999-09-08 10:52:40 cjm Exp $
 import java.lang.*;
 import java.io.*;
 /**
  * This is the main test program.
  * @author Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
 class Test
 {
@@ -357,9 +357,6 @@ class Test
 		System.exit(0);
 	}
 }
-
-
-
-
-
-
+//
+// $Log: not supported by cvs2svn $
+//

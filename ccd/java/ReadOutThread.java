@@ -1,5 +1,5 @@
 // ReadOutThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/ReadOutThread.java,v 1.2 1999-05-28 09:54:18 dev Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/ReadOutThread.java,v 1.3 1999-09-08 10:52:40 cjm Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -7,14 +7,14 @@ import java.io.*;
  * This class extends thread to support the readout of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 class ReadOutThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: ReadOutThread.java,v 1.2 1999-05-28 09:54:18 dev Exp $");
+	public final static String RCSID = new String("$Id: ReadOutThread.java,v 1.3 1999-09-08 10:52:40 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 * @see CCDLibrary
@@ -104,9 +104,12 @@ class ReadOutThread extends Thread
 		return returnValue;
 	}
 }
-
+ 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  1999/05/28 09:54:18  dev
+// "Name
+//
 // Revision 1.1  1999/02/23 11:08:00  dev
 // Initial revision
 //
