@@ -1,6 +1,6 @@
 /* ccd_temperature.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.10 2004-03-03 15:43:49 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.11 2004-05-16 14:28:18 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.10 $
+ * @version $Revision: 0.11 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.10 2004-03-03 15:43:49 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.11 2004-05-16 14:28:18 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -239,7 +239,6 @@ int CCD_Temperature_Get(double *temperature)
 		sprintf(Temperature_Error_String,"CCD_Temperature_Get:temperature pointer was NULL.");
 		return FALSE;
 	}
-	CCD_DSP_Set_Abort(FALSE);
 	adu = 0;
 	for (i = 0; i < TEMPERATURE_MAX_CHECKS; i++)
 	{
@@ -247,7 +246,6 @@ int CCD_Temperature_Get(double *temperature)
 			TEMPERATURE_CURRENT_ADU_ADDRESS);
 		if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 		{
-			CCD_DSP_Set_Abort(FALSE);
 			Temperature_Error_Number = 3;
 			sprintf(Temperature_Error_String,"CCD_Temperature_Get:Read temperature (%d) failed",i);
 			return FALSE;
@@ -333,11 +331,9 @@ int CCD_Temperature_Get_Utility_Board_ADU(int *adu)
 		sprintf(Temperature_Error_String,"CCD_Temperature_Get:adu pointer was NULL.");
 		return FALSE;
 	}
-	CCD_DSP_Set_Abort(FALSE);
 	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,TEMPERATURE_UTILITY_BOARD_ADU_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Temperature_Error_Number = 6;
 		sprintf(Temperature_Error_String,"CCD_Temperature_Get_Utility_Board:"
 			"Read temperature failed");
@@ -371,7 +367,6 @@ int CCD_Temperature_Set(double target_temperature)
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Set(temperature=%.2f) started.",
 		target_temperature);
 #endif
-	CCD_DSP_Set_Abort(FALSE);
 	/* get the target adu count from target_temperature using the setup data */
 	adu = Temperature_Calc_Temp_ADU(Temperature_Data.Temp_Coeff,Temperature_Data.Temp_Coeff_Count,
 		Temperature_Data.V_Upper,Temperature_Data.V_Lower, 
@@ -380,7 +375,6 @@ int CCD_Temperature_Set(double target_temperature)
 	if(CCD_DSP_Command_WRM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
 		TEMPERATURE_REQUIRED_ADU_ADDRESS,adu) != CCD_DSP_DON)
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Temperature_Error_Number = 2;
 		sprintf(Temperature_Error_String,"Setting CCD Temperature failed.");
 		return FALSE;
@@ -409,7 +403,6 @@ int CCD_Temperature_Get_Heater_ADU(int *heater_adu)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_TEMPERATURE,"CCD_Temperature_Get_Heater_ADU() started.");
 #endif
-	CCD_DSP_Set_Abort(FALSE);
 	if(heater_adu == NULL)
 	{
 		Temperature_Error_Number = 4;
@@ -419,7 +412,6 @@ int CCD_Temperature_Get_Heater_ADU(int *heater_adu)
 	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,TEMPERATURE_HEATER_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Temperature_Error_Number = 5;
 		sprintf(Temperature_Error_String,"CCD_Temperature_Get_Heater_ADU:Read memory failed.");
 		return FALSE;
@@ -595,6 +587,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.10  2004/03/03 15:43:49  cjm
+** Added comments amount units of temperature.
+**
 ** Revision 0.9  2002/12/16 16:49:36  cjm
 ** Removed Error routines resetting error number to zero.
 **

@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.24 2003-06-06 12:36:01 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.25 2004-05-16 14:28:18 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.24 $
+ * @version $Revision: 0.25 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -37,7 +37,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.24 2003-06-06 12:36:01 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.25 2004-05-16 14:28:18 cjm Exp $";
 
 /* #defines */
 /**
@@ -335,95 +335,164 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	Setup_Data.Timing_Complete = FALSE;
 	Setup_Data.Utility_Complete = FALSE;
 	Setup_Data.Dimension_Complete = FALSE;
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 67;
+		sprintf(Setup_Error_String,"CCD_Setup_Started:Aborted");
+		return FALSE;
+	}
 /* load a PCI interface board ROM or a filename */
 	if(!Setup_PCI_Board(pci_load_type,pci_filename))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
 	else   /*acknowlege PCI load complete*/
 		Setup_Data.PCI_Complete = TRUE;
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 68;
+		sprintf(Setup_Error_String,"CCD_Setup_Started:Aborted");
+		return FALSE;
+	}
 /* memory map initialisation */
 /* done after PCI download, as astropci sends a WRITE_PCI_ADDRESS HCVR command to the PCI board
 ** in response to a mmap call. */
 	if(!CCD_Interface_Memory_Map(SETUP_MEMORY_BUFFER_SIZE))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 41;
 		sprintf(Setup_Error_String,"CCD_Setup_Startup:Memory Map failed.");
 		return FALSE;
 
 	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 69;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
+		return FALSE;
+	}
 /* reset controller */
 	if(!Setup_Reset_Controller())
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return(FALSE);
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 70;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
+		return FALSE;
 	}
 /* do a hardware test (data link) */
 	if(!CCD_Setup_Hardware_Test(SETUP_SHORT_TEST_COUNT))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 71;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
 		return FALSE;
 	}
 /* load a timing board application from ROM or a filename */
 	if(!Setup_Timing_Board(timing_load_type,timing_application_number,timing_filename))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
 	else   /*acknowlege timing load complete*/
 		Setup_Data.Timing_Complete = TRUE;
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 72;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
+		return FALSE;
+	}
 /* load a utility board application from ROM or a filename */
 	if(!Setup_Utility_Board(utility_load_type,utility_application_number,utility_filename))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
 	else /*acknowlege utility load complete*/ 
 		Setup_Data.Utility_Complete = TRUE;
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 73;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
+		return FALSE;
+	}
 /* turn analogue power on */
 	if(!Setup_Power_On())
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
 	else /*acknowlege power on complete*/ 
 		Setup_Data.Power_Complete = TRUE;
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 74;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
+		return FALSE;
+	}
 /* setup gain */
 	if(!Setup_Gain(gain,gain_speed))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 75;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
 		return FALSE;
 	}
 /* set the temperature */
 	if(!CCD_Temperature_Set(target_temperature))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 2;
 		sprintf(Setup_Error_String,"CCD_Setup_Startup:CCD_Temperature_Set failed(%.2f)",
 			target_temperature);
+		return FALSE;
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 76;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
 		return FALSE;
 	}
 /* setup idling of the readout clocks */
 	if(!Setup_Idle(idle))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
 /* tidy up flags and return */
 	Setup_Data.Setup_In_Progress = FALSE;
-	CCD_DSP_Set_Abort(FALSE);
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Startup() returned TRUE.");
 #endif
@@ -452,13 +521,19 @@ int CCD_Setup_Shutdown(void)
 /* perform a power off */
 	if(!Setup_Power_Off())
 	{
-		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 77;
+		sprintf(Setup_Error_String,"CCD_Setup_Startup:Aborted");
 		return FALSE;
 	}
 /* memory map un-mapped */
 	if(!CCD_Interface_Memory_UnMap())
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 50;
 		sprintf(Setup_Error_String,"CCD_Setup_Shutdown:Memory UnMap failed.");
 		return FALSE;
@@ -554,25 +629,46 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	if(!Setup_Binning(nsbin,npbin))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE; 
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 78;
+		sprintf(Setup_Error_String,"CCD_Setup_Dimensions:Aborted");
+		return FALSE;
 	}
 /* do de-interlacing/ amplifier setup */
 	if(!Setup_DeInterlace(amplifier,deinterlace_type))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
+		return FALSE;
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 79;
+		sprintf(Setup_Error_String,"CCD_Setup_Dimensions:Aborted");
 		return FALSE;
 	}
 /* setup final calculated dimensions */
 	if(!Setup_Dimensions(Setup_Data.NCols,Setup_Data.NRows))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
 	else /*acknowlege dimensions complete*/ 
 		Setup_Data.Dimension_Complete = TRUE;
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 80;
+		sprintf(Setup_Error_String,"CCD_Setup_Dimensions:Aborted");
+		return FALSE;
+	}
 /* setup windowing data */
 	if(!Setup_Window_List(window_flags,window_list))
 	{
@@ -581,7 +677,6 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 	}
 /* reset in progress information */
 	Setup_Data.Setup_In_Progress = FALSE;
-	CCD_DSP_Set_Abort(FALSE);
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Dimensions() returned TRUE.");
 #endif
@@ -621,7 +716,14 @@ int CCD_Setup_Hardware_Test(int test_count)
 			pci_errno++;
 		value += value_increment;
 	}
-
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 81;
+		sprintf(Setup_Error_String,"CCD_Setup_Hardware_Test:Aborted.");
+		return FALSE;
+	}
 	/* test the timimg board test_count times */
 	tim_errno = 0;
 	value = 0;
@@ -632,7 +734,14 @@ int CCD_Setup_Hardware_Test(int test_count)
 			tim_errno++;
 		value += value_increment;
 	}
-
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 82;
+		sprintf(Setup_Error_String,"CCD_Setup_Hardware_Test:Aborted.");
+		return FALSE;
+	}
 	/* test the utility board test_count times */
 	util_errno = 0;
 	value = 0;	
@@ -643,6 +752,15 @@ int CCD_Setup_Hardware_Test(int test_count)
 			util_errno++;
 		value += value_increment;
 	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+		Setup_Data.Setup_In_Progress = FALSE;
+		Setup_Error_Number = 83;
+		sprintf(Setup_Error_String,"CCD_Setup_Hardware_Test:Aborted.");
+		return FALSE;
+	}
+
 	/* if some PCI errors occured, setup an error message and determine whether it was fatal or not */
 	if(pci_errno > 0)
 	{
@@ -687,6 +805,9 @@ int CCD_Setup_Hardware_Test(int test_count)
  */
 void CCD_Setup_Abort(void)
 {
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Abort() started.");
+#endif
 	CCD_DSP_Set_Abort(TRUE);
 }
 
@@ -1022,7 +1143,6 @@ int CCD_Setup_Get_Setup_In_Progress(void)
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_dsp.html#CCD_DSP_BOARD_ID
  * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
- * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
@@ -1035,7 +1155,6 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(int *hv_adu)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_High_Voltage_Analogue_ADU() started.");
 #endif
-	CCD_DSP_Set_Abort(FALSE);
 	if(hv_adu == NULL)
 	{
 		Setup_Error_Number = 51;
@@ -1045,7 +1164,6 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(int *hv_adu)
 	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_HIGH_VOLTAGE_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 52;
 		sprintf(Setup_Error_String,"CCD_Setup_Get_High_Voltage_Analogue_ADU:Read memory failed.");
 		return FALSE;
@@ -1067,7 +1185,6 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(int *hv_adu)
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_dsp.html#CCD_DSP_BOARD_ID
  * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
- * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
@@ -1080,7 +1197,6 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(int *lv_adu)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Low_Voltage_Analogue_ADU() started.");
 #endif
-	CCD_DSP_Set_Abort(FALSE);
 	if(lv_adu == NULL)
 	{
 		Setup_Error_Number = 53;
@@ -1090,7 +1206,6 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(int *lv_adu)
 	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_LOW_VOLTAGE_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 54;
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Low_Voltage_Analogue_ADU:Read memory failed.");
 		return FALSE;
@@ -1112,7 +1227,6 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(int *lv_adu)
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_dsp.html#CCD_DSP_BOARD_ID
  * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
- * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
@@ -1125,7 +1239,6 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU() started.");
 #endif
-	CCD_DSP_Set_Abort(FALSE);
 	if(minus_lv_adu == NULL)
 	{
 		Setup_Error_Number = 55;
@@ -1135,7 +1248,6 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu)
 	retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_MINUS_LOW_VOLTAGE_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 56;
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU:Read memory failed.");
 		return FALSE;
@@ -1164,7 +1276,6 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu)
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_dsp.html#CCD_DSP_BOARD_ID
  * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
- * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
@@ -1180,7 +1291,6 @@ int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_ADU() started.");
 #endif
-	CCD_DSP_Set_Abort(FALSE);
 	if(gauge_adu == NULL)
 	{
 		Setup_Error_Number = 57;
@@ -1193,7 +1303,6 @@ int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
 	retval = CCD_DSP_Command_VON();
 	if(retval == 0)
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 65;
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Switch on gauge failed.");
 		return FALSE;
@@ -1214,7 +1323,6 @@ int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
 		retval = CCD_DSP_Command_RDM(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_VACUUM_GAUGE_ADDRESS);
 		if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 		{
-			CCD_DSP_Set_Abort(FALSE);
 			Setup_Error_Number = 58;
 			sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Read memory failed(%d).",i);
 			return FALSE;
@@ -1238,7 +1346,6 @@ int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
 	retval = CCD_DSP_Command_VOF();
 	if(retval == 0)
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Setup_Error_Number = 66;
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Vacuum_Gauge_ADU:Switch off gauge failed.");
 		return FALSE;
@@ -1258,7 +1365,6 @@ int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_dsp.html#CCD_DSP_BOARD_ID
  * @see ccd_dsp.html#CCD_DSP_MEM_SPACE
- * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
@@ -1272,7 +1378,6 @@ int CCD_Setup_Get_Vacuum_Gauge_MBar(double *gauge_mbar)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Vacuum_Gauge_MBar() started.");
 #endif
-	CCD_DSP_Set_Abort(FALSE);
 	if(gauge_mbar == NULL)
 	{
 		Setup_Error_Number = 59;
@@ -2084,6 +2189,11 @@ static int Setup_Controller_Windows(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.24  2003/06/06 12:36:01  cjm
+** CHanged vacuum gauge read implementation, now issues VON/VOF and
+** averages multiple samples.
+** Setup_Dimensions changed, and windowing code added (SSS/SSP).
+**
 ** Revision 0.23  2003/03/26 15:44:48  cjm
 ** Added windowing implementation.
 ** Note Bias offsets etc hardcodeed at the moment.

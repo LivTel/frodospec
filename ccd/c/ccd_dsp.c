@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.47 2003-12-08 15:04:10 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.48 2004-05-16 14:28:18 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.47 $
+ * @version $Revision: 0.48 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.47 2003-12-08 15:04:10 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.48 2004-05-16 14:28:18 cjm Exp $";
 
 /* defines */
 /**
@@ -2524,9 +2524,13 @@ static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *rep
 			}
 			else
 				done = TRUE;
-		/* if an abort has occured, stop sleeping. The following command send will catch the abort. */
+		/* if an abort has occured, stop sleeping. */
 			if(DSP_Data.Abort)
-				done = TRUE;
+			{
+				DSP_Error_Number = 31;
+				sprintf(DSP_Error_String,"DSP_Send_Sex:Abort detected whilst waiting for start time.");
+				return FALSE;
+			}
 		}/* end while */
 	}/* end if */
 /* switch status to exposing and store the actual time the exposure is going to start */
@@ -2776,13 +2780,6 @@ static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,in
 		sprintf(DSP_Error_String,"DSP_Send_Manual_Command: Reply Value was NULL.");
 		return FALSE;
 	}
-	if(DSP_Data.Abort)
-	{
-		DSP_Error_Number = 31;
-		sprintf(DSP_Error_String,"DSP_Send_Manual_Command: %s (%#x) Aborted.",
-			DSP_Manual_Command_To_String(command),command);
-		return FALSE;
-	}
 /* Setup header word. The second byte contains the board_id. The least significant byte contains
 ** the number of arguments in the command, which is the number of arguments sent to the routine 
 ** plus two (the header word itself, and the command word). */
@@ -2840,12 +2837,6 @@ static int DSP_Send_Command(int hcvr_command,int *reply_value)
 	{
 		DSP_Error_Number = 24;
 		sprintf(DSP_Error_String,"DSP_Send_Command: Reply Value was NULL.");
-		return FALSE;
-	}
-	if(DSP_Data.Abort)
-	{
-		DSP_Error_Number = 34;
-		sprintf(DSP_Error_String,"DSP_Send_Command:%#x Aborted.",hcvr_command);
 		return FALSE;
 	}
 /* send the command to device driver */
@@ -2980,6 +2971,9 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.47  2003/12/08 15:04:10  cjm
+** CCD_EXPOSURE_STATUS_WAIT_START added.
+**
 ** Revision 0.46  2003/06/09 11:30:39  cjm
 ** Added exposure status checking to VON/VOF, to stop lock-ups in readout.
 **

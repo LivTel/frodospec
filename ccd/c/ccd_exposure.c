@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.26 2003-12-08 15:04:00 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.27 2004-05-16 14:28:18 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.26 $
+ * @version $Revision: 0.27 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -119,7 +119,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.26 2003-12-08 15:04:00 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.27 2004-05-16 14:28:18 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -343,7 +343,6 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort())
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 4;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -355,13 +354,9 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			      open_shutter);
 #endif
 	if(!Exposure_Shutter_Control(open_shutter))
-	{
-		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
-	}
 	if(CCD_DSP_Get_Abort())
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 5;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -373,7 +368,6 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 	if(!CCD_DSP_Command_SET(exposure_time))
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 23;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Setting exposure time failed.");
 		return FALSE;
@@ -381,7 +375,6 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	Exposure_Data.Exposure_Length = exposure_time;
 	if(CCD_DSP_Get_Abort())
 	{
-		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 25;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -419,15 +412,13 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				done = TRUE;
 		/* check - have we been aborted? */
 			if(CCD_DSP_Get_Abort())
-				done = TRUE;
+			{
+				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+				Exposure_Error_Number = 37;
+				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
+				return FALSE;
+			}
 		}/* end while */
-	}
-	if(CCD_DSP_Get_Abort())
-	{
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-		Exposure_Error_Number = 37;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
-		return FALSE;
 	}
 /* clear the array */
 	if(clear_array)
@@ -444,6 +435,14 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			return FALSE;
 		}
 	}
+/* check - have we been aborted? */
+	if(CCD_DSP_Get_Abort())
+	{
+		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		Exposure_Error_Number = 20;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
+		return FALSE;
+	}
 /* Send the command to start the exposure, and monitor for completion. */
 #if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Starting Exposure.");
@@ -453,7 +452,6 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	if(!CCD_DSP_Command_SEX(start_time,exposure_time))
 	{
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 39;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed(%ld,%ld,%d).",
 			start_time.tv_sec,start_time.tv_nsec,exposure_time);
@@ -473,7 +471,6 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		if(!CCD_DSP_Command_Get_HSTR(&status))
 		{
 			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-			CCD_DSP_Set_Abort(FALSE);
 			Exposure_Error_Number = 40;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Getting HSTR failed.");
 			return FALSE;
@@ -571,7 +568,6 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		if(!CCD_DSP_Command_Get_Readout_Progress(&current_pixel_count))
 		{
 			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-			CCD_DSP_Set_Abort(FALSE);
 			Exposure_Error_Number = 41;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Get Readout Progress failed.");
 			return FALSE;
@@ -611,12 +607,62 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 				       "CCD_Exposure_Expose():Readout timeout has occured.");
 #endif
-				done = TRUE;
+				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+				Exposure_Error_Number = 43;
+				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Readout timed out.");
+				return FALSE;
 			}
 		} 
 		/* check - have we been aborted? */
 		if(CCD_DSP_Get_Abort())
-			done = TRUE;
+		{
+#if LOGGING > 4
+			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Abort detected.");
+#endif
+			if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)
+			{
+#if LOGGING > 4
+				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Trying AEX.");
+#endif
+				if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
+				{
+					Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+					Exposure_Error_Number = 15;
+					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:AEX Abort command failed.");
+					return FALSE;
+				}
+			}
+			if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_PRE_READOUT)
+			{
+#if LOGGING > 4
+				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():"
+					   "Status is pre-readout, waiting %d ms and moving to readout status.",
+						      Exposure_Data.Readout_Remaining_Time);
+#endif
+				/* sleep until we are reading out */
+				sleep_time.tv_sec = Exposure_Data.Readout_Remaining_Time/CCD_GLOBAL_ONE_SECOND_MS;
+				sleep_time.tv_nsec = (Exposure_Data.Readout_Remaining_Time%CCD_GLOBAL_ONE_SECOND_MS)*
+					CCD_GLOBAL_ONE_MILLISECOND_NS;
+				nanosleep(&sleep_time,NULL);
+				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
+			}
+			if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT)
+			{
+#if LOGGING > 4
+				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Trying ABR.");
+#endif
+				if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
+				{
+					Exposure_Error_Number = 17;
+					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:ABR command failed.");
+					return FALSE;
+				}
+			}
+			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			Exposure_Error_Number = 42;
+			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
+			return FALSE;
+		}
 		/* check - all pixels read out? */
 		if(current_pixel_count >= expected_pixel_count)
 		{
@@ -630,20 +676,20 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		sleep_time.tv_nsec = 0;
 		nanosleep(&sleep_time,NULL);
 	}/* end while not done */
-	/* did we abort? */
-	if(CCD_DSP_Get_Abort())
-	{
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-		Exposure_Error_Number = 42;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
-		return FALSE;
-	}
 	/* did the readout time out?*/
 	if(readout_timeout_count == EXPOSURE_READ_TIMEOUT)
 	{
 		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-		Exposure_Error_Number = 43;
+		Exposure_Error_Number = 30;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Readout timed out.");
+		return FALSE;
+	}
+/* check - have we been aborted? */
+	if(CCD_DSP_Get_Abort())
+	{
+		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		Exposure_Error_Number = 24;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 		return FALSE;
 	}
 #if LOGGING > 4
@@ -658,6 +704,14 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		return FALSE;
 	}
 	Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_POST_READOUT;
+/* did we abort? */
+	if(CCD_DSP_Get_Abort())
+	{
+		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		Exposure_Error_Number = 26;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
+		return FALSE;
+	}
 /* byte swap to get into right order */
 #ifdef CCD_EXPOSURE_BYTE_SWAP
 #if LOGGING > 4
@@ -665,6 +719,14 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 	Exposure_Byte_Swap(exposure_data,expected_pixel_count);
 #endif
+/* did we abort? */
+	if(CCD_DSP_Get_Abort())
+	{
+		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		Exposure_Error_Number = 29;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
+		return FALSE;
+	}
 /* post-readout processing depends on whether we are windowing or not. */
 	if(window_flags == 0)
 	{
@@ -717,8 +779,6 @@ int CCD_Exposure_Open_Shutter(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
-/* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_OSH())
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -739,8 +799,6 @@ int CCD_Exposure_Close_Shutter(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
-/* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_CSH())
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -766,8 +824,6 @@ int CCD_Exposure_Pause(void)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Pause() started.");
 #endif
-/* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_PEX())
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -795,8 +851,6 @@ int CCD_Exposure_Resume(void)
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Resume() started.");
 #endif
-/* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_REX())
 	{
 		CCD_DSP_Set_Abort(FALSE);
@@ -811,18 +865,12 @@ int CCD_Exposure_Resume(void)
 }
 
 /**
- * This routine aborts an exposure currenly underway, but not reading out. The current status of an exposure can
- * be found with CCD_Exposure_Get_Exposure_Status, and if it
- * CCD_EXPOSURE_STATUS_EXPOSE this routine should be called.
- * If the exposure status is CCD_EXPOSURE_STATUS_READOUT CCD_Exposure_Abort_Readout should be called instead. 
- * This routine executes a AEX command, and sets the Abort 
- * flag to true by calling CCD_DSP_Set_Abort(TRUE).
+ * This routine aborts an exposure currenly underway, whether it is reading out or not.
+ * This routine sets the Abort flag to true by calling CCD_DSP_Set_Abort(TRUE).
  * @return Returns TRUE if the abort succeeds  returns FALSE if an error occurs.
  * @see #Exposure_Data
  * @see #CCD_Exposure_Expose
- * @see #CCD_Exposure_Abort_Readout
  * @see #CCD_Exposure_Get_Exposure_Status
- * @see #CCD_Exposure_Abort_Readout
  * @see #CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_EXPOSURE_STATUS
@@ -834,13 +882,6 @@ int CCD_Exposure_Abort(void)
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() started with exposure status %d.",
 		       Exposure_Data.Exposure_Status);
 #endif
-	if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
-	{
-		Exposure_Error_Number = 15;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Abort:AEX command failed.");
-		return FALSE;
-	}
-	/* diddly - should we be doing this here? */
 	CCD_DSP_Set_Abort(TRUE);
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() finished.");
@@ -848,43 +889,6 @@ int CCD_Exposure_Abort(void)
 	return TRUE;
 }
 
-/**
- * This routine aborts an exposure that is currently reading out. The current status of an exposure can
- * be found with Exposure_Data.Exposure_Status, and if it
- * CCD_EXPOSURE_STATUS_READOUT this routine should be called.
- * If the exposure status is CCD_EXPOSURE_STATUS_EXPOSE CCD_Exposure_Abort should be called instead. 
- * This routine calls the CCD_DSP_Command_ABR 
- * command routine to tell the SDSU CCD Controller to stop the readout,
- * and sets the Abort flag to true by calling CCD_DSP_Set_Abort(TRUE).
- * @return Returns TRUE if the abort succeeds  returns FALSE if an error occurs.
- * @see #Exposure_Data
- * @see #CCD_Exposure_Expose
- * @see #CCD_Exposure_Abort
- * @see ccd_dsp.html#CCD_DSP_Command_ABR 
- * @see ccd_dsp.html#CCD_DSP_Set_Abort
- * @see ccd_dsp.html#CCD_EXPOSURE_STATUS
- */
-int CCD_Exposure_Abort_Readout(void)
-{
-	Exposure_Error_Number = 0;
-#if LOGGING > 0
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
-			      "CCD_Exposure_Abort_Readout() started with exposure status %d.",
-			      Exposure_Data.Exposure_Status);
-#endif
-	if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
-	{
-		Exposure_Error_Number = 17;
-		sprintf(Exposure_Error_String,"CCD_Exposure_Abort_Readout:ABR command failed.");
-		return FALSE;
-	}
-	/* diddly - should we be doing this here? */
-	CCD_DSP_Set_Abort(TRUE);
-#if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort_Readout() finished.");
-#endif
-	return TRUE;
-}
 
 /**
  * This routine is not called as part of the normal exposure sequence. It is used to read out a ccd exposure
@@ -1886,6 +1890,9 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.26  2003/12/08 15:04:00  cjm
+** CCD_EXPOSURE_STATUS_WAIT_START added.
+**
 ** Revision 0.25  2003/11/04 14:42:00  cjm
 ** Minor MJD fixes based on errors in Linux versions of the code.
 **
