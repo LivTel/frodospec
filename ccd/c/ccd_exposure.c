@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.18 2001-02-16 09:55:18 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.19 2001-06-04 14:38:00 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.18 $
+ * @version $Revision: 0.19 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.18 2001-02-16 09:55:18 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.19 2001-06-04 14:38:00 cjm Exp $";
 
 /* external variables */
 
@@ -101,6 +101,11 @@ int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 
 	Exposure_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose(open_shutter=%d,start_time_sec=%ld,"
+		"exposure_time=%d,filename=%s) started.",
+		open_shutter,start_time.tv_sec,exposure_time,filename);
+#endif
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
 /* we shouldn't be able to expose until setup has been successfully completed - check this */
@@ -174,6 +179,9 @@ int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure
 			start_time.tv_sec,start_time.tv_nsec,exposure_time,ncols,nrows,deinterlace_type,filename);
 		return FALSE;
 	}
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -182,11 +190,15 @@ int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure
  * and CCD_DSP_Command_RDI routine. A bias frame is taken by clearing the CCD array using a 
  * clear command to clear the array, followed immediately by a 
  * read-out command to read the array into a FITS file.
+ * The process priority is increased over the RDC and RDI commands, by calling CCD_Global_Increase_Priority
+ * and CCD_Global_Decrease_Priority, to minimise readout failures.
  * @param filename The filename to save the resultant data (in FITS format) to.
  * @return The routine returns TRUE if the operation was completed successfully, FALSE if it failed.
  * @see ccd_dsp.html#CCD_DSP_Command_CLR
  * @see ccd_dsp.html#CCD_DSP_Command_RDC
  * @see ccd_dsp.html#CCD_DSP_Command_RDI
+ * @see ccd_global.html#CCD_Global_Increase_Priority
+ * @see ccd_global.html#CCD_Global_Decrease_Priority
  */
 int CCD_Exposure_Bias(char *filename)
 {
@@ -194,11 +206,14 @@ int CCD_Exposure_Bias(char *filename)
 	int nrows;
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	int return_value;	/* value returned from function calls */
-#if DEBUG == 1
-	int debug;
+#if LOGGING > 9
+	int pci_status;
 #endif
 
 	Exposure_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Bias(filename=%s) started.",filename);
+#endif
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
 /* we shouldn't be able to expose until setup has been successfully completed - check this */
@@ -213,10 +228,9 @@ int CCD_Exposure_Bias(char *filename)
 	nrows = CCD_Setup_Get_NRows();
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
-	debug = CCD_DSP_Command_Read_PCI_Status();	
-	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-	fflush(stdout);
+#if LOGGING > 9
+	pci_status = CCD_DSP_Command_Read_PCI_Status();	
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"PCI_STATUS = %#x.",pci_status);
 #endif
 /* clear the ccd */
 	if(CCD_DSP_Command_CLR()!= CCD_DSP_DON)
@@ -237,6 +251,23 @@ int CCD_Exposure_Bias(char *filename)
 			return FALSE;
 		}
 	}
+/* increase process priority, if we are compiled to do so. */
+	if(!CCD_Global_Increase_Priority())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 32;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Increasing readout priority failed.");
+		return FALSE;
+	}
+/* lock process memory, if we are compiled to do so. */
+	if(!CCD_Global_Memory_Lock_All())
+	{
+		CCD_Global_Decrease_Priority();
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 34;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Locking memory failed.");
+		return FALSE;
+	}
 /* remember, here DSP_Data.Exposure_Status has been set. 
 ** therefore we don't check for abort here. 
 ** If we did, we would have to IDL the Timing board clocks to stop
@@ -247,6 +278,8 @@ int CCD_Exposure_Bias(char *filename)
 /* tell the timing board to readout the ccd */
 	if(CCD_DSP_Command_RDC()!= CCD_DSP_DON)
 	{
+		CCD_Global_Memory_UnLock_All();
+		CCD_Global_Decrease_Priority();
 		/* note that idling is not reset if RDC fails. */
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 29;
@@ -261,10 +294,29 @@ int CCD_Exposure_Bias(char *filename)
 	return_value = CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,TRUE,filename);
 	if(return_value != CCD_DSP_DON)
 	{
+		CCD_Global_Memory_UnLock_All();
+		CCD_Global_Decrease_Priority();
 		/* note that idling is not reset if RDC fails. */
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 9;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Readout failed.");
+		return FALSE;
+	}
+/* unlock memory, if we are compiled to do so. */
+	if(!CCD_Global_Memory_UnLock_All())
+	{
+		CCD_Global_Decrease_Priority();
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 35;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Unlocking memory failed.");
+		return FALSE;
+	}
+/* decrease priority, if we are compiled to do so. */
+	if(!CCD_Global_Decrease_Priority())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 33;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Decreasing readout priority failed.");
 		return FALSE;
 	}
 /* re-start idle clocking on the timing board */
@@ -278,6 +330,9 @@ int CCD_Exposure_Bias(char *filename)
 			return FALSE;
 		}
 	}
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Bias() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -337,6 +392,9 @@ int CCD_Exposure_Pause(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Pause() started.");
+#endif
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_PEX())
@@ -346,6 +404,9 @@ int CCD_Exposure_Pause(void)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Pause:Pause command failed.");
 		return FALSE;
 	}
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Pause() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -360,6 +421,9 @@ int CCD_Exposure_Resume(void)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Resume() started.");
+#endif
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
 	if(!CCD_DSP_Command_REX())
@@ -369,6 +433,9 @@ int CCD_Exposure_Resume(void)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Resume:Resume command failed.");
 		return FALSE;
 	}
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Resume() returned TRUE.");
+#endif
 	return TRUE;
 }
 
@@ -388,6 +455,9 @@ int CCD_Exposure_Resume(void)
 void CCD_Exposure_Abort(void)
 {
 	Exposure_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() started.");
+#endif
 	if(CCD_DSP_Get_Exposure_Status() == CCD_DSP_EXPOSURE_STATUS_EXPOSE)
 	{
 		if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
@@ -418,6 +488,9 @@ void CCD_Exposure_Abort(void)
 		CCD_Exposure_Warning();
 	}
 	CCD_DSP_Set_Abort(TRUE);
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() finished.");
+#endif
 }
 
 /**
@@ -438,6 +511,9 @@ void CCD_Exposure_Abort(void)
 void CCD_Exposure_Abort_Readout(void)
 {
 	Exposure_Error_Number = 0;
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort_Readout() started.");
+#endif
 	if(CCD_DSP_Get_Exposure_Status() == CCD_DSP_EXPOSURE_STATUS_READOUT)
 	{
 		if(CCD_DSP_Command_ABR() != CCD_DSP_DON)
@@ -468,6 +544,9 @@ void CCD_Exposure_Abort_Readout(void)
 		CCD_Exposure_Warning();
 	}
 	CCD_DSP_Set_Abort(TRUE);
+#if LOGGING > 0
+	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort_Readout() finished.");
+#endif
 }
 
 /**
@@ -606,8 +685,8 @@ void CCD_Exposure_Warning(void)
 static int Exposure_Shutter_Control(int open_shutter)
 {
 	int current_status;
-#if DEBUG == 1
-	int debug;
+#if LOGGING > 9
+	int pci_status;
 #endif
 
 /* check parameter */
@@ -619,10 +698,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 		return FALSE;
 	}
 /* if debugging, get PCI/timing board status and print */
-#if DEBUG == 1
-	debug = CCD_DSP_Command_Read_PCI_Status();	
-	fprintf(stdout,"PCI_STATUS = %#x\n",debug);
-	fflush(stdout);
+#if LOGGING > 9
+	pci_status = CCD_DSP_Command_Read_PCI_Status();
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"PCI_STATUS = %#x.",pci_status);
 #endif
 /* get current controller status */
 	current_status = CCD_DSP_Command_RDM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0);
@@ -649,6 +727,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.18  2001/02/16 09:55:18  cjm
+** Added more detail to error messages.
+**
 ** Revision 0.17  2001/02/09 18:30:40  cjm
 ** comment spelling.
 **
