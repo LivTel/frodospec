@@ -1,12 +1,12 @@
 /* ccd_text.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.23 2003-03-26 15:44:48 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.24 2003-06-06 12:36:01 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.23 $
+ * @version $Revision: 0.24 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -36,7 +36,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.23 2003-03-26 15:44:48 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.24 2003-06-06 12:36:01 cjm Exp $";
 
 /* #defines */
 /**
@@ -244,6 +244,8 @@ static struct Text_Command_Struct Text_Manual_Command_List[] =
 	{CCD_DSP_SSS,"Set Subarray Size",CCD_DSP_DON,NULL},
 	{CCD_DSP_STP,"Stop Idling",CCD_DSP_DON,NULL},
 	{CCD_DSP_TDL,"Test Data Link",0,Text_Manual_Test_Data_Link},
+	{CCD_DSP_VON,"Vacuum Gauge On",CCD_DSP_DON,NULL},
+	{CCD_DSP_VOF,"Vacuum Gauge On",CCD_DSP_DON,NULL},
 	{CCD_DSP_WRM,"Write Memory",CCD_DSP_DON,NULL}
 };
 
@@ -1137,6 +1139,9 @@ static void Text_Manual_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.23  2003/03/26 15:44:48  cjm
+** Added Windowing emulation.
+**
 ** Revision 0.22  2002/12/16 16:49:36  cjm
 ** Removed Error routines resetting error number to zero.
 **
