@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.4 2000-02-10 12:01:25 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.5 2000-02-22 17:38:17 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.4 $
+ * @version $Revision: 0.5 $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.4 2000-02-10 12:01:25 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.5 2000-02-22 17:38:17 cjm Exp $";
 
 /* defines */
 /**
@@ -383,11 +383,19 @@ int CCD_DSP_Command_ABR(void)
  */
 int CCD_DSP_Command_CLR(void)
 {
+	int retval;
+
 	DSP_Error_Number = 0;
+	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_CLEAR;
 	if(!DSP_Send_Clr())
+	{
+		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
 		return FALSE;
+	}
 	/* get reply - DON should be returned */
-	return(DSP_Get_Reply(CCD_DSP_DON));
+	retval = DSP_Get_Reply(CCD_DSP_DON);
+	DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+	return retval;
 }
 
 /**
@@ -1009,6 +1017,7 @@ int CCD_DSP_Set_Abort(int value)
  * Exposure_Status is defined in DSP_Data and is one of:
  * <ul>
  * <li>CCD_DSP_EXPOSURE_STATUS_NONE - no exposure in progress
+ * <li>CCD_DSP_EXPOSURE_STATUS_CLEAR - the camera is clearing
  * <li>CCD_DSP_EXPOSURE_STATUS_EXPOSE - the camera is exposing
  * <li>CCD_DSP_EXPOSURE_STATUS_READOUT - the ccd is reading out
  * </ul>
@@ -2294,6 +2303,9 @@ static int DSP_Save(char *filename,char *exposure_data,int ncols,int nrows,int n
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.4  2000/02/10 12:01:25  cjm
+** Added CCD_DSP_Command_WRM_No_Reply routine for special case of switching off controller replies.
+**
 ** Revision 0.3  2000/02/02 15:50:01  cjm
 ** Added CCD_DSP_Command_POF routine.
 **
