@@ -1,5 +1,5 @@
 /* ccd_setup.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.11 2002-12-03 17:19:16 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.12 2003-03-26 15:50:00 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -101,6 +101,10 @@ extern int CCD_Setup_Get_NCols(void);
 extern int CCD_Setup_Get_NRows(void);
 extern int CCD_Setup_Get_NSBin(void);
 extern int CCD_Setup_Get_NPBin(void);
+extern int CCD_Setup_Get_Readout_Pixel_Count(void);
+extern int CCD_Setup_Get_Window_Pixel_Count(int window_index);
+extern int CCD_Setup_Get_Window_Width(int window_index);
+extern int CCD_Setup_Get_Window_Height(int window_index);
 extern enum CCD_DSP_DEINTERLACE_TYPE CCD_Setup_Get_DeInterlace_Type(void);
 extern enum CCD_DSP_GAIN CCD_Setup_Get_Gain(void);
 extern enum CCD_DSP_AMPLIFIER CCD_Setup_Get_Amplifier(void);
