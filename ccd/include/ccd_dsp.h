@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.10 2000-05-10 14:38:50 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.11 2000-05-23 10:33:26 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -190,6 +190,7 @@ extern void CCD_DSP_Set_Start_Exposure_Offset_Time(int time);
 extern int CCD_DSP_Get_Start_Exposure_Offset_Time(void);
 extern void CCD_DSP_Set_Readout_Remaining_Time(int time);
 extern int CCD_DSP_Get_Readout_Remaining_Time(void);
+extern void CCD_DSP_Set_Exposure_Start_Time(void);
 extern int CCD_DSP_Get_Error_Number(void);
 extern void CCD_DSP_Error(void);
 extern void CCD_DSP_Error_String(char *error_string);
