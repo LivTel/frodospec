@@ -1,5 +1,5 @@
 /* ccd_text.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_text.h,v 0.1 2000-01-25 15:03:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_text.h,v 0.2 2000-01-28 16:18:42 cjm Exp $
 */
 
 #ifndef CCD_TEXT_H
@@ -33,6 +33,7 @@ enum CCD_TEXT_PRINT_LEVEL
 
 /* configuration of this device interface */
 extern void CCD_Text_Set_Print_Level(enum CCD_TEXT_PRINT_LEVEL level);
+extern void CCD_Text_Set_File_Pointer(FILE *fp);
 
 /* implementation of device interface */
 extern void CCD_Text_Initialise(void);
