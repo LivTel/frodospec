@@ -1,12 +1,12 @@
-/* ccd_text.c -*- mode: Fundamental;-*-
+/* ccd_text.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.19 2001-03-20 11:54:22 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.20 2002-11-07 19:13:39 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.19 $
+ * @version $Revision: 0.20 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -19,6 +19,7 @@
  */
 #define _POSIX_C_SOURCE 199309L
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -27,6 +28,7 @@
 #include <sys/time.h>
 #endif
 #include "ccd_global.h"
+#include "ccd_exposure.h"
 #include "ccd_dsp.h"
 #include "ccd_pci.h"
 #include "ccd_text.h"
@@ -34,13 +36,15 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.19 2001-03-20 11:54:22 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.20 2002-11-07 19:13:39 cjm Exp $";
 
 /* #defines */
 /**
  * Number of PCI argument registers.
+ * @see ccd_pci.html#CCD_PCI_IOCTL_ARGUMENT_LIST_COUNT
  */
-#define TEXT_ARGUMENT_COUNT	(5)
+#define TEXT_ARGUMENT_COUNT	(CCD_PCI_IOCTL_ARGUMENT_LIST_COUNT)
+/*#define TEXT_ARGUMENT_COUNT	(5)*/
 
 /**
  * The number of nanoseconds in one microsecond.
@@ -48,7 +52,7 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.19 2001-03-20 11:54:22 cjm Exp $";
 #define TEXT_ONE_MICROSECOND_NS		(1000)
 
 /**
- * The default value to set the Controller_Status to. This is the default value of the timing boards
+ * The default value to set the Controller_Config to. This is the default value of the timing boards
  * CONFIG (controller configuration) word in the DSP code.
  * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_CCD_REV3B
  * @see ccd_dsp.html#CCD_DSP_CONTROLLER_CONFIG_BIT_TIM_REV4B
@@ -73,6 +77,7 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.19 2001-03-20 11:54:22 cjm Exp $";
  * <dt>Ioctl_Request</dt> <dd>The ioctl request.</dd>
  * <dt>HCVR_Command</dt> <dd>The last value put in the HCVR.</dd>
  * <dt>HCTR_Register</dt> <dd>The last value put in the HCTR.</dd>
+ * <dt>HSTR_Register</dt> <dd>The last value put in the Host Status Transfer Register.</dd>
  * <dt>Destination</dt> <dd>The last destination put into the board destination register. Note
  * 	this does not include the number of arguments, see below.</dd>
  * <dt>Argument_List</dt> <dd>The current values of the PCI argument registers. An array of length 
@@ -80,10 +85,13 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.19 2001-03-20 11:54:22 cjm Exp $";
  * <dt>Argument_Count</dt> <dd>The number of arguments in the argument list, 
  * 	set as part of setting a destination.</dd>
  * <dt>Reply</dt> <dd>What we think the reply value should be.</dd>
- * <dt>Controller_Status</dt> <dd>The current value of the PCI controller status register.</dd>
- * <dt>Exposure_Time</dt> <dd>Set when the exposure time is set.</dd>
+ * <dt>Controller_Config</dt> <dd>The current value of the PCI controller status register.</dd>
+ * <dt>Exposure_Length</dt> <dd>The length of the exposure, in milliseconds.</dd>
  * <dt>Exposure_Start_Time</dt> <dd>The time the exposure was started.</dd>
  * <dt>Pause_Start_Time</dt> <dd>The time the last pause was started.</dd>
+ * <dt>Buffer</dt> <dd>Pointer to a memory buffer used for image storage.</dd>
+ * <dt>Buffer_Length</dt> <dd>The allocated size of Buffer, in bytes.</dd>
+ * <dt>Readout_Progress</dt> <dd>The number of bytes currently read out by the CCD.</dd>
  * </dl>
  * @see #TEXT_ARGUMENT_COUNT
  */
@@ -92,15 +100,19 @@ struct Text_Struct
 	int Ioctl_Request;
 	int HCVR_Command;
 	int HCTR_Register;
+	int HSTR_Register;
 	int Manual_Command;
 	enum CCD_DSP_BOARD_ID Destination;
 	int Argument_List[TEXT_ARGUMENT_COUNT];
 	int Argument_Count;
 	int Reply;
-	int Controller_Status;
-	int Exposure_Time;
+	int Controller_Config;
+	int Exposure_Length;
 	struct timespec Exposure_Start_Time;
 	struct timespec Pause_Start_Time;
+	unsigned short *Buffer;
+	int Buffer_Length;
+	int Readout_Progress;
 };
 
 /**
@@ -141,18 +153,21 @@ struct Memory_Struct
 /* external variables */
 
 /* internal routines */
-static void Text_Get_Reply(int *argument);
+static void Text_Print_Reply(void);
 static void Text_HCVR(int hcvr_command);
+static void Text_HSTR(void);
+static void Text_Readout_Progress(void);
 static void Text_Manual(int manual_command);
 static void Text_Destination(int destination_number);
-static void Text_HCVR_Read_Controller_Status(void);
-static void Text_HCVR_Write_Controller_Status(void);
-static void Text_HCVR_Test_Data_Link(void);
-static void Text_HCVR_Read_Memory(void);
-static void Text_HCVR_Read_Exposure_Time(void);
-static void Text_HCVR_Start_Exposure(void);
-static void Text_HCVR_Pause_Exposure(void);
-static void Text_HCVR_Resume_Exposure(void);
+static void Text_Manual_Read_Controller_Config(void);
+static void Text_Manual_Test_Data_Link(void);
+static void Text_Manual_Read_Memory(void);
+static void Text_Manual_Read_Exposure_Time(void);
+static void Text_Manual_Set_Exposure_Time(void);
+static void Text_Manual_Start_Exposure(void);
+static void Text_Manual_Start_Readout_CCD(void);
+static void Text_Manual_Pause_Exposure(void);
+static void Text_Manual_Resume_Exposure(void);
 
 /* local variables */
 /**
@@ -185,34 +200,10 @@ static struct Text_Struct Text_Data;
  */
 static struct Text_Command_Struct Text_HCVR_Command_List[] = 
 {
-	{CCD_PCI_HCVR_READ_CONTROLLER_STATUS,"Read Controller Status",0,Text_HCVR_Read_Controller_Status},
-	{CCD_PCI_HCVR_WRITE_CONTROLLER_STATUS,"Write Controller Status",0,Text_HCVR_Write_Controller_Status},
 	{CCD_PCI_HCVR_RESET_CONTROLLER,"Reset Controller",CCD_DSP_SYR,NULL},
-	{CCD_PCI_HCVR_LOAD_APPLICATION,"Load Application",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_PCI_PC_RESET,"Reset PCI board Program Counter",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_READ_PCI_STATUS,"Read PCI Status",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_TEST_DATA_LINK,"Test Data Link",0,Text_HCVR_Test_Data_Link},
-	{CCD_PCI_HCVR_READ_MEMORY,"Read Memory",0,Text_HCVR_Read_Memory},
-	{CCD_PCI_HCVR_WRITE_MEMORY,"Write Memory",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_PCI_DOWNLOAD,"Download PCI code",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_POWER_ON,"Power On",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_POWER_OFF,"Power Off",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_SET_BIAS_VOLTAGES,"Set Bias Voltages",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_CLEAR_ARRAY,"Clear Array",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_STOP_IDLE_MODE,"Stop Idling",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_RESUME_IDLE_MODE,"Resume Idling",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_READ_EXPOSURE_TIME,"Read Exposure Time",0,Text_HCVR_Read_Exposure_Time},
-	{CCD_PCI_HCVR_START_EXPOSURE,"Start Exposure",CCD_DSP_DON,Text_HCVR_Start_Exposure},
-	{CCD_PCI_HCVR_READ_IMAGE,"Readout Image",CCD_DSP_DON,NULL},
 	{CCD_PCI_HCVR_ABORT_READOUT,"Abort Readout",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_ABORT_EXPOSURE,"Abort Exposure",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_PAUSE_EXPOSURE,"Pause Exposure",CCD_DSP_DON,Text_HCVR_Pause_Exposure},
-	{CCD_PCI_HCVR_RESUME_EXPOSURE,"Resume Exposure",CCD_DSP_DON,Text_HCVR_Resume_Exposure},
-	{CCD_PCI_HCVR_OPEN_SHUTTER,"Open Shutter",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_CLOSE_SHUTTER,"Close Shutter",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_SET_ARRAY_TEMPERATURE,"Set Array Temperature",CCD_DSP_DON,NULL},
-	{CCD_PCI_HCVR_READ_ARRAY_TEMPERATURE,"Read Array Temperature",0xC60,NULL},/* 3168 - -127 C (-102) */
-	{CCD_PCI_HCVR_PCI_DOWNLOAD,"PCI Download",CCD_DSP_DON,NULL}
 };
 
 /**
@@ -229,11 +220,29 @@ static struct Text_Command_Struct Text_HCVR_Command_List[] =
  */
 static struct Text_Command_Struct Text_Manual_Command_List[] = 
 {
-	{CCD_DSP_SGN,"Set Gain",CCD_DSP_DON,NULL},
-	{CCD_DSP_SOS,"Set Output Source",CCD_DSP_DON,NULL},
+	{CCD_DSP_AEX,"Abort Exposure",CCD_DSP_DON,NULL},
+	{CCD_DSP_CLR,"Clear Array",CCD_DSP_DON,NULL},
+	{CCD_DSP_CSH,"Close Shutter",CCD_DSP_DON,NULL},
 	{CCD_DSP_FWA,"Filter Wheel Abort",CCD_DSP_DON,NULL},
 	{CCD_DSP_FWM,"Filter Wheel Move",CCD_DSP_DON,NULL},
-	{CCD_DSP_FWR,"Filter Wheel Reset",CCD_DSP_DON,NULL}
+	{CCD_DSP_FWR,"Filter Wheel Reset",CCD_DSP_DON,NULL},
+	{CCD_DSP_IDL,"Resume Idling",CCD_DSP_DON,NULL},
+	{CCD_DSP_LDA,"Load Application",CCD_DSP_DON,NULL},
+	{CCD_DSP_OSH,"Open Shutter",CCD_DSP_DON,NULL},
+	{CCD_DSP_POF,"Power Off",CCD_DSP_DON,NULL},
+	{CCD_DSP_PEX,"Pause Exposure",CCD_DSP_DON,Text_Manual_Pause_Exposure},
+	{CCD_DSP_PON,"Power On",CCD_DSP_DON,NULL},
+	{CCD_DSP_RCC,"Read Controller Status",0,Text_Manual_Read_Controller_Config},
+	{CCD_DSP_RDM,"Read Memory",0,Text_Manual_Read_Memory},
+	{CCD_DSP_REX,"Resume Exposure",CCD_DSP_DON,Text_Manual_Resume_Exposure},
+	{CCD_DSP_RET,"Read Exposure Time",0,Text_Manual_Read_Exposure_Time},
+	{CCD_DSP_SET,"Set Exposure Time",CCD_DSP_DON,Text_Manual_Set_Exposure_Time},
+	{CCD_DSP_SEX,"Start Exposure",CCD_DSP_DON,Text_Manual_Start_Exposure},
+	{CCD_DSP_SGN,"Set Gain",CCD_DSP_DON,NULL},
+	{CCD_DSP_SOS,"Set Output Source",CCD_DSP_DON,NULL},
+	{CCD_DSP_STP,"Stop Idling",CCD_DSP_DON,NULL},
+	{CCD_DSP_TDL,"Test Data Link",0,Text_Manual_Test_Data_Link},
+	{CCD_DSP_WRM,"Write Memory",CCD_DSP_DON,NULL}
 };
 
 /**
@@ -261,7 +270,13 @@ static struct Memory_Struct Memory_List[] =
 #else
 #error CCD_FILTER_WHEEL_INPUT_HOME uses illegal value. Should be PROXIMITY or MAGNETIC.
 #endif
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x3d,0} /* FILTER_WHEEL_POS_MOVE - 0 */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x3d,0}, /* FILTER_WHEEL_POS_MOVE - 0 */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x2,0xc60}, /* Heater ADUs from dewar */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x7,0xb1f}, /* Thermistor ADUs from utility board */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x8,0xcdf}, /* High voltage (+36v) power supply monitor (2051/0x803=failure) */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x9,0xdd0}, /* Low Voltage (+15v) power supply monitor (2051/0x803=failure) */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xa,0x245}, /* Low Voltage (-15v) power supply monitor (2051/0x803=failure) */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xc,0xc60} /* Thermistor ADUs from dewar:3168 - -127 C (-102) */
 };
 
 /**
@@ -328,13 +343,17 @@ void CCD_Text_Initialise(void)
 	Text_Data.Ioctl_Request = 0;
 	Text_Data.HCVR_Command = 0;
 	Text_Data.HCTR_Register = 0;
+	Text_Data.HSTR_Register = 0;
 	Text_Data.Manual_Command = 0;
 	Text_Data.Destination = 0;
 	Text_Data.Argument_Count = 0;
 	for(i=0;i<TEXT_ARGUMENT_COUNT;i++)
 		Text_Data.Argument_List[i] = 0;
 	Text_Data.Reply = -1;
-	Text_Data.Controller_Status = TEXT_DEFAULT_CONTROLLER_CONFIG;
+	Text_Data.Controller_Config = TEXT_DEFAULT_CONTROLLER_CONFIG;
+	Text_Data.Buffer = NULL;
+	Text_Data.Buffer_Length = 0;
+	Text_Data.Readout_Progress = 0;
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 		fprintf(Text_File_Ptr,"CCD_Text_Initialise\n");
 /* print some compile time information to stdout */
@@ -357,14 +376,69 @@ int CCD_Text_Open(void)
 }
 
 /**
+ * Routine to create a memory map for image download. This is done using malloc, as we are only emulating
+ * the interface.
+ * @param buffer_size The size of the buffer, in bytes.
+ * @return Return TRUE if buffer initialisation is successful, FALSE if it wasn't.
+ * @see #Text_Data
+ */
+int CCD_Text_Memory_Map(int buffer_size)
+{
+	if(buffer_size <= 0)
+	{
+		Text_Error_Number = 3;
+		sprintf(Text_Error_String,"CCD_Text_Memory_Map failed:Illegal buffer size %d.",buffer_size);
+		return FALSE;
+	}
+	Text_Data.Buffer_Length = buffer_size;
+	Text_Data.Buffer = (unsigned short *)malloc(Text_Data.Buffer_Length);
+	if(Text_Data.Buffer == NULL)
+	{
+		Text_Error_Number = 4;
+		sprintf(Text_Error_String,"CCD_Text_Memory_Map:Memory allocation failed(%d).",Text_Data.Buffer_Length);
+		return FALSE;
+	}
+	return TRUE;
+}
+
+/**
+ * Routine to free a memory buffer for image download. This is done using free, as we are only emulating
+ * the interface.
+ * @return Return TRUE if buffer initialisation is successful, FALSE if it wasn't.
+ * @see #Text_Data
+ */
+int CCD_Text_Memory_UnMap(void)
+{
+	if(Text_Data.Buffer == NULL)
+	{
+		Text_Error_Number = 6;
+		sprintf(Text_Error_String,"CCD_Text_Memory_UnMap:Buffer was NULL(%d).",Text_Data.Buffer_Length);
+		return FALSE;
+	}
+	free(Text_Data.Buffer);
+	Text_Data.Buffer = NULL;
+	Text_Data.Buffer_Length = 0;
+	return TRUE;
+}
+
+/**
  * This routine will send a command to the controller. 
- * It uses the internal reply memory which will have previously been setup with the data to send.
- * This driver just prints out the command to be sent.
+ * This driver just prints out the command to be sent. The argument contains the data element associated with
+ * this IOCTL command. Any reply value generated is passed back using the argument. 
  * @param request The type of request sent.
- * @param argument A pointer to the argument(s) to the request.
+ * @param argument A pointer to the argument(s) to the request. On entry to the routine this should contain
+ * 	the address of an integer containing any parameter data. On leaving this routine, any reply value
+ * 	generated as a result of this command will be put into this integer.
  * @return Returns TRUE if the command was sent to the device driver successfully, FALSE if an error occured.
  * 	In this driver it always return TRUE.
  * @see ccd_interface.html#CCD_Interface_Command
+ * @see #Text_Print_Reply
+ * @see #Text_HSTR
+ * @see #Text_Readout_Progress
+ * @see #Text_HCVR
+ * @see #Text_Data
+ * @see #Text_File_Ptr
+ * @see #Text_Print_Level
  */
 int CCD_Text_Command(int request,int *argument)
 {
@@ -373,8 +447,7 @@ int CCD_Text_Command(int request,int *argument)
 	{
 		/* some command arguments have interdetminate arguments 
 		** - the argument is not used or is filled in with a reply */
-		if((request==CCD_PCI_IOCTL_CLEAR_REPLY)||(request==CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER)||
-			(request==CCD_PCI_IOCTL_GET_REPLY)||(request==CCD_PCI_IOCTL_GET_HCTR))
+		if((request==CCD_PCI_IOCTL_GET_HCTR))
 			fprintf(Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
 		else if(argument != NULL)
 			fprintf(Text_File_Ptr,"ioctl(%#x,%#x)\n",request,*argument);
@@ -385,106 +458,31 @@ int CCD_Text_Command(int request,int *argument)
 	Text_Data.Ioctl_Request = request;
 	switch(request)
 	{
-		case CCD_PCI_IOCTL_GET_CMDR:
-			fprintf(Text_File_Ptr,"Request:Get Manual Command Register:");
-			break;
-		case CCD_PCI_IOCTL_GET_REPLY:
-			fprintf(Text_File_Ptr,"Request:Get Reply:");
-			if(argument != NULL)
-				Text_Get_Reply(argument);
-			else
-				fprintf(Text_File_Ptr,"Reply not filled in:argument was NULL:");
-			break;
 		case CCD_PCI_IOCTL_GET_HCTR:
 			fprintf(Text_File_Ptr,"Request:Get Host Control Register:");
 			if(argument != NULL)
-				(*argument) = Text_Data.HCTR_Register;
+				Text_Data.Reply = Text_Data.HCTR_Register;
 			else
 				fprintf(Text_File_Ptr,"HCTR not filled in:argument was NULL:");
 			break;
 		case CCD_PCI_IOCTL_GET_PROGRESS:
 			fprintf(Text_File_Ptr,"Request:Get Readout Progress:");
-			break;
-		case CCD_PCI_IOCTL_GET_CONFIG_INFO:
-			fprintf(Text_File_Ptr,"Request:Get PCI Config Info:");
-			break;
-		case CCD_PCI_IOCTL_SET_CMDR:
-			fprintf(Text_File_Ptr,"Request:Set Manual Command Register:");
-			Text_Data.Manual_Command = *argument;
+			Text_Readout_Progress();
 			if(argument != NULL)
-				Text_Manual(*argument);
+				Text_Data.Reply = Text_Data.Readout_Progress;
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+				fprintf(Text_File_Ptr,"Readout Progress not filled in:argument was NULL:");
 			break;
-		case CCD_PCI_IOCTL_SET_ARG1:
-			fprintf(Text_File_Ptr,"Request:Set Argument 1:");
+		case CCD_PCI_IOCTL_GET_HSTR:
+			fprintf(Text_File_Ptr,"Request:Get Host Status Transfer Register:");
+			Text_HSTR();
 			if(argument != NULL)
-			{
-				Text_Data.Argument_List[0] = (*argument);
-				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
-			}
+				Text_Data.Reply = Text_Data.HSTR_Register;
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
+				fprintf(Text_File_Ptr,"HSTR not filled in:argument was NULL:");
 			break;
-		case CCD_PCI_IOCTL_SET_ARG2:
-			fprintf(Text_File_Ptr,"Request:Set Argument 2:");
-			if(argument != NULL)
-			{
-				Text_Data.Argument_List[1] = (*argument);
-				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
-			}
-			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
-			break;
-		case CCD_PCI_IOCTL_SET_ARG3:
-			fprintf(Text_File_Ptr,"Request:Set Argument 3:");
-			if(argument != NULL)
-			{
-				Text_Data.Argument_List[2] = (*argument);
-				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
-			}
-			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
-			break;
-		case CCD_PCI_IOCTL_SET_ARG4:
-			fprintf(Text_File_Ptr,"Request:Set Argument 4:");
-			if(argument != NULL)
-			{
-				Text_Data.Argument_List[3] = (*argument);
-				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
-			}
-			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
-			break;
-		case CCD_PCI_IOCTL_SET_ARG5:
-			fprintf(Text_File_Ptr,"Request:Set Argument 5:");
-			if(argument != NULL)
-			{
-				Text_Data.Argument_List[4] = (*argument);
-				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
-			}
-			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
-			break;
-		case CCD_PCI_IOCTL_SET_ARGS:
-			fprintf(Text_File_Ptr,"Request:Set Argument S?:");
-			break;
-		case CCD_PCI_IOCTL_SET_DESTINATION:
-			fprintf(Text_File_Ptr,"Request:Set Destination Board:");
-			if(argument != NULL)
-				Text_Destination((*argument));
-			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+		case CCD_PCI_IOCTL_GET_DMA_ADDR:
+			fprintf(Text_File_Ptr,"Request:Get DMA Address:");
 			break;
 		case CCD_PCI_IOCTL_SET_HCTR:
 			fprintf(Text_File_Ptr,"Request:Set HCTR (Host Interface Control Register):");
@@ -505,42 +503,45 @@ int CCD_Text_Command(int request,int *argument)
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
 			break;
-		case CCD_PCI_IOCTL_SET_EXPTIME:
-			fprintf(Text_File_Ptr,"Request:Set Exposure Time:");
+		case CCD_PCI_IOCTL_HCVR_DATA:
+			fprintf(Text_File_Ptr,"Request:Set HCVR data:");
 			if(argument != NULL)
 			{
+				Text_Data.Argument_List[0] = (*argument);
 				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%d millseconds:",(*argument));
-				Text_Data.Exposure_Time = (*argument);
-				Text_Data.Reply = CCD_DSP_DON;
+					fprintf(Text_File_Ptr,"%#x:",(*argument));
+			/* HCVR_DATA does not return a reply. So we set the Text_Data.Reply to the input argument,
+			** so that it is not changed. */
+				Text_Data.Reply = (*argument);
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
 			break;
-		case CCD_PCI_IOCTL_SET_NCOLS:
-			fprintf(Text_File_Ptr,"Request:Set Number of Columns:");
-			if(argument != NULL)
-			{
-				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%d columns:",(*argument));
-				Text_Data.Reply = CCD_DSP_DON;
-			}
-			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
+		case CCD_PCI_IOCTL_COMMAND:
+			fprintf(Text_File_Ptr,"Request:Command:");
 			break;
-		case CCD_PCI_IOCTL_SET_NROWS:
-			fprintf(Text_File_Ptr,"Request:Set Number of Rows:");
+		case CCD_PCI_IOCTL_PCI_DOWNLOAD:
+			fprintf(Text_File_Ptr,"Request:PCI Download:");
 			if(argument != NULL)
 			{
+				Text_Data.Argument_List[0] = (*argument);
 				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%d rows:",(*argument));
+					fprintf(Text_File_Ptr,"%#x:",(*argument));
+			}
+			else
+				fprintf(Text_File_Ptr,"NULL Argument:");
+			break;
+		case CCD_PCI_IOCTL_PCI_DOWNLOAD_WAIT:
+			fprintf(Text_File_Ptr,"Request:PCI Download Wait:");
+			if(argument != NULL)
+			{
+				Text_Data.Argument_List[0] = (*argument);
+				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
+					fprintf(Text_File_Ptr,"%#x:",(*argument));
 				Text_Data.Reply = CCD_DSP_DON;
 			}
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
-			Text_Data.Reply = CCD_DSP_DON;
 			break;
 		case CCD_PCI_IOCTL_SET_IMAGE_BUFFERS:
 			fprintf(Text_File_Ptr,"Request:Set address of the image data buffers:");
@@ -556,15 +557,78 @@ int CCD_Text_Command(int request,int *argument)
 			else
 				fprintf(Text_File_Ptr,"NULL Argument:");
 			break;
-		case CCD_PCI_IOCTL_CLEAR_REPLY:
-			fprintf(Text_File_Ptr,"Request:Clear Reply Memory:");
-			/* clear reply sets the reply memory to -1 */
-			Text_Data.Reply = -1;
+		default:
+			fprintf(Text_File_Ptr,"Unknown Request");
 			break;
-		case CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER:
-			fprintf(Text_File_Ptr,"Request:Flush Reply Memory:");
-			/* flush reply resets reply interrupt? */
-			Text_Data.Reply = -1;
+	}
+/* reply is passed back in argument - copy any set from Text_Data.Reply */
+	if(argument != NULL)
+	{
+		(*argument) = Text_Data.Reply;
+		Text_Print_Reply();
+	}
+	fprintf(Text_File_Ptr,"\n");
+	fflush(Text_File_Ptr);
+	return TRUE;
+}
+
+/**
+ * This routine will send a command to the SDSU controller boards. 
+ * @param request The type of request sent.
+ * @param argument_list The list of arguments to be sent to the controller.
+ * @param argument_count The number of arguments in the argument_list.
+ * @return Returns TRUE if the command was sent to the device driver successfully, FALSE if an error occured.
+ * 	In this driver it always return TRUE.
+ * @see ccd_interface.html#CCD_Interface_Command_List
+ * @see #Text_Destination
+ * @see #Text_Manual
+ * @see #Text_Print_Reply
+ */
+int CCD_Text_Command_List(int request,int *argument_list,int argument_count)
+{
+	int i;
+
+	Text_Error_Number = 0;
+	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
+	{
+		/* some command arguments have interdetminate arguments 
+		** - the argument is not used or is filled in with a reply */
+		if((request==CCD_PCI_IOCTL_GET_HCTR))
+			fprintf(Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
+		else if(argument_count > 0)
+		{
+			fprintf(Text_File_Ptr,"ioctl(%#x",request);
+			for(i=0;i< argument_count;i++)
+			{
+				fprintf(Text_File_Ptr,",%#x",argument_list[i]);
+			}
+			fprintf(Text_File_Ptr,")\n");
+		}
+		else
+			fprintf(Text_File_Ptr,"ioctl(%#x,NULL)\n",request);
+	}
+/* set Text_Data Ioctl_Request */
+	Text_Data.Ioctl_Request = request;
+	switch(request)
+	{
+		case CCD_PCI_IOCTL_COMMAND:
+			fprintf(Text_File_Ptr,"Request:Command:");
+			if(argument_count > 0)
+				Text_Destination(argument_list[0]);
+		/* Copy arguments.
+		** Loop starts from 2, first 2 CCD_PCI_IOCTL_COMMAND arguments are header word and 
+		** Manual Command itself. */
+			Text_Data.Argument_Count = argument_count-2;
+			for(i=2;i<argument_count;i++)
+			{
+				Text_Data.Argument_List[i-2] = argument_list[i];
+			}
+		/* Call manual command routine */
+			if(argument_count > 1)
+				Text_Manual(argument_list[1]);
+		/* put reply value in argument_list[0] */
+			argument_list[0] = Text_Data.Reply;
+			Text_Print_Reply();
 			break;
 		default:
 			fprintf(Text_File_Ptr,"Unknown Request");
@@ -577,19 +641,17 @@ int CCD_Text_Command(int request,int *argument)
 
 /**
  * This routine emulates getting reply data from the SDSU CCD Controller. The reply data is stored in
- * the data paramater, up to byte_count bytes of it. This allows the routine to read an arbitary amount of data 
+ * the data parameter, up to byte_count bytes of it. This allows the routine to read an arbitary amount of data 
  * (an image for instance).
- * @param data An area of memory previously allocated to store the reply data. The area must be able to store
- * 	at least byte_count bytes. In this routine the image is filled with bytes that are ASCII characters
- * 	so the resultant image can be printed out.
- * @param byte_count The number of bytes to read in from the interface to the data area.
- * @return The routine returns the number of bytes actually read from the interface. In this routine that is
- * 	always byte_count.
+ * @param data The address of an unsigned short pointer, which on return from this routine will point to
+ *        an area of memory containing the read out CCD image. 
+ *        In this routine the image is filled with bytes that are ASCII characters so the resultant image 
+ *        can be printed out.
+ * @return The routine returns TRUE on success and FALSE on failure.
  * @see ccd_interface.html#CCD_Interface_Get_Reply_Data
  */
-int CCD_Text_Get_Reply_Data(char *data,int byte_count)
+int CCD_Text_Get_Reply_Data(unsigned short **data)
 {
-	unsigned short *ushort_data = NULL;
 	int i;
 
 	Text_Error_Number = 0;
@@ -600,25 +662,24 @@ int CCD_Text_Get_Reply_Data(char *data,int byte_count)
 	{
 		Text_Error_Number = 1;
 		sprintf(Text_Error_String,"CCD_Text_Get_Reply_Data:data is NULL");
-		return -1;
+		return FALSE;
 	}
-	/* range check byte_count */
-	if(byte_count <= 0)
+	if(Text_Data.Buffer == NULL)
 	{
 		Text_Error_Number = 2;
-		sprintf(Text_Error_String,"CCD_Text_Get_Reply_Data:byte_count is too small:%d.",byte_count);
-		return -1;
+		sprintf(Text_Error_String,"CCD_Text_Get_Reply_Data:Reply Buffer is NULL");
+		return FALSE;
 	}
 	/* fill data with return values */
-	ushort_data = (unsigned short *)data;
+	(*data) = (unsigned short *)(Text_Data.Buffer);
 	i=0;
-	while((i<(byte_count/sizeof(unsigned short)))&&(!CCD_DSP_Get_Abort()))
+	while((i<(Text_Data.Buffer_Length/sizeof(unsigned short)))&&(!CCD_DSP_Get_Abort()))
 	{
-		ushort_data[i] = (i%((1<<16)-1));
+		(*data)[i] = (i%((1<<16)-1));
 		i++;
 	}
-	fprintf(Text_File_Ptr,"CCD_Text_Get_Reply_Data:%d.\n",byte_count);
-	return byte_count;
+	fprintf(Text_File_Ptr,"CCD_Text_Get_Reply_Data:%d.\n",Text_Data.Buffer_Length);
+	return TRUE;
 }
 
 /**
@@ -708,44 +769,23 @@ void CCD_Text_Warning(void)
 ** 	Internal routines 
 ** ------------------------------------------------------------------- */
 /**
- * Routine called to perform an CCD_PCI_IOCTL_GET_REPLY ioctl request.
- * This involves setting the value at the argument address to the current value of Text_Data.Reply
- * which should have been setup correcly by the last command.
- * Some printing out also takes place here. The spacial case return values CCD_DSP_DON, CCD_DSP_ERR and
+ * Routine that prints out a textual representation of Text_Data.Reply,
+ * if Text_Print_Level is greater than or equal to CCD_TEXT_PRINT_LEVEL_REPLIES.
+ * The spacial case return values CCD_DSP_DON, CCD_DSP_ERR and
  * CCD_DSP_SYR are checked for special printouts.
- * @see ccd_pci.html#CCD_PCI_IOCTL_GET_REPLY
+ * @see #Text_Print_Level
+ * @see #Text_Data
+ * @see #CCD_TEXT_PRINT_LEVEL_REPLIES
  * @see ccd_dsp.html#CCD_DSP_DON
  * @see ccd_dsp.html#CCD_DSP_ERR
  * @see ccd_dsp.html#CCD_DSP_SYR
  */
-static void Text_Get_Reply(int *argument)
+static void Text_Print_Reply(void)
 {
-	struct timespec current_time;
-	struct timespec delay_timespec;
-#ifndef _POSIX_TIMERS
-	struct timeval gtod_current_time;
-#endif
-	int finished = -1;
-
-/* wait for a bit - 1 milli-second - emulate time taken for reply to appear */
-	delay_timespec.tv_sec = 0;
-	delay_timespec.tv_nsec = 1000*TEXT_ONE_MICROSECOND_NS;
-	while(finished != 0)
-	{
-		finished = nanosleep(&delay_timespec,&delay_timespec);
-	}
-/* It takes appox 5 seconds to clear the CCD array out,
- ** the astropci device driver waits 10 seconds in read_reply before timing out.
- ** Here we sleep for five seconds.
- */
-	if(Text_Data.HCVR_Command == CCD_PCI_HCVR_CLEAR_ARRAY)
-		sleep(5);
-/* set reply value */
-	(*argument) = Text_Data.Reply;
 /* if it's a standard reply print out a text representation. */
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_REPLIES)
 	{
-		switch((*argument))
+		switch(Text_Data.Reply)
 		{
 			case CCD_DSP_DON:
 				fprintf(Text_File_Ptr,"DON:");
@@ -757,7 +797,7 @@ static void Text_Get_Reply(int *argument)
 				fprintf(Text_File_Ptr,"SYR:");
 				break;
 			default:
-				fprintf(Text_File_Ptr,"%#x:",(*argument));
+				fprintf(Text_File_Ptr,"%#x:",Text_Data.Reply);
 				break;
 		}/* end switch on reply value */
 	}/* end if printing replies */
@@ -795,6 +835,36 @@ static void Text_HCVR(int hcvr_command)
 }
 
 /**
+ * This routine is called whenever the ioctl command GET_HSTR is called.
+ * It allows us to calculate the value of Text_Data.HSTR_Register, i.e. when to switch to readout mode.
+ * @see #Text_Manual_Read_Exposure_Time
+ * @see ccd_exposure.html#CCD_EXPOSURE_HSTR_READOUT
+ * @see ccd_exposure.html#CCD_EXPOSURE_HSTR_BIT_SHIFT
+ */
+static void Text_HSTR(void)
+{
+	int elapsed_exposure_time;
+
+	/* call routine to get current elapsed exposure time - result put in Text_Data.Reply */
+	Text_Manual_Read_Exposure_Time();
+	elapsed_exposure_time = Text_Data.Reply;
+	/* if elapsed exposure time > exposure length, go into readout mode. */
+	if(elapsed_exposure_time> Text_Data.Exposure_Length)
+		Text_Data.HSTR_Register |= (CCD_EXPOSURE_HSTR_READOUT<<CCD_EXPOSURE_HSTR_BIT_SHIFT);
+}
+
+/**
+ * This routine is called whenever the ioctl command GET_PROGRESS is called.
+ * This allows us to modify the Text_Data.Readout_Progress field to simulate readout.
+ */
+static void Text_Readout_Progress(void)
+{
+	/* read out 500000 bytes between calls, if we call GET_PROGRESS every second,
+	** about a 10 second readout. */
+	Text_Data.Readout_Progress = Text_Data.Readout_Progress + 500000;
+}
+
+/**
  * Internal routine which prints information about the Manual command passed in.
  * This uses the Text_Manual_Command_List to determines what the command is.
  * It also performs any operations as a result of this command using a function pointer in the list.
@@ -826,93 +896,96 @@ static void Text_Manual(int manual_command)
 }
 
 /**
- * Routine to convert a CCD_PCI_IOCTL_SET_DESTINATION board word into a textual description string.
- * @param destination_number The argument to the CCD_PCI_IOCTL_SET_DESTINATION ioctl request.
- * @see ccd_pci.html#CCD_PCI_IOCTL_SET_DESTINATION
+ * Routine to convert a manual command header word into a textual description string.
+ * @param destination_number The first argument to the CCD_PCI_IOCTL_COMMAND ioctl request.
+ * @see ccd_pci.html#CCD_PCI_IOCTL_COMMAND
  */
 static void Text_Destination(int destination_number)
 {
 	char *Board_Name_List[] = {"Host","Interface","Timing board","Utility board"};
+	int Board_Name_Count = 4;
 
-	Text_Data.Destination = destination_number&0xFFFF;
-	Text_Data.Argument_Count = (destination_number>>16)&0xFFFF;
+	Text_Data.Destination = (destination_number >> 8)&0xFF;
+	Text_Data.Argument_Count = destination_number&0xFF;
 	Text_Data.Reply = CCD_DSP_DON;
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-		fprintf(Text_File_Ptr,":%s:Number of Arguments:%d:",Board_Name_List[Text_Data.Destination],
-			Text_Data.Argument_Count);
+	{
+		if((Text_Data.Destination > 0)&&(Text_Data.Destination<Board_Name_Count))
+		{
+			fprintf(Text_File_Ptr,":%s:Number of Arguments:%d:",Board_Name_List[Text_Data.Destination],
+				Text_Data.Argument_Count);
+		}
+		else
+		{
+			fprintf(Text_File_Ptr,":UNKNOWN BOARD %d:Number of Arguments:%d:",Text_Data.Destination,
+				Text_Data.Argument_Count);
+		}
+	}
 }
 
 /**
- * Function invoked from Text_HCVR when a READ_CONTROLLER_STATUS command is sent to the driver.
- * This retrieves the current controller status.
- * This function sets Text_Data.Reply to Text_Data.Controller_Status.
- * @see #Text_HCVR
- * @see ccd_pci.html#CCD_PCI_HCVR_READ_CONTROLLER_STATUS
+ * Function invoked from Text_Manual when a RCC command is sent to the driver.
+ * This retrieves the controller configuration word.
+ * This function sets Text_Data.Reply to Text_Data.Controller_Config.
+ * @see #Text_Manual
+ * @see ccd_dsp.html#CCD_DSP_RCC
  */
-static void Text_HCVR_Read_Controller_Status(void)
+static void Text_Manual_Read_Controller_Config(void)
 {
-	Text_Data.Reply = Text_Data.Controller_Status;
+	Text_Data.Reply = Text_Data.Controller_Config;
 }
 
 /**
- * Function invoked from Text_HCVR when a WRITE_CONTROLLER_STATUS command is sent to the driver.
- * This sets the current controller status.
- * This function sets Text_Data.Reply to CCD_DSP_DON.
- * It sets Text_Data.Controller_Status to Text_Data.Argument_List[0].
- * @see #Text_HCVR
- * @see ccd_pci.html#CCD_PCI_HCVR_READ_CONTROLLER_STATUS
- */
-static void Text_HCVR_Write_Controller_Status(void)
-{
-	Text_Data.Reply = CCD_DSP_DON;
-	Text_Data.Controller_Status = Text_Data.Argument_List[0];
-}
-
-/**
- * Function invoked from Text_HCVR when a TEST_DATA_LINK command is sent to the driver.
+ * Function invoked from Text_Manual when a TDL command is sent to the driver.
  * This tests the driver by sending argument 1 to the required board, which should return the value.
  * Hence this function sets Text_Data.Reply to Text_Data.Argument_List[0].
- * @see #Text_HCVR
- * @see ccd_pci.html#CCD_PCI_HCVR_TEST_DATA_LINK
+ * @see #Text_Manual
+ * @see ccd_dsp.html#CCD_DSP_TDL
  */
-static void Text_HCVR_Test_Data_Link(void)
+static void Text_Manual_Test_Data_Link(void)
 {
 	Text_Data.Reply = Text_Data.Argument_List[0];
 }
 
 /**
- * Routine invoked from Text_HCVR when a Read Memory command is sent to the driver.
+ * Routine invoked from Text_Manual when a Read Memory command is sent to the driver.
  * This routine needs to get the relevant memory address we are reading (board/memory space/address)
  * and return a suitable value for some cases. This uses the Memory_List defined above.
- * @see #Text_HCVR
+ * @see #Text_Manual
  * @see #Memory_List
- * @see ccd_pci.html#CCD_PCI_HCVR_READ_MEMORY
+ * @see ccd_dsp.html#CCD_DSP_RDM
  */
-static void Text_HCVR_Read_Memory(void)
+static void Text_Manual_Read_Memory(void)
 {
-	int i;
+	int i,memory_space,address;
 
+	memory_space = Text_Data.Argument_List[0] & 0xf00000;
+	address = Text_Data.Argument_List[0] & 0xfffff;
+	fprintf(Text_File_Ptr,"Text_Manual_Read_Memory:Destination = %#x:Memory Space = %#x:Address = %#x\n",
+		Text_Data.Destination,memory_space,address);
 	for(i=0;i<MEMORY_COUNT;i++)
 	{
 		if((Text_Data.Destination == Memory_List[i].Board_Id)&&
-			(Text_Data.Argument_List[0] == Memory_List[i].Mem_Space)&&
-			(Text_Data.Argument_List[1] == Memory_List[i].Address))
+			(memory_space == Memory_List[i].Mem_Space)&&
+			(address == Memory_List[i].Address))
 		{
+			fprintf(Text_File_Ptr,"Text_Manual_Read_Memory:Match Found:Value = %#x\n",
+				Memory_List[i].Value);
 			Text_Data.Reply = Memory_List[i].Value;
 		}
 	}
 }
 
 /**
- * Function invoked from Text_HCVR when a READ_EXPOSURE_TIME command is sent to the driver.
+ * Function invoked from Text_Manual when a RET command is sent to the driver.
  * This should set the return argument to the elapsed time of exposure, in milliseconds.
  * Text_Data.Reply is set to the elapsed time, measured as the current time minus Text_Data.Exposure_Start_Time. 
  * However, if the exposure is currently paused Text_Data.Pause_Start_Time is non zero. In this case the 
  * current elapsed exposure time is the pause start time minus the exposure start time.
- * @see #Text_HCVR
- * @see ccd_pci.html#CCD_PCI_HCVR_READ_EXPOSURE_TIME
+ * @see #Text_Manual
+ * @see ccd_dsp.html#CCD_DSP_RET
  */
-static void Text_HCVR_Read_Exposure_Time(void)
+static void Text_Manual_Read_Exposure_Time(void)
 {
 	struct timespec current_time;
 #ifndef _POSIX_TIMERS
@@ -946,14 +1019,24 @@ static void Text_HCVR_Read_Exposure_Time(void)
 }
 
 /**
- * Function invoked from Text_HCVR when a START_EXPOSURE command is sent to the driver.
+ * Invoked from Text_Manual when a SET (Set Exposure Time) command is sent to the driver.
+ * Sets exposure time in Text_Data from argument list.
+ * @see #Text_Data
+ */
+static void Text_Manual_Set_Exposure_Time(void)
+{
+	Text_Data.Exposure_Length = Text_Data.Argument_List[0];
+}
+
+/**
+ * Function invoked from Text_Manual when a SEX command is sent to the driver.
  * Text_Data sets the reply value to CCD_DSP_DON.
  * We set the Text_Data.Exposure_Start_Time to the current time when the exposure started.
  * We also reset Text_Data.Pause_Start_Time to zero - we are starting an exposure - we can't be paused.
- * @see #Text_HCVR
- * @see ccd_pci.html#CCD_PCI_HCVR_START_EXPOSURE
+ * @see #Text_Manual
+ * @see ccd_dsp.html#CCD_DSP_SEX
  */
-static void Text_HCVR_Start_Exposure(void)
+static void Text_Manual_Start_Exposure(void)
 {
 #ifndef _POSIX_TIMERS
 	struct timeval gtod_current_time;
@@ -969,6 +1052,23 @@ static void Text_HCVR_Start_Exposure(void)
 /* reset pause time */
 	Text_Data.Pause_Start_Time.tv_sec = 0;
 	Text_Data.Pause_Start_Time.tv_nsec = 0;
+/* sort out HSTR - switch off readout flags */
+	Text_Data.HSTR_Register = 0;
+/* re-initialise Readout_Progress, not started reading out yet. */
+	Text_Data.Readout_Progress = 0;
+}
+
+/**
+ * Routine called when manual command RDC is received. Sets HSTR to readout mode, and resets  readout progress.
+ * @see ccd_exposure.html#CCD_EXPOSURE_HSTR_READOUT
+ * @see ccd_exposure.html#CCD_EXPOSURE_HSTR_BIT_SHIFT
+ */
+static void Text_Manual_Start_Readout_CCD(void)
+{
+/* sort out HSTR - switch on readout flags */
+	Text_Data.HSTR_Register = (CCD_EXPOSURE_HSTR_READOUT<<CCD_EXPOSURE_HSTR_BIT_SHIFT);
+/* re-initialise Readout_Progress, started reading out from 0. */
+	Text_Data.Readout_Progress = 0;
 }
 
 /**
@@ -978,7 +1078,7 @@ static void Text_HCVR_Start_Exposure(void)
  * @see #Text_HCVR
  * @see ccd_pci.html#CCD_PCI_HCVR_PAUSE_EXPOSURE
  */
-static void Text_HCVR_Pause_Exposure(void)
+static void Text_Manual_Pause_Exposure(void)
 {
 #ifndef _POSIX_TIMERS
 	struct timeval gtod_current_time;
@@ -1003,7 +1103,7 @@ static void Text_HCVR_Pause_Exposure(void)
  * @see #Text_HCVR
  * @see ccd_pci.html#CCD_PCI_HCVR_RESUME_EXPOSURE
  */
-static void Text_HCVR_Resume_Exposure(void)
+static void Text_Manual_Resume_Exposure(void)
 {
 	struct timespec resume_time;
 #ifndef _POSIX_TIMERS
@@ -1029,6 +1129,12 @@ static void Text_HCVR_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.19  2001/03/20 11:54:22  cjm
+** Added conditional compilation on CCD_FILTER_WHEEL_INPUT_HOME,
+** so that the emulated Y:DIG_IN digital input word has the correct bits set as though
+** the filter wheels are in the home detent position, whether the library
+** is using a proximity or magnetic home input sensor.
+**
 ** Revision 0.18  2001/02/09 19:35:27  cjm
 ** Added defauly memory location values, so that filter wheel
 ** RDM's succeed.
@@ -1079,7 +1185,7 @@ static void Text_HCVR_Resume_Exposure(void)
 ** Made Clear array take some time.
 **
 ** Revision 0.5  2000/02/10 16:26:08  cjm
-** Changed Text_HCVR_Read_Exposure_Time so that it works with voodoo.
+** Changed Text_Manual_Read_Exposure_Time so that it works with voodoo.
 **
 ** Revision 0.4  2000/02/09 18:27:39  cjm
 ** Fixed ioctl indeterminate prints for CLEAR_REPLY and GET_REPLY.

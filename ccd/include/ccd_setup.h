@@ -1,5 +1,5 @@
-/* ccd_setup.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.9 2001-02-09 18:32:31 cjm Exp $
+/* ccd_setup.h
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.10 2002-11-07 19:16:51 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -109,6 +109,9 @@ extern int CCD_Setup_Get_Window_Flags(void);
 extern int CCD_Setup_Get_Window(int window_index,struct CCD_Setup_Window_Struct *window);
 extern int CCD_Setup_Get_Setup_Complete(void);
 extern int CCD_Setup_Get_Setup_In_Progress(void);
+extern int CCD_Setup_Get_High_Voltage_Analogue_ADU(int *hv_adu);
+extern int CCD_Setup_Get_Low_Voltage_Analogue_ADU(int *lv_adu);
+extern int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu);
 extern int CCD_Setup_Get_Error_Number(void);
 extern void CCD_Setup_Error(void);
 extern void CCD_Setup_Error_String(char *error_string);

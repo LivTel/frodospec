@@ -1,5 +1,5 @@
-/* ccd_text.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_text.h,v 0.2 2000-01-28 16:18:42 cjm Exp $
+/* ccd_text.h
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_text.h,v 0.3 2002-11-07 19:16:51 cjm Exp $
 */
 
 #ifndef CCD_TEXT_H
@@ -13,7 +13,7 @@
  * <ul>
  * <li>CCD_TEXT_PRINT_LEVEL_COMMANDS - Print out commands only.
  * <li>CCD_TEXT_PRINT_LEVEL_REPLIES - Print out commands' replies as well.
- * <li>CCD_TEXT_PRINT_LEVEL_VALUES - Print out paramater values as well.
+ * <li>CCD_TEXT_PRINT_LEVEL_VALUES - Print out parameter values as well.
  * <li>CCD_TEXT_PRINT_LEVEL_ALL - Print out everything.
  * </ul>
  * @see #CCD_Text_Set_Print_Level
@@ -38,8 +38,11 @@ extern void CCD_Text_Set_File_Pointer(FILE *fp);
 /* implementation of device interface */
 extern void CCD_Text_Initialise(void);
 extern int CCD_Text_Open(void);
+extern int CCD_Text_Memory_Map(int buffer_size);
+extern int CCD_Text_Memory_UnMap(void);
 extern int CCD_Text_Command(int request,int *argument);
-extern int CCD_Text_Get_Reply_Data(char *data,int byte_count);
+extern int CCD_Text_Command_List(int request,int *argument_list,int argument_count);
+extern int CCD_Text_Get_Reply_Data(unsigned short **data);
 extern int CCD_Text_Close(void);
 extern int CCD_Text_Get_Error_Number(void);
 extern void CCD_Text_Error(void);

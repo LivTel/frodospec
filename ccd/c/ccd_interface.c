@@ -1,13 +1,13 @@
-/* ccd_interface.c -*- mode: Fundamental;-*-
+/* ccd_interface.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.3 2000-06-13 17:14:13 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.4 2002-11-07 19:13:39 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 #include <stdio.h>
 #include <string.h>
@@ -24,7 +24,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.3 2000-06-13 17:14:13 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.4 2002-11-07 19:13:39 cjm Exp $";
 
 /* external variables */
 
@@ -126,10 +126,60 @@ int CCD_Interface_Open(void)
 }
 
 /**
+ * This routine sorts out the memory mapping, or emulation, for the specified interface.
+ * @param buffer_size The size of the buffer, in bytes.
+ * @return The routine returns TRUE if the operation was successfully completed, 
+ *         or FALSE if it failed in some way.
+ * @see ccd_text.html#CCD_Text_Memory_Map
+ * @see ccd_pci.html#CCD_PCI_Memory_Map
+ */
+int CCD_Interface_Memory_Map(int buffer_size)
+{
+	Interface_Error_Number = 0;
+	/* call the device specific open routine */
+	switch(Interface_Current_Device)
+	{
+		case CCD_INTERFACE_DEVICE_TEXT:
+			return CCD_Text_Memory_Map(buffer_size);
+		case CCD_INTERFACE_DEVICE_PCI:
+			return CCD_PCI_Memory_Map(buffer_size);
+		default:
+			Interface_Error_Number = 8;
+			sprintf(Interface_Error_String,"CCD_Interface_Memory_Map failed:No device selected.");
+			return FALSE;
+	}
+}
+
+/**
+ * This routine frees the memory mapping, or emulation, for the specified interface.
+ * @return The routine returns TRUE if the operation was successfully completed, 
+ *         or FALSE if it failed in some way.
+ * @see ccd_text.html#CCD_Text_Memory_UnMap
+ * @see ccd_pci.html#CCD_PCI_Memory_UnMap
+ */
+int CCD_Interface_Memory_UnMap(void)
+{
+	Interface_Error_Number = 0;
+	/* call the device specific open routine */
+	switch(Interface_Current_Device)
+	{
+		case CCD_INTERFACE_DEVICE_TEXT:
+			return CCD_Text_Memory_UnMap();
+		case CCD_INTERFACE_DEVICE_PCI:
+			return CCD_PCI_Memory_UnMap();
+		default:
+			Interface_Error_Number = 9;
+			sprintf(Interface_Error_String,"CCD_Interface_Memory_UnMap failed:No device selected.");
+			return FALSE;
+	}
+}
+
+/**
  * This routine sends a request to the device the library is currently using. It is usually called from
  * <a href="ccd_dsp.html#DSP_Send_Command">DSP_Send_Command</a>.
  * @param request The request number sent to the device.
- * @param argument The address of the data to send as a paramater to the request.
+ * @param argument The address of the data to send as a parameter to the request. Upon a successfull return from
+ * 	the routine, the return value from the DSP code may be in the argument.
  * @return The routine returns the return value from the command routine it called. This will normally be TRUE
  * 	if the request was sent correctly, or FALSE if it failed in some way.
  * @see ccd_text.html#CCD_Text_Command
@@ -154,28 +204,53 @@ int CCD_Interface_Command(int request,int *argument)
 }
 
 /**
- * This routine gets reply data from the device the library is currently using. This routine is usually called
- * from <a href="ccd_dsp.html#DSP_Image_Transfer">DSP_Image_Transfer</a>. The difference between this routine and
- * <a href="#CCD_Interface_Get_Reply">CCD_Interface_Get_Reply</a> is this reads the reply into the area pointed
- * to by the data parameter.
- * @param data An area of memory previously allocated to store the reply data. The area must be able to store
- * 	at lease byte_count bytes.
- * @param byte_count The number of bytes to read in from the interface to the data area.
- * @return The routine returns the return value from the _Get_Reply routine it called. This is the
- * 	number of bytes actually returned.
+ * This routine sends a request to the device the library is currently using. It is usually called from
+ * <a href="ccd_dsp.html#DSP_Send_Command">DSP_Send_Command</a>.
+ * @param request The ioctl request number sent to the device.
+ * @param argument_list A list of arguments to send as a parameter to the request. Upon a successfull return from
+ * 	the routine, the return value from the DSP code may be in the argument list.
+ * @param argument_count The number of arguments in argument_list.
+ * @return The routine returns the return value from the command routine it called. This will normally be TRUE
+ * 	if the request was sent correctly, or FALSE if it failed in some way.
+ * @see ccd_text.html#CCD_Text_Command_List
+ * @see ccd_pci.html#CCD_PCI_Command_List
+ * @see ccd_dsp.html#DSP_Send_Command
+ */
+int CCD_Interface_Command_List(int request,int *argument_list,int argument_count)
+{
+	Interface_Error_Number = 0;
+	/* call the device specific command routine */
+	switch(Interface_Current_Device)
+	{
+		case CCD_INTERFACE_DEVICE_TEXT:
+			return CCD_Text_Command_List(request,argument_list,argument_count);
+		case CCD_INTERFACE_DEVICE_PCI:
+			return CCD_PCI_Command_List(request,argument_list,argument_count);
+		default:
+			Interface_Error_Number = 5;
+			sprintf(Interface_Error_String,"CCD_Interface_Command_List failed:No device selected.");
+			return FALSE;
+	}
+}
+
+/**
+ * This routine gets reply data from the device the library is currently using. 
+ * @param data The address of an unsigned short pointer, which on return from this routine will point to
+ *        an area of memory containing the read out CCD image.
+ * @return The routine returns TRUE on success, and FALSE if a failure occured.
  * @see ccd_text.html#CCD_Text_Get_Reply_Data
  * @see ccd_pci.html#CCD_PCI_Get_Reply_Data
  */
-int CCD_Interface_Get_Reply_Data(char *data,int byte_count)
+int CCD_Interface_Get_Reply_Data(unsigned short **data)
 {
 	Interface_Error_Number = 0;
 	/* call the device specific get reply data routine */
 	switch(Interface_Current_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Get_Reply_Data(data,byte_count);
+			return CCD_Text_Get_Reply_Data(data);
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Get_Reply_Data(data,byte_count);
+			return CCD_PCI_Get_Reply_Data(data);
 		default:
 			Interface_Error_Number = 6;
 			sprintf(Interface_Error_String,"CCD_Interface_Get_Reply_Data failed:No device selected.");
@@ -259,6 +334,9 @@ void CCD_Interface_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.3  2000/06/13 17:14:13  cjm
+** Changes to make Ccs agree with voodoo.
+**
 ** Revision 0.2  2000/04/13 13:15:33  cjm
 ** Added current time to error routines.
 **

@@ -1,11 +1,12 @@
-/* ccd_global.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.5 2001-06-04 14:43:54 cjm Exp $
+/* ccd_global.h
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.6 2002-11-07 19:16:51 cjm Exp $
 */
 
 #ifndef CCD_GLOBAL_H
 #define CCD_GLOBAL_H
 #include "ccd_interface.h"
 
+/* hash defines */
 /**
  * TRUE is the value usually returned from routines to indicate success.
  */
@@ -20,7 +21,7 @@
 #endif
 
 /**
- * Macro to check whether the paramater is either TRUE or FALSE.
+ * Macro to check whether the parameter is either TRUE or FALSE.
  */
 #define CCD_GLOBAL_IS_BOOLEAN(value)	(((value) == TRUE)||((value) == FALSE))
 
@@ -69,6 +70,25 @@
  * @see #CCD_Global_Log
  */
 #define CCD_GLOBAL_LOG_BIT_GLOBAL	(1<<14)
+
+/**
+ * The number of nanoseconds in one second. A struct timespec has fields in nanoseconds.
+ */
+#define CCD_GLOBBAL_ONE_SECOND_NS	(1000000000)
+/**
+ * The number of nanoseconds in one millisecond. A struct timespec has fields in nanoseconds.
+ */
+#define CCD_GLOBAL_ONE_MILLISECOND_NS	(1000000)
+/**
+ * The number of milliseconds in one second.
+ */
+#define CCD_GLOBAL_ONE_SECOND_MS	(1000)
+/**
+ * The number of nanoseconds in one microsecond.
+ */
+#define CCD_GLOBAL_ONE_MICROSECOND_NS	(1000)
+
+/* external functions */
 
 extern void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device);
 extern void CCD_Global_Error(void);

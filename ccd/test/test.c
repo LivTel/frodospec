@@ -1,5 +1,5 @@
-/* test.c  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.11 2001-02-01 10:22:27 cjm Exp $
+/* test.c
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.12 2002-11-07 19:18:22 cjm Exp $
 */
 #include <stdio.h>
 #include <time.h>
@@ -21,7 +21,7 @@
  * Note the setup is performed by downloading two DSP .lod files, tim.lod and util.lod,
  * which must be present in the bin directory otherwise an error is returned.
  * @author $Author: cjm $
- * @version $Revision: 1.11 $
+ * @version $Revision: 1.12 $
  */
 
 /**
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
 
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
-	if(!CCD_Exposure_Expose(TRUE,start_time,10000,"test.fits"))
+	if(!CCD_Exposure_Expose(TRUE,TRUE,start_time,10000,"test.fits"))
 	{
 		CCD_Global_Error();
 		exit(10);
@@ -293,6 +293,9 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.11  2001/02/01 10:22:27  cjm
+** Tidied program and made interface a parameter.
+**
 ** Revision 1.10  2001/01/30 17:51:48  cjm
 ** Added comments.
 **

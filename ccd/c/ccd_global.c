@@ -1,11 +1,11 @@
-/* ccd_global.c -*- mode: Fundamental;-*-
+/* ccd_global.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.8 2001-06-04 14:41:05 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.9 2002-11-07 19:13:39 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -60,6 +60,7 @@
 #include "ccd_text.h"
 #include "ccd_interface.h"
 #include "ccd_dsp.h"
+#include "ccd_dsp_download.h"
 #include "ccd_exposure.h"
 #include "ccd_temperature.h"
 #include "ccd_setup.h"
@@ -140,7 +141,7 @@ struct Global_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.8 2001-06-04 14:41:05 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.9 2002-11-07 19:13:39 cjm Exp $";
 /**
  * Variable holding error code of last operation performed by ccd_dsp.
  */
@@ -196,6 +197,7 @@ static char Global_Buff[CCD_GLOBAL_ERROR_STRING_LENGTH];
  * @see ccd_interface.html#CCD_Interface_Set_Device
  * @see ccd_interface.html#CCD_Interface_Initialise
  * @see ccd_dsp.html#CCD_DSP_Initialise
+ * @see ccd_dsp_download.html#CCD_DSP_Download_Initialise
  * @see ccd_exposure.html#CCD_Exposure_Initialise
  * @see ccd_setup.html#CCD_Setup_Initialise
  * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Initialise
@@ -208,6 +210,8 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
 	CCD_Interface_Initialise();
 	if(!CCD_DSP_Initialise())
 		CCD_DSP_Error();
+	if(!CCD_DSP_Download_Initialise())
+		CCD_DSP_Download_Error();
 	CCD_Exposure_Initialise();
 	CCD_Setup_Initialise();
 	if(!CCD_Filter_Wheel_Initialise())
@@ -248,6 +252,8 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
  * @see ccd_temperature.html#CCD_Temperature_Error
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_dsp.html#CCD_DSP_Error
+ * @see ccd_dsp_download.html#CCD_DSP_Download_Get_Error_Number
+ * @see ccd_dsp_download.html#CCD_DSP_Download_Error
  * @see ccd_interface.html#CCD_Interface_Get_Error_Number
  * @see ccd_interface.html#CCD_Interface_Error
  * @see ccd_pci.html#CCD_PCI_Get_Error_Number
@@ -281,6 +287,12 @@ void CCD_Global_Error(void)
 		found = TRUE;
 		fprintf(stderr,"\t");
 		CCD_Temperature_Error();
+	}
+	if(CCD_DSP_Download_Get_Error_Number() != 0)
+	{
+		found = TRUE;
+		fprintf(stderr,"\t");
+		CCD_DSP_Download_Error();
 	}
 	if(CCD_DSP_Get_Error_Number() != 0)
 	{
@@ -322,7 +334,7 @@ void CCD_Global_Error(void)
 
 /**
  * A general error routine. This checks the error numbers for all the modules that make up the library, and
- * for any non-zero numbers adds the error message to a passed in string. The string paramater is set to the
+ * for any non-zero numbers adds the error message to a passed in string. The string parameter is set to the
  * blank string initially.
  * <b>Note</b> you cannot call both CCD_Global_Error and CCD_Global_Error_String to print the error string and 
  * get a string copy of it, only one of the error routines can be called after libccd has generated an error.
@@ -339,6 +351,8 @@ void CCD_Global_Error(void)
  * @see ccd_temperature.html#CCD_Temperature_Error_String
  * @see ccd_dsp.html#CCD_DSP_Get_Error_Number
  * @see ccd_dsp.html#CCD_DSP_Error_String
+ * @see ccd_dsp_download.html#CCD_DSP_Download_Get_Error_Number
+ * @see ccd_dsp_download.html#CCD_DSP_Download_Error_String
  * @see ccd_interface.html#CCD_Interface_Get_Error_Number
  * @see ccd_interface.html#CCD_Interface_Error_String
  * @see ccd_pci.html#CCD_PCI_Get_Error_Number
@@ -368,6 +382,11 @@ void CCD_Global_Error_String(char *error_string)
 	{
 		strcat(error_string,"\t");
 		CCD_Temperature_Error_String(error_string);
+	}
+	if(CCD_DSP_Download_Get_Error_Number() != 0)
+	{
+		strcat(error_string,"\t");
+		CCD_DSP_Download_Error_String(error_string);
 	}
 	if(CCD_DSP_Get_Error_Number() != 0)
 	{
@@ -861,6 +880,10 @@ int CCD_Global_Memory_UnLock_All(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2001/06/04 14:41:05  cjm
+** Added conditionally compiled process priority change routines, and (readout)
+** memory locking routines.
+**
 ** Revision 0.7  2001/04/17 09:37:55  cjm
 ** Added logging code.
 **

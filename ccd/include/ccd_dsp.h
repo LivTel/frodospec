@@ -1,5 +1,5 @@
-/* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.20 2001-02-09 18:32:31 cjm Exp $
+/* ccd_dsp.h
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.21 2002-11-07 19:16:51 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -35,7 +35,6 @@ enum CCD_DSP_BOARD_ID
  * Enum with values identifying which memory space an address refers to, for operations sich as reading and writing
  * memory locations.
  * <ul>
- * <li>CCD_DSP_MEM_SPACE_D is the DRAM memory space.
  * <li>CCD_DSP_MEM_SPACE_R is the ROM memory space.
  * <li>CCD_DSP_MEM_SPACE_P is the P DSP memory space.
  * <li>CCD_DSP_MEM_SPACE_X is the X DSP memory space.
@@ -46,11 +45,10 @@ enum CCD_DSP_BOARD_ID
  */
 enum CCD_DSP_MEM_SPACE
 {
-	CCD_DSP_MEM_SPACE_D=0x5f5f44,	/*  Ascii __D */
-	CCD_DSP_MEM_SPACE_R=0x5f5f52,	/*  Ascii __R */
-	CCD_DSP_MEM_SPACE_P=0x5f5f50,	/*  Ascii __P */
-	CCD_DSP_MEM_SPACE_X=0x5f5f58,	/*  Ascii __X */
-	CCD_DSP_MEM_SPACE_Y=0x5f5f59	/*  Ascii __Y */
+	CCD_DSP_MEM_SPACE_P=0x100000,	/*  Bit 20 */
+	CCD_DSP_MEM_SPACE_X=0x200000,	/*  Bit 21 */
+	CCD_DSP_MEM_SPACE_Y=0x400000,	/*  Bit 22 */
+	CCD_DSP_MEM_SPACE_R=0x800000	/*  Bit 23 */
 };
 
 /**
@@ -62,10 +60,10 @@ enum CCD_DSP_MEM_SPACE
 
 /* These enum definitions should match with those in CCDLibrary.java */
 /**
- * These are allowable paramaters for the gains (Gen two only).  Please
+ * These are allowable parameters for the gains (Gen two only).  Please
  * note that unlike the other commmands listed in this file, the hex numbers
  * are NOT the ASCII (character) values of the commands.
- * Gain paramater sent with the <a href="#CCD_DSP_SGN">SGN</a>(set gain) command. 
+ * Gain parameter sent with the <a href="#CCD_DSP_SGN">SGN</a>(set gain) command. 
  * <ul>
  * <li>CCD_DSP_GAIN_ONE Sets the gain to 1.
  * <li>CCD_DSP_GAIN_TWO Sets the gain to 2.
@@ -88,22 +86,6 @@ enum CCD_DSP_GAIN
 	((gain) == CCD_DSP_GAIN_FOUR)||((gain) == CCD_DSP_GAIN_NINE))
 
 /* These #define/enum definitions should match with those in CCDLibrary.java */
-/**
- * Return value from <a href="#CCD_DSP_Get_Exposure_Status">CCD_DSP_Get_Exposure_Status</a>. 
- * <ul>
- * <li>CCD_DSP_EXPOSURE_STATUS_NONE means the library is not currently performing an exposure.
- * <li>CCD_DSP_EXPOSURE_STATUS_CLEAR means the library is currently clearing the ccd.
- * <li>CCD_DSP_EXPOSURE_STATUS_EXPOSE means the library is currently performing an exposure.
- * <li>CCD_DSP_EXPOSURE_STATUS_READOUT means the library is currently reading out data from the ccd.
- * </ul>
- * @see #CCD_DSP_Get_Exposure_Status
- */
-enum CCD_DSP_EXPOSURE_STATUS
-{
-	CCD_DSP_EXPOSURE_STATUS_NONE,CCD_DSP_EXPOSURE_STATUS_CLEAR,
-	CCD_DSP_EXPOSURE_STATUS_EXPOSE,CCD_DSP_EXPOSURE_STATUS_READOUT
-};
-
 /**
  * The maximum signed integer that the controller can hold.
  * This is limited by the size of a DSP word (24 bits). The word is signed, so this value is
@@ -192,16 +174,100 @@ enum CCD_DSP_AMPLIFIER
 
 /* Manual DSP commands. */
 /**
- * Timing board command that means Set GaiN. This sets the gains of all the video processors. The integrator
- * speed is also set using this command to slow or fast.
+ * Manual command sent to any board, to Test the Data Link. Ensure we can communicate with the specified board.
  */
-#define CCD_DSP_SGN		(0x53474e)	/* SGN */
+#define CCD_DSP_TDL		(0x54444C)	/* TDL */
+/**
+ * Read Memory command. Read a memory location on a specified SDSU controller board.
+ */
+#define CCD_DSP_RDM		(0x52444D)	/* RDM */
+/**
+ * Read CCD. Command to read out the CCD on the timing board.
+ */
+#define CCD_DSP_RDC		(0x524443)	/* RDC */
+/**
+ * Write memory command. Write a value to a specified location on a specified SDSU controller board.
+ */
+#define CCD_DSP_WRM		(0x57524D)	/* WRM */
+/**
+ * Start EXposure command.
+ */
+#define CCD_DSP_SEX		(0x534558)	/* SEX */
+/**
+ * Set Exposure Time command.
+ */
+#define CCD_DSP_SET		(0x534554)	/* SET */
+/**
+ * Pause EXposure command.
+ */
+#define CCD_DSP_PEX		(0x504558)	/* PEX */
+/**
+ * Resume EXposure command.
+ */
+#define CCD_DSP_REX		(0x524558)	/* REX */
+/**
+ * Read Elapsed exposure Time.
+ */
+#define CCD_DSP_RET		(0x524554)	/* RET */
+/**
+ * Abort EXposure command.
+ */
+#define CCD_DSP_AEX		(0x414558)	/* AEX */
+/**
+ * Power ON command.
+ */
+#define CCD_DSP_PON		(0x504F4E)	/* PON */
+/**
+ * Power OFf command.
+ */
+#define CCD_DSP_POF		(0x504F46)	/* POF */
 /**
  * Timing board command that means Set Output Source. This sets which output amplifiers on the chip to read
  * out from when a readout is performed. It takes one argument, which selects the amplifier.
  * @see #CCD_DSP_AMPLIFIER
  */
 #define CCD_DSP_SOS		(0x534f53)	/* SOS */
+/**
+ * Timing board command that means Set GaiN. This sets the gains of all the video processors. The integrator
+ * speed is also set using this command to slow or fast.
+ */
+#define CCD_DSP_SGN		(0x53474e)	/* SGN */
+/**
+ * Set Subarray Size command.
+ */
+#define CCD_DSP_SSS		(0x535353)	/* SSS */
+/**
+ * Set Subarray Position command.
+ */
+#define CCD_DSP_SSP		(0x535350)	/* SSP */
+/**
+ * Load Application command.
+ */
+#define CCD_DSP_LDA		(0x4C4441)	/* LDA */
+/**
+ * Read Controller Configuration command.
+ */
+#define CCD_DSP_RCC		(0x524343)	/* RCC */
+/**
+ * CLeaR array command.
+ */
+#define CCD_DSP_CLR		(0x434C52)	/* CLR */
+/**
+ * IDLe clock the CCD array command.
+ */
+#define CCD_DSP_IDL		(0x49444C)	/* IDL */
+/**
+ * SToP idle clocking command.
+ */
+#define CCD_DSP_STP		(0x535450)	/* STP */
+/**
+ * Close SHutter command.
+ */
+#define CCD_DSP_CSH		(0x435348)	/* CSH */
+/**
+ * Open SHutter command.
+ */
+#define CCD_DSP_OSH		(0x4F5348)	/* OSH */
 /**
  * Utility board command that means Filter Wheel Abort. This stops any filter wheel movement taking place. 
  * It takes no arguments.
@@ -240,7 +306,9 @@ enum CCD_DSP_AMPLIFIER
 
 /**
  * This hash definition represents one of the bits present in the timing board controller configuration word.
- * This is retrieved using READ_CONTROLLER_STATUS and set using WRITE_CONTROLLER_STATUS.
+ * This is retrieved using RCC.
+ * @see #CCD_DSP_RCC
+ * @see #CCD_DSP_Command_RCC
  */
 #define CCD_DSP_CONTROLLER_CONFIG_BIT_CCD_REV3B			(0x0)
 #define CCD_DSP_CONTROLLER_CONFIG_BIT_CCD_GENI			(0x1)
@@ -270,14 +338,10 @@ extern int CCD_DSP_Command_ABR(void);
 extern int CCD_DSP_Command_CLR(void);
 extern int CCD_DSP_Command_RDC(void);
 extern int CCD_DSP_Command_IDL(void);
-extern int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,int send_rdi,
-	char *filename);
 extern int CCD_DSP_Command_SBV(void);
 extern int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed);
 extern int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier);
 extern int CCD_DSP_Command_STP(void);
-extern int CCD_DSP_Command_Set_NCols(int ncols);
-extern int CCD_DSP_Command_Set_NRows(int nrows);
 
 extern int CCD_DSP_Command_AEX(void);
 extern int CCD_DSP_Command_CSH(void);
@@ -286,34 +350,21 @@ extern int CCD_DSP_Command_PEX(void);
 extern int CCD_DSP_Command_PON(void);
 extern int CCD_DSP_Command_POF(void);
 extern int CCD_DSP_Command_REX(void);
-extern int CCD_DSP_Command_Read_Temperature(void);
-extern int CCD_DSP_Command_Set_Temperature(int adu);
-extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,int nrows,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,char *filename);
+extern int CCD_DSP_Command_SEX(struct timespec start_time);
 extern int CCD_DSP_Command_Reset(void);
-extern int CCD_DSP_Command_Flush_Reply_Buffer(void);
-extern int CCD_DSP_Command_Read_Controller_Status(void);
-extern int CCD_DSP_Command_Write_Controller_Status(int bit_value);
+extern int CCD_DSP_Command_Get_HSTR(int *value);
+extern int CCD_DSP_Command_Get_Readout_Progress(int *value);
+extern int CCD_DSP_Command_RCC(int *value);
+extern int CCD_DSP_Command_PCI_Download(void);
+extern int CCD_DSP_Command_PCI_Download_Wait(void);
 extern int CCD_DSP_Command_PCI_PC_Reset(void);
-extern int CCD_DSP_Command_Read_PCI_Status(void);
-extern int CCD_DSP_Command_Set_Exposure_Time(int msecs);
-extern int CCD_DSP_Command_Read_Exposure_Time(void);
+extern int CCD_DSP_Command_SET(int msecs);
+extern int CCD_DSP_Command_RET(void);
 extern int CCD_DSP_Command_FWA(void);
 extern int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count);
 extern int CCD_DSP_Command_FWR(int wheel);
-extern int CCD_DSP_Download(enum CCD_DSP_BOARD_ID board_id,char *filename);
 extern int CCD_DSP_Get_Abort(void);
 extern int CCD_DSP_Set_Abort(int value);
-extern enum CCD_DSP_EXPOSURE_STATUS CCD_DSP_Get_Exposure_Status(void);
-extern struct timespec CCD_DSP_Get_Exposure_Start_Time(void);
-extern int CCD_DSP_Get_Exposure_Length(void);
-extern void CCD_DSP_Set_Start_Exposure_Clear_Time(int time);
-extern int CCD_DSP_Get_Start_Exposure_Clear_Time(void);
-extern void CCD_DSP_Set_Start_Exposure_Offset_Time(int time);
-extern int CCD_DSP_Get_Start_Exposure_Offset_Time(void);
-extern void CCD_DSP_Set_Readout_Remaining_Time(int time);
-extern int CCD_DSP_Get_Readout_Remaining_Time(void);
-extern void CCD_DSP_Set_Exposure_Start_Time(void);
 extern enum CCD_DSP_FILTER_WHEEL_STATUS CCD_DSP_Get_Filter_Wheel_Status(void);
 extern void CCD_DSP_Set_Filter_Wheel_Steps_Per_Position(int steps);
 extern void CCD_DSP_Set_Filter_Wheel_Milliseconds_Per_Step(int ms);

@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.16 2002-05-27 13:20:03 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.17 2002-11-07 19:17:55 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -6,35 +6,20 @@ include			../Makefile.common
 INCDIR = $(CCD_SRC_HOME)/include
 DOCSDIR = $(CCD_DOC_HOME)/cdocs
 
-#Do we want MUTEX protected locking around controller command communication?
-MUTEXCFLAGS = -DCCD_DSP_MUTEXED=1
-#MUTEXCFLAGS = 
-
-#Do we want to flush the reply buffer before send each SDSU command, or just at setup startup?
-# Flush reply buffer per command
-#REPLYBUFFERCFLAGS = -DCCD_FLUSH_REPLY_BUFFER_PER_COMMAND=1
-# Flush reply buffer in CCDSetupStartup
-REPLYBUFFERCFLAGS = 
-
-# Do we want to stop the timing board Idling mode whilst downloading a DSP program to it?
-# It is not clear whether we should do this.
-# Don't stop timing board Idling whilst downloading DSP code. (voodoo does this)
-TIMINGDOWNLOADIDLECFLAGS =
-# Stop timing board Idling whilst downloading DSP code. (ccdtool did this)
-#TIMINGDOWNLOADIDLECFLAGS = -DCCD_SETUP_TIMING_DOWNLOAD_IDLE=1
-
-# In some versions of the DSP code the utility board used to lock the controller up,
-# if we sent an RDM/WRM/Read temperature during an exposure.
-# This flag enables us to conditionally compile some code to test for this:
-# Return an error if RDM/WRM/temperature get called when we are exposing.
-#UTILEXPOSURECHECKFLAGS = -DCCD_DSP_UTIL_EXPOSURE_CHECK=1
-# Allow RDM/WRM/temperature get calls when we are exposing.
-UTILEXPOSURECHECKFLAGS = 
-
 #Do we want to byte swap the ccd data read from the camera.
-# New device drivers do this in the driver (v1.4+) old ones don't (to v1.3)
-#BYTESWAPCFLAGS = -DCCD_DSP_BYTE_SWAP=1
-BYTESWAPCFLAGS = 
+# Previous to v1.3 - does NOT byte swap in the device driver - we do it in software, this flag is set
+# v1.4 byte swapped in the device driver - this flag was unset
+# v1.7 does NOT byte swap in the device driver - we do it in software, this flag is set
+BYTESWAPCFLAGS = -DCCD_EXPOSURE_BYTE_SWAP=1
+#BYTESWAPCFLAGS = 
+
+# Whether to fake filter wheel movements or actually do them
+# Usually, we should actually move the filter wheel, but if we have a system with a camera but no filter wheels,
+# we can choose to fake the filter wheel.
+# Fake moving the filter wheel.
+FILTERWHEELFAKECFLAGS = -DCCD_FILTER_WHEEL_FAKE
+# Actually move the filter wheel
+#FILTERWHEELFAKECFLAGS = 
 
 # The home input of the filter wheel mechanism can be either a proximity sensor
 # or a magnetic one. The inputs received by the SDSU electronics are reversed depending
@@ -46,13 +31,37 @@ INPUTHOMETYPE = MAGNETIC
 # define PROXIMITY/MAGNETIC and CCD_FILTER_WHEEL_INPUT_HOME
 FILTERWHEELINPUTHOMECFLAGS = -DPROXIMITY=1 -DMAGNETIC=2 -DCCD_FILTER_WHEEL_INPUT_HOME=$(INPUTHOMETYPE)
 
-# Whether to fake filter wheel movements or actually do them
-# Usually, we shoudl actually move the filter wheel, but if we have a system with a camera but no filter wheels,
-# we can choose to fake the filter wheel.
-# Fake moving the filter wheel.
-#FILTERWHEELFAKECFLAGS = -DCCD_FILTER_WHEEL_FAKE
-# Actually move the filter wheel
-FILTERWHEELFAKECFLAGS = 
+# Do we wish to link with CFITSIO routines?
+FITSCFLAGS = -DCFITSIO=1 -I$(CFITSIOINCDIR) 
+CFITSIOLIB = -lcfitsio
+
+# FITSCFLAGS =
+# CFITSIOLIB =
+
+# Do we want to enable logging?
+# no logging
+#LOGGINGCFLAGS = -DLOGGING=0
+# some logging
+#LOGGINGCFLAGS = -DLOGGING=1
+# some logging
+#LOGGINGCFLAGS = -DLOGGING=4
+#lots of logging. This can cause time critical operations like BIAS frames to fail.
+#LOGGINGCFLAGS = -DLOGGING=5
+LOGGINGCFLAGS = -DLOGGING=10
+
+# SLALIB link information - used only for calculating MJD at the moment
+MJDCFLAGS = -DSLALIB=1 -I${LT_SRC_HOME}/astrometry/include
+MJDLIB = -lsla
+
+# when reading out it could help if we lock down the memory we are reading out into to prevent page swaps
+# 1. No memory locking
+MLOCKCFLAGS	= 
+# 2. Memory locking
+#MLOCKCFLAGS	= -DCCD_GLOBAL_READOUT_MLOCK
+
+#Do we want MUTEX protected locking around controller command communication?
+MUTEXCFLAGS = -DCCD_DSP_MUTEXED=1
+#MUTEXCFLAGS = 
 
 # when reading out it helps if we are running at a better priority
 # This can be done by using priority change code and running as root.
@@ -63,41 +72,32 @@ PRIORITYCFLAGS		= -DCCD_GLOBAL_READOUT_PRIORITY=0
 # - Priority changes in library, using BSD/SVr4 process management, code must run as root.
 #PRIORITYCFLAGS		= -DCCD_GLOBAL_READOUT_PRIORITY=2
 
-# when reading out it could help if we lock down the memory we are reading out into to prevent page swaps
-# 1. No memory locking
-MLOCKCFLAGS	= 
-# 2. Memory locking
-#MLOCKCFLAGS	= -DCCD_GLOBAL_READOUT_MLOCK
+# Do we want to stop the timing board Idling mode whilst downloading a DSP program to it?
+# It is not clear whether we should do this.
+# Don't stop timing board Idling whilst downloading DSP code. (voodoo v1.4 did this)
+#TIMINGDOWNLOADIDLECFLAGS =
+# Stop timing board Idling whilst downloading DSP code. (ccdtool did this/voodoo v1.7 does this)
+TIMINGDOWNLOADIDLECFLAGS = -DCCD_SETUP_TIMING_DOWNLOAD_IDLE=1
 
-# Do we wish to link with CFITSIO routines?
-FITSCFLAGS = -DCFITSIO=1 -I$(CFITSIOINCDIR) 
-CFITSIOLIB = -lcfitsio
-
-# FITSCFLAGS =
-# CFITSIOLIB =
-
-# SLALIB link information - used only for calculating MJD at the moment
-MJDFLAGS = -DSLALIB=1 -I/space/home/dev/src/astrometry/include
-MJDLIB = -lsla
-
-# Do we want to enable logging?
-# no logging
-LOGGINGCFLAGS = -DLOGGING=0
-# some logging
-#LOGGINGCFLAGS = -DLOGGING=1
-# some logging
-#LOGGINGCFLAGS = -DLOGGING=4
-#lots of logging. This can cause time critical operations like BIAS frames to fail.
-#LOGGINGCFLAGS = -DLOGGING=5
+# In some versions of the DSP code the utility board used to lock the controller up,
+# if we sent an RDM/WRM/Read temperature during an exposure.
+# In v1.7, the controller locks up if a RDM is sent during a readout.
+# This flag enables us to conditionally compile some code to test for this:
+# Return an error if RDM/WRM/temperature get called when we are exposing.
+#UTILEXPOSURECHECKFLAGS = -DCCD_DSP_UTIL_EXPOSURE_CHECK=1
+# Return an error if RDM/WRM/temperature get called when we are reading out.
+UTILEXPOSURECHECKFLAGS = -DCCD_DSP_UTIL_EXPOSURE_CHECK=2
+# Allow RDM/WRM/temperature get calls when we are exposing.
+#UTILEXPOSURECHECKFLAGS = 
 
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) -L$(LT_LIB_HOME) \
-	$(FITSCFLAGS) $(MJDFLAGS) $(MUTEXCFLAGS) \
-	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(UTILEXPOSURECHECKFLAGS) $(BYTESWAPCFLAGS) \
+	$(FITSCFLAGS) $(MJDCFLAGS) $(MUTEXCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) \
+	$(UTILEXPOSURECHECKFLAGS) $(BYTESWAPCFLAGS) \
 	$(FILTERWHEELINPUTHOMECFLAGS) $(FILTERWHEELFAKECFLAGS) $(PRIORITYCFLAGS) $(MLOCKCFLAGS) $(LOGGINGCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
-SRCS 		= 	ccd_interface.c ccd_pci.c ccd_text.c ccd_global.c ccd_dsp.c \
+SRCS 		= 	ccd_interface.c ccd_pci.c ccd_text.c ccd_global.c ccd_dsp.c ccd_dsp_download.c \
 			ccd_filter_wheel.c ccd_temperature.c ccd_setup.c ccd_exposure.c
 HEADERS		=	$(SRCS:%.c=%.h)
 OBJS		=	$(SRCS:%.c=%.o)
@@ -161,6 +161,10 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.16  2002/05/27 13:20:03  cjm
+# Added FILTERWHEELFAKECFLAGS, which determines whether to fake filter wheel movements
+# or actually try to do them.
+#
 # Revision 1.15  2001/07/11 10:11:21  cjm
 # Added SLALIB compilation flags.
 #
@@ -236,14 +240,14 @@ ccd_pci.o: /usr/include/sys/time.h /usr/include/sys/unistd.h
 ccd_pci.o: /usr/include/string.h /usr/include/fcntl.h
 ccd_pci.o: /usr/include/sys/fcntl.h /usr/include/signal.h
 ccd_pci.o: /usr/include/sys/signal.h /usr/include/errno.h
-ccd_pci.o: /usr/include/sys/errno.h
+ccd_pci.o: /usr/include/sys/errno.h /usr/include/sys/mman.h
 ccd_pci.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_pci.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_pci.o: /space/home/dev/src/ccd/include/ccd_pci.h
 ccd_text.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_text.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ccd_text.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
-ccd_text.o: /usr/include/string.h /usr/include/errno.h
+ccd_text.o: /usr/include/stdlib.h /usr/include/string.h /usr/include/errno.h
 ccd_text.o: /usr/include/sys/errno.h /usr/include/unistd.h
 ccd_text.o: /usr/include/sys/types.h /usr/include/sys/machtypes.h
 ccd_text.o: /usr/include/sys/int_types.h /usr/include/sys/select.h
@@ -251,6 +255,7 @@ ccd_text.o: /usr/include/sys/time.h /usr/include/sys/time.h
 ccd_text.o: /usr/include/sys/unistd.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_interface.h
+ccd_text.o: /space/home/dev/src/ccd/include/ccd_exposure.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_dsp.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_pci.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_text.h
@@ -269,6 +274,7 @@ ccd_global.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_pci.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_text.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_dsp.h
+ccd_global.o: /space/home/dev/src/ccd/include/ccd_dsp_download.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_exposure.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_temperature.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_setup.h
@@ -284,14 +290,26 @@ ccd_dsp.o: /usr/include/stdio.h /usr/include/sys/va_list.h
 ccd_dsp.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
 ccd_dsp.o: /usr/include/stdlib.h /usr/include/string.h /usr/include/unistd.h
 ccd_dsp.o: /usr/include/pthread.h /usr/include/sched.h
+ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_pci.h
 ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_dsp.h
-ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_global.h
-ccd_dsp.o: /space/home/dev/src/cfitsio/fitsio.h /usr/include/stddef.h
-ccd_dsp.o: /space/home/dev/src/cfitsio/longnam.h
-ccd_dsp.o: /space/home/dev/src/astrometry/include/slalib.h
-ccd_dsp.o: /usr/include/math.h
+ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_exposure.h
+ccd_dsp_download.o: /usr/include/errno.h /usr/include/sys/errno.h
+ccd_dsp_download.o: /usr/include/fcntl.h /usr/include/sys/feature_tests.h
+ccd_dsp_download.o: /usr/include/sys/isa_defs.h /usr/include/sys/types.h
+ccd_dsp_download.o: /usr/include/sys/machtypes.h /usr/include/sys/int_types.h
+ccd_dsp_download.o: /usr/include/sys/select.h /usr/include/sys/time.h
+ccd_dsp_download.o: /usr/include/sys/time.h /usr/include/sys/fcntl.h
+ccd_dsp_download.o: /usr/include/signal.h /usr/include/sys/signal.h
+ccd_dsp_download.o: /usr/include/sys/unistd.h /usr/include/stdio.h
+ccd_dsp_download.o: /usr/include/sys/va_list.h /usr/include/stdio_tag.h
+ccd_dsp_download.o: /usr/include/stdio_impl.h /usr/include/stdlib.h
+ccd_dsp_download.o: /usr/include/string.h /usr/include/unistd.h
+ccd_dsp_download.o: /space/home/dev/src/ccd/include/ccd_interface.h
+ccd_dsp_download.o: /space/home/dev/src/ccd/include/ccd_pci.h
+ccd_dsp_download.o: /space/home/dev/src/ccd/include/ccd_dsp.h
+ccd_dsp_download.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_filter_wheel.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_filter_wheel.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ccd_filter_wheel.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
@@ -307,10 +325,10 @@ ccd_temperature.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_temperature.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ccd_temperature.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
 ccd_temperature.o: /usr/include/string.h /usr/include/math.h
+ccd_temperature.o: /usr/include/sys/time.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_dsp.h
-ccd_temperature.o: /usr/include/sys/time.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_temperature.h
 ccd_setup.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_setup.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
@@ -325,23 +343,29 @@ ccd_setup.o: /usr/include/errno.h /usr/include/sys/errno.h
 ccd_setup.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_setup.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_setup.o: /space/home/dev/src/ccd/include/ccd_dsp.h
+ccd_setup.o: /space/home/dev/src/ccd/include/ccd_dsp_download.h
 ccd_setup.o: /space/home/dev/src/ccd/include/ccd_temperature.h
 ccd_setup.o: /space/home/dev/src/ccd/include/ccd_setup.h
 ccd_exposure.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_exposure.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ccd_exposure.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
-ccd_exposure.o: /usr/include/string.h /usr/include/fcntl.h
-ccd_exposure.o: /usr/include/sys/types.h /usr/include/sys/machtypes.h
-ccd_exposure.o: /usr/include/sys/int_types.h /usr/include/sys/select.h
-ccd_exposure.o: /usr/include/sys/time.h /usr/include/sys/time.h
-ccd_exposure.o: /usr/include/sys/fcntl.h /usr/include/signal.h
-ccd_exposure.o: /usr/include/sys/signal.h /usr/include/sys/unistd.h
-ccd_exposure.o: /usr/include/errno.h /usr/include/sys/errno.h
+ccd_exposure.o: /usr/include/stdlib.h /usr/include/string.h
+ccd_exposure.o: /usr/include/fcntl.h /usr/include/sys/types.h
+ccd_exposure.o: /usr/include/sys/machtypes.h /usr/include/sys/int_types.h
+ccd_exposure.o: /usr/include/sys/select.h /usr/include/sys/time.h
+ccd_exposure.o: /usr/include/sys/time.h /usr/include/sys/fcntl.h
+ccd_exposure.o: /usr/include/signal.h /usr/include/sys/signal.h
+ccd_exposure.o: /usr/include/sys/unistd.h /usr/include/errno.h
+ccd_exposure.o: /usr/include/sys/errno.h /usr/include/unistd.h
 ccd_exposure.o: /space/home/dev/src/ccd/include/ccd_exposure.h
 ccd_exposure.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_exposure.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_exposure.o: /space/home/dev/src/ccd/include/ccd_dsp.h
 ccd_exposure.o: /space/home/dev/src/ccd/include/ccd_setup.h
+ccd_exposure.o: /space/home/dev/src/cfitsio/fitsio.h /usr/include/stddef.h
+ccd_exposure.o: /space/home/dev/src/cfitsio/longnam.h
+ccd_exposure.o: /space/home/dev/src/astrometry/include/slalib.h
+ccd_exposure.o: /usr/include/math.h
 ngat_ccd_CCDLibrary.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ngat_ccd_CCDLibrary.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ngat_ccd_CCDLibrary.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
