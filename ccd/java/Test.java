@@ -1,22 +1,63 @@
 // Test.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.4 1999-03-08 12:20:40 dev Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/Test.java,v 0.5 1999-05-20 16:37:58 dev Exp $
 import java.lang.*;
 import java.io.*;
-
+/**
+ * This is the main test program.
+ * @author Chris Mottram
+ * @version $Revision: 0.5 $
+ */
 class Test
 {
+	/**
+	 * A CCD X size to pass into the library.
+	 */
 	private final static int CCD_X_SIZE 	= 2048;
+	/**
+	 * A CCD Y size to pass into the library.
+	 */
 	private final static int CCD_Y_SIZE 	= 2048;
+	/**
+	 * A CCD X bin size to pass into the library.
+	 */
 	private final static int CCD_XBIN_SIZE 	= 1;
+	/**
+	 * A CCD Y bin size to pass into the library.
+	 */
 	private final static int CCD_YBIN_SIZE 	= 1;
+	/**
+	 * The CCDLibrary object that handles communication with the low level SDSU libccd library.
+	 */
 	private CCDLibrary libccd = null;
+	/**
+	 * A Thread to manage the setup of the CCD.
+	 */
 	private SetupThread setupThread = null;
+	/**
+	 * A Thread to manage the exposure of the CCD.
+	 */
 	private ExposureThread exposureThread = null;
+	/**
+	 * A Thread to manage the readout of the CCD.
+	 */
 	private ReadOutThread readOutThread = null;
+	/**
+	 * A boolean determining whether to do an exposure or not.
+	 */
 	private boolean doExpose = false;
+	/**
+	 * A boolean determining whether to get the ccd's current temperature.
+	 */
 	private boolean doTemperature = false;
+	/**
+	 * A boolean determining whether the exposure thread was aborted.
+	 */
 	private boolean exposureAborted = false;
 
+	/**
+	 * Initialisation routine. Sets up the libccd library interface.
+	 * @see #libccd
+	 */
 	public void init()
 	{
 		libccd = new CCDLibrary();
@@ -26,6 +67,10 @@ class Test
 		libccd.CCDInterfaceOpen();
 	}
 
+	/**
+	 * Routine to start a setup thread to setup the ccd camera.
+	 * @see #setupThread
+	 */
 	public boolean setup()
 	{
 		AbortThread abortThread = null;
@@ -65,6 +110,10 @@ class Test
 		return retval;
 	}
 
+	/**
+	 * Routine to get the temperature from the ccd.
+	 * @see CCDLibrary#CCDTemperatureGet
+	 */
 	public void getTemperature()
 	{
 		CCDLibraryDouble temperature = null;
@@ -78,6 +127,10 @@ class Test
 			libccd.CCDError();
 	}
 
+	/**
+	 * Routine to start a thread to perform an exposure.
+	 * @see #exposureThread
+	 */
 	public void expose()
 	{
 		AbortThread abortThread = null;
@@ -124,6 +177,10 @@ class Test
 		}
 	}
 
+	/**
+	 * Routine to start a thread to read out the ccd camera.
+	 * @see #readOutThread
+	 */
 	public void readout()
 	{
 		AbortThread abortThread = null;
@@ -160,6 +217,12 @@ class Test
 		}
 	}
 
+	/**
+	 * Routine called from the abort thread, to abort the operation currently taking place.
+	 * @see SetupThread#abort
+	 * @see ExposureThread#abort
+	 * @see ReadOutThread#abort
+	 */
 	public void abort()
 	{
 		if(setupThread != null)
@@ -179,6 +242,10 @@ class Test
 		}
 	}
 
+	/**
+	 * Routine to try and recover from an aborted exposure.
+	 * @see #exposureThread
+	 */
 	public void exposeRecover()
 	{
 		int reply;
@@ -214,11 +281,19 @@ class Test
 				"Cannot readout data");
 	}
 
+	/**
+	 * Routine to close the libccd interface.
+	 */
 	public void close()
 	{
 		libccd.CCDInterfaceClose();
 	}
 
+	/**
+	 * Routine to parse arguments.
+	 * @see #doTemperature
+	 * @see #doExpose
+	 */
 	public void parseArgs(String []args)
 	{
 		for(int i = 0; i < args.length;i++)
@@ -246,6 +321,16 @@ class Test
 		}
 	}
 
+	/**
+	 * Main routine of program. Creates an instance of test,initialises it and parses arguments,
+	 * calls the camera setup, and optionally does an exposure/takes the ccd temperature.
+	 * @see #init
+	 * @see #parseArgs
+	 * @see #setup
+	 * @see #getTemperature
+	 * @see #expose
+	 * @see #close
+	 */
 	public static void main(String[] args)
 	{
 		Test test = new Test();
