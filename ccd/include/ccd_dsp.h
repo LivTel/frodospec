@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.7 2000-03-01 13:43:35 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.8 2000-03-08 18:26:52 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -147,7 +147,7 @@ enum CCD_DSP_DEINTERLACE_TYPE
  */
 #define CCD_DSP_SYR		0x535952 /* SYR */
 
-extern void CCD_DSP_Initialise(void);
+extern int CCD_DSP_Initialise(void);
 /* Boot commands */
 extern int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number);
 extern int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address);
