@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.7 2001-01-30 19:16:58 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.8 2001-02-01 10:45:49 cjm Exp $
 
 include ../../Makefile.common
 include ../Makefile.common
@@ -8,10 +8,10 @@ TESTDIR 	= test
 BINDIR 		= $(CCD_BIN_HOME)/$(TESTDIR)
 DOCSDIR 	= $(CCD_DOC_HOME)/$(TESTDIR)
 
-CFLAGS 		= -g -I$(INCDIR) -I$(CFITSIOINCDIR) -c
+CFLAGS 		= -g -I$(INCDIR) -I$(CFITSIOINCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) -c
 DOCFLAGS 	= -static
 
-SRCS 		= test.c test_filter_wheel.c ccd_read_memory.c ccd_write_memory.c
+SRCS 		= test.c test_filter_wheel.c ccd_read_memory.c ccd_write_memory.c posix_time.c time_millis.c
 OBJS 		= $(SRCS:%.c=%.o)
 PROGS 		= $(SRCS:%.c=$(BINDIR)/%)
 DOCS 		= $(SRCS:%.c=$(DOCSDIR)/%.html)
@@ -29,6 +29,12 @@ $(BINDIR)/ccd_read_memory: ccd_read_memory.o
 
 $(BINDIR)/ccd_write_memory: ccd_write_memory.o
 	cc -o $@ ccd_write_memory.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+
+$(BINDIR)/posix_time: posix_time.o
+	cc -o $@ posix_time.o -L$(LT_LIB_HOME) $(TIMELIB) -lm -lc
+
+$(BINDIR)/time_millis: time_millis.o
+	cc -o $@ time_millis.o -L$(LT_LIB_HOME) $(TIMELIB) -lm -lc
 
 docs: $(DOCS)
 
