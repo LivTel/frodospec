@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.4 2000-06-19 08:49:00 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.5 2000-06-26 17:01:44 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -31,8 +31,8 @@ CFITSIOLIB = -lcfitsio
 # CFITSIOLIB =
 
 # Do we want debugging?
-DEBUGCFLAGS = -DDEBUG=1
-#DEBUGCFLAGS = -DDEBUG=0
+#DEBUGCFLAGS = -DDEBUG=1
+DEBUGCFLAGS = -DDEBUG=0
 
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLAGS) $(MUTEXCFLAGS) \
 	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(DEBUGCFLAGS)
@@ -100,6 +100,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.4  2000/06/19 08:49:00  cjm
+# Backup.
+#
 # Revision 1.3  2000/06/13 17:15:18  cjm
 # Changes to make Ccs agree with voodoo.
 #
