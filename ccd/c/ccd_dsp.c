@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.30 2000-12-21 11:48:02 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.31 2001-01-23 18:20:59 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.30 $
+ * @version $Revision: 0.31 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.30 2000-12-21 11:48:02 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.31 2001-01-23 18:20:59 cjm Exp $";
 
 /* defines */
 /**
@@ -1553,7 +1553,8 @@ int CCD_DSP_Command_REX(void)
  * and receiving a reply from it.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
- * @param exposure_time The amount of time in milliseconds to open the shutter for. This must be greater than zero.
+ * @param exposure_time The amount of time in milliseconds to open the shutter for. This must be greater than zero,
+ * 	and less than the maximum exposure length CCD_DSP_EXPOSURE_MAX_LENGTH.
  * @param ncols The number of columns in the image. This must be a positive non-zero integer.
  * @param nrows The number of rows in the image to be readout from the CCD. This must be a positive non-zero integer.
  * @param deinterlace_type The algorithm to use for deinterlacing the resulting data. The data needs to be
@@ -1565,6 +1566,7 @@ int CCD_DSP_Command_REX(void)
  * 	CCD_DSP_DEINTERLACE_SPLIT_QUAD.
  * @param filename The filename to save the exposure into.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #CCD_DSP_EXPOSURE_MAX_LENGTH
  * @see #DSP_Data
  * @see #DSP_Send_Sex
  * @see #CCD_DSP_Command_CLR
@@ -1585,8 +1587,8 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time,int ncols,i
 #endif
 
 	DSP_Error_Number = 0;
-/* exposure time must be greater than zero */
-	if(exposure_time <= 0)
+/* exposure time must be greater than zero  and less than CCD_DSP_EXPOSURE_MAX_LENGTH */
+	if((exposure_time <= 0)||(exposure_time > CCD_DSP_EXPOSURE_MAX_LENGTH))
 	{
 		DSP_Error_Number = 19;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_SEX:Illegal exposure_time '%d'.",exposure_time);
@@ -4601,6 +4603,10 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.30  2000/12/21 11:48:02  cjm
+** Changed mutexing support on FWM/FWR/FWA so that getting status does not mix up
+** filter wheel replies.
+**
 ** Revision 0.29  2000/12/19 17:52:47  cjm
 ** New filter wheel code.
 **

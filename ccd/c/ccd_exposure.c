@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.14 2000-09-25 09:51:28 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.15 2001-01-23 18:21:27 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.14 $
+ * @version $Revision: 0.15 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.14 2000-09-25 09:51:28 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.15 2001-01-23 18:21:27 cjm Exp $";
 
 /* external variables */
 
@@ -80,7 +80,8 @@ void CCD_Exposure_Initialise(void)
  * 	being taken.
  * @param start_time The time to start the exposure. If both the fields in the <i>struct timespec</i> are zero,
  * 	the exposure can be started at any convenient time.
- * @param exposure_time The length of time to open the shutter for in milliseconds.
+ * @param exposure_time The length of time to open the shutter for in milliseconds. This must be greater than zero,
+ * 	and less than the maximum exposure length CCD_DSP_EXPOSURE_MAX_LENGTH.
  * @param filename The filename to save the exposure into.
  * @return Returns TRUE if the exposure succeeds and the file is saved, returns FALSE if an error
  *	occurs or the exposure is aborted.
@@ -91,6 +92,7 @@ void CCD_Exposure_Initialise(void)
  * @see ccd_setup.html#CCD_Setup_Get_DeInterlace_Type
  * @see ccd_dsp.html#CCD_DSP_Command_Set_Exposure_Time
  * @see ccd_dsp.html#CCD_DSP_Command_SEX
+ * @see ccd_dsp.html#CCD_DSP_EXPOSURE_MAX_LENGTH
  */
 int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure_time,char *filename)
 {
@@ -116,7 +118,7 @@ int CCD_Exposure_Expose(int open_shutter,struct timespec start_time,int exposure
 			open_shutter);
 		return FALSE;
 	}
-	if(exposure_time <= 0)
+	if((exposure_time <= 0)||(exposure_time > CCD_DSP_EXPOSURE_MAX_LENGTH))
 	{
 		Exposure_Error_Number = 3;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:exposure_time = %d",exposure_time);
@@ -639,6 +641,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.14  2000/09/25 09:51:28  cjm
+** Changes to use with v1.4 SDSU DSP code.
+**
 ** Revision 0.13  2000/07/14 16:25:44  cjm
 ** Backup.
 **
