@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.7 1999-08-23 13:53:53 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.8 1999-08-23 13:54:36 cjm Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -38,3 +38,6 @@ checkout:
 
 checkin:
 	$(CI) $(SRCS)
+#
+# $Log: not supported by cvs2svn $
+#
