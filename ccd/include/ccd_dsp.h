@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.19 2001-01-23 18:23:34 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.20 2001-02-09 18:32:31 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -105,28 +105,17 @@ enum CCD_DSP_EXPOSURE_STATUS
 };
 
 /**
+ * The maximum signed integer that the controller can hold.
+ * This is limited by the size of a DSP word (24 bits). The word is signed, so this value is
+ * (2^23)-1.
+ */
+#define CCD_DSP_MAX_SIGNED_INT			(8388607)
+/**
  * The maximum exposure length that the controller can expose the CCD for, in milliseconds.
  * This is limited by the size of a DSP word (24 bits). The word is signed, so this value is
- * (2^23)-1. This is 8388 seconds, or 2 hours 19 minutes,
+ * (2^23)-1. This is 8388 seconds, or 2 hours 19 minutes, 48.607 seconds.
  */
-#define CCD_DSP_EXPOSURE_MAX_LENGTH		(8388607)
-
-/* These #define/enum definitions should match with those in CCDLibrary.java */
-/**
- * Return value from <a href="#CCD_DSP_Get_Filter_Wheel_Status">CCD_DSP_Get_Filter_Wheel_Status</a>. 
- * <ul>
- * <li>CCD_DSP_FILTER_WHEEL_STATUS_NONE means the library is not currently doing anything with the filter wheels.
- * <li>CCD_DSP_FILTER_WHEEL_STATUS_MOVING means the library is moving the filter wheels.
- * <li>CCD_DSP_FILTER_WHEEL_STATUS_RESETING means the library is reseting the filter wheels.
- * <li>CCD_DSP_FILTER_WHEEL_STATUS_ABORTED means the library is aborting the filter wheels.
- * </ul>
- * @see #CCD_DSP_Get_Filter_Wheel_Status
- */
-enum CCD_DSP_FILTER_WHEEL_STATUS
-{
-	CCD_DSP_FILTER_WHEEL_STATUS_NONE,CCD_DSP_FILTER_WHEEL_STATUS_MOVING,CCD_DSP_FILTER_WHEEL_STATUS_RESETING,
-	CCD_DSP_FILTER_WHEEL_STATUS_ABORTED
-};
+#define CCD_DSP_EXPOSURE_MAX_LENGTH		(CCD_DSP_MAX_SIGNED_INT)
 
 /* These enum definitions should match with those in CCDLibrary.java */
 /**
