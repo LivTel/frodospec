@@ -1,12 +1,12 @@
 /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.13 2000-03-20 11:45:17 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.14 2000-03-21 16:37:14 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.13 $
+ * @version $Revision: 0.14 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.13 2000-03-20 11:45:17 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.14 2000-03-21 16:37:14 cjm Exp $";
 
 /* defines */
 /**
@@ -245,10 +245,16 @@ int CCD_DSP_Initialise(void)
 	DSP_Data.Exposure_Length = 0;
 	DSP_Data.Exposure_Start_Time.tv_sec = 0;
 	DSP_Data.Exposure_Start_Time.tv_nsec = 0;
-#ifdef _POSIX_TIMERS
-	fprintf(stdout,"CCD_DSP_Initialise:Using Posix Timers (clock_gettime)\n");
+/* print some compile time option information to stdout */
+#ifdef CCD_DSP_MUTEXED
+	fprintf(stdout,"CCD_DSP_Initialise:SDSU controller commands are mutexed.\n");
 #else
-	fprintf(stdout,"CCD_DSP_Initialise:Using Unix Timers (gettimeofday)\n");
+	fprintf(stdout,"CCD_DSP_Initialise:SDSU controller commands are NOT mutexed.\n");
+#endif
+#ifdef _POSIX_TIMERS
+	fprintf(stdout,"CCD_DSP_Initialise:Using Posix Timers (clock_gettime).\n");
+#else
+	fprintf(stdout,"CCD_DSP_Initialise:Using Unix Timers (gettimeofday).\n");
 #endif
 	return TRUE;
 }
@@ -3096,6 +3102,11 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.13  2000/03/20 11:45:17  cjm
+** Added _POSIX_TIMERS feature test macros around calls to clock_gettime, to allow the
+** library to compile under Linux. Note nanosleep should also be tested, but this exists under
+** Linux so it is not a problem.
+**
 ** Revision 0.12  2000/03/20 10:41:30  cjm
 ** Replaced cftime with gmtime/strftime for Linux compatibility.
 ** Also tidied up some unused variables.
