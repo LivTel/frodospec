@@ -1,0 +1,24 @@
+# $Header: /home/cjm/cvs/frodospec/ccd/Makefile.common,v 1.1 2003-11-14 15:32:44 cjm Exp $
+
+SHELL			=	/bin/sh
+CCD_HOME		=	ccd
+CCD_SRC_HOME		= 	$(LT_SRC_HOME)/$(CCD_HOME)
+CCD_BIN_HOME		= 	$(LT_BIN_HOME)/$(CCD_HOME)
+CCD_DOC_HOME		= 	$(LT_DOC_HOME)/$(CCD_HOME)
+
+#>>>>> IMPLICIT RULES <<<<<#
+.SUFFIXES:  .c,v .c .o .h,v .h
+
+.h,v.h :
+	$(CO) $<
+
+.c,v.c :
+	$(CO) $<
+
+.c,v.o :
+	$(CO) $<
+	$(CC) $(CFLAGS) -c $<
+
+#
+# $Log: not supported by cvs2svn $
+#
