@@ -1,12 +1,12 @@
 /* ccd_pci.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.3 2000-06-13 17:14:13 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.4 2000-06-19 08:48:34 cjm Exp $
 */
 /**
  * ccd_pci.c will implement a specific interface that connects the SDSU CCD Controller system with a host
  * computer using a PCI interface.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.3 $
+ * @version $Revision: 0.4 $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -22,7 +22,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_pci.c,v 0.3 2000-06-13 17:14:13 cjm Exp $";
+static char rcsid[] = "$Id: ccd_pci.c,v 0.4 2000-06-19 08:48:34 cjm Exp $";
 
 /* #defines */
 /**
@@ -86,7 +86,7 @@ int CCD_PCI_Open(void)
 
 	PCI_Error_Number = 0;
 	/* try to open the first device */
-	if((PCI_Data.PCI_Fd = open(PCI_Data.PCI_Dev0,O_RDWR,0))==-1)
+	if((PCI_Data.PCI_Fd = open(PCI_Data.PCI_Dev0,O_RDWR))==-1)
 	{
 		error_number = errno;
 		PCI_Error_Number = 1;
@@ -265,6 +265,9 @@ void CCD_PCI_Warning(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.3  2000/06/13 17:14:13  cjm
+** Changes to make Ccs agree with voodoo.
+**
 ** Revision 0.2  2000/04/13 13:13:34  cjm
 ** Added current time to error routines.
 **

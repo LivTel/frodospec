@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.3 2000-06-13 17:15:18 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.4 2000-06-19 08:49:00 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -12,9 +12,9 @@ MUTEXCFLAGS = -DCCD_DSP_MUTEXED=1
 
 #Do we want to flush the reply buffer before send each SDSU command, or just at setup startup?
 # Flush reply buffer per command
-#REPLYBUFFERCFLAGS = -DCCD_FLUSH_REPLY_BUFFER_PER_COMMAND=1
+REPLYBUFFERCFLAGS = -DCCD_FLUSH_REPLY_BUFFER_PER_COMMAND=1
 # Flush reply buffer in CCDSetupStartup
-REPLYBUFFERCFLAGS = 
+#REPLYBUFFERCFLAGS = 
 
 # Do we want to stop the timing board Idling mode whilst downloading a DSP program to it?
 # It is not clear whether we should do this.
@@ -30,8 +30,12 @@ CFITSIOLIB = -lcfitsio
 # FITSCFLAGS =
 # CFITSIOLIB =
 
+# Do we want debugging?
+DEBUGCFLAGS = -DDEBUG=1
+#DEBUGCFLAGS = -DDEBUG=0
+
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLAGS) $(MUTEXCFLAGS) \
-	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS)
+	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(DEBUGCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
@@ -96,6 +100,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.3  2000/06/13 17:15:18  cjm
+# Changes to make Ccs agree with voodoo.
+#
 # Revision 1.2  2000/03/08 18:27:35  cjm
 # Added initial MUTEXCFLAGS options.
 #

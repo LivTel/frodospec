@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.12 2000-06-13 17:15:02 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.13 2000-06-19 08:48:51 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -207,6 +207,7 @@ extern int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_S
 /* timing board commands */
 extern int CCD_DSP_Command_ABR(void);
 extern int CCD_DSP_Command_CLR(void);
+extern int CCD_DSP_Command_RDC(void);
 extern int CCD_DSP_Command_IDL(void);
 extern int CCD_DSP_Command_RDI(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,int send_rdi,
 	char *filename);

@@ -1,12 +1,12 @@
 /* ccd_setup.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.13 2000-06-13 17:14:13 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.14 2000-06-19 08:48:34 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.13 $
+ * @version $Revision: 0.14 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -29,7 +29,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.13 2000-06-13 17:14:13 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.14 2000-06-19 08:48:34 cjm Exp $";
 
 /* #defines */
 /**
@@ -466,14 +466,12 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 		return FALSE;
 	}
 	Setup_Data.NCols = ncols;
-
 	if(!Setup_Binning(nsbin,npbin))
 	{
 		Setup_Data.Setup_In_Progress = FALSE;
 		CCD_DSP_Set_Abort(FALSE);
 		return FALSE; 
 	}
-
 /* do de-interlacing/ amplifier setup */
 	if(!Setup_DeInterlace(amplifier,deinterlace_type))
 	{
@@ -481,7 +479,6 @@ int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
 		CCD_DSP_Set_Abort(FALSE);
 		return FALSE;
 	}
-
 /* setup final calculated dimensions */
 	if(!Setup_Dimensions())
 	{
@@ -1370,6 +1367,9 @@ static int Setup_Dimensions(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.13  2000/06/13 17:14:13  cjm
+** Changes to make Ccs agree with voodoo.
+**
 ** Revision 0.12  2000/05/26 08:56:09  cjm
 ** Added CCD_Setup_Get_Window.
 **

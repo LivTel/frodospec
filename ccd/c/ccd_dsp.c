@@ -1,12 +1,12 @@
  /* ccd_dsp.c -*- mode: Fundamental;-*-
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.22 2000-06-14 13:29:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.23 2000-06-19 08:48:34 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.22 $
+ * @version $Revision: 0.23 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.22 2000-06-14 13:29:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.23 2000-06-19 08:48:34 cjm Exp $";
 
 /* defines */
 /**
@@ -209,6 +209,7 @@ static int DSP_Send_Tdl(enum CCD_DSP_BOARD_ID board_id,int data);
 
 static int DSP_Send_Abr(void);
 static int DSP_Send_Clr(void);
+static int DSP_Send_Rdc(void);
 static int DSP_Send_Idl(void);
 static int DSP_Send_Rdi(void);
 static int DSP_Send_Sbv(void);
@@ -311,6 +312,7 @@ int CCD_DSP_Initialise(void)
 #else
 	fprintf(stdout,"CCD_DSP_Initialise:NOT Using CFITSIO.\n");
 #endif
+	fflush(stdout);
 	return TRUE;
 }
 
@@ -610,6 +612,46 @@ int CCD_DSP_Command_CLR(void)
 }
 
 /**
+ * This routine executes the ReaD Ccd (RDC) command on a SDSU Controller board. This
+ * sends the RDC command to the timing board, which starts the CCD reading out. This command is normally
+ * issused internally on the timing board during a SEX command. If this command is issed, it must be followed
+ * by a RDI command to tell the PCI card to expect image data and to read the image data out.
+ * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
+ * and receiving a reply from it.
+ * @return The routine returns DON if the command succeeded and FALSE if the command failed.
+ * @see #CCD_DSP_Command_SEX
+ * @see #CCD_DSP_Command_RDI
+ * @see #DSP_Send_Rdc
+ * @see #DSP_Get_Reply
+ */
+int CCD_DSP_Command_RDC(void)
+{
+	int retval;
+
+	DSP_Error_Number = 0;
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Lock())
+		return FALSE;
+#endif
+	if(!DSP_Send_Rdc())
+	{
+#ifdef CCD_DSP_MUTEXED
+		DSP_Mutex_Unlock();
+#endif
+		return FALSE;
+	}
+	/* get reply - DON should be returned */
+/* diddly should I expect a DON here, or after the read (RDI) ?
+** I don't think so, START_EXPOSURE (pciboot.asm) and START_EXPOSURE (timmisc.asm) both generate one...*/
+/*	retval = DSP_Get_Reply(CCD_DSP_DON);*/
+#ifdef CCD_DSP_MUTEXED
+	if(!DSP_Mutex_Unlock())
+		return FALSE;
+#endif
+	return retval;
+}
+
+/**
  * This routine executes the IDLe (IDL) command on a SDSU Controller board. This
  * puts the clocks in the readout sequence, but does not transfer the clocked data to prevent charge from 
  * building up on the CCD.
@@ -647,7 +689,8 @@ int CCD_DSP_Command_IDL(void)
 
 /**
  * This routine executes the ReaD Image (RDI) command on a SDSU Controller board. 
- * This reads out the data on the CCD.
+ * This prepares the PCI board to receive image data from the timing board, and should be issued after a
+ * SEX or RDC has been issued to that board.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
  * @param ncols The number of columns in the image. This must be a positive non-zero integer.
@@ -1359,11 +1402,14 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_time)
 		return FALSE;
 	}
 /* clear the array */
-	if(!CCD_DSP_Command_CLR())
-	{
-		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
-		return FALSE;
-	}
+/*
+** diddly
+**	if(!CCD_DSP_Command_CLR())
+**	{
+**		DSP_Data.Exposure_Status = CCD_DSP_EXPOSURE_STATUS_NONE;
+**		return FALSE;
+**	}
+*/
 /* start the exposure */
 #ifdef CCD_DSP_MUTEXED
 	if(!DSP_Mutex_Lock())
@@ -1467,6 +1513,10 @@ int CCD_DSP_Command_Flush_Reply_Buffer(void)
 {
 	int retval;
 
+#if DEBUG == 1
+	fprintf(stdout,"FLUSH_REPLY_BUFFER\n");
+	fflush(stdout);
+#endif
 	if(CCD_Interface_Command(CCD_PCI_IOCTL_FLUSH_REPLY_BUFFER,&retval) == FALSE)
 	{
 		DSP_Error_Number = 28;
@@ -2017,6 +2067,10 @@ static int DSP_Send_Abr(void)
 	int hcvr_command;
 
 	hcvr_command = CCD_PCI_HCVR_ABORT_READOUT;
+#if DEBUG == 1
+	fprintf(stdout,"ABORT_READOUT:SET_HCVR:value %#x\n",hcvr_command);
+	fflush(stdout);
+#endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCVR,&hcvr_command))
 	{
 		DSP_Error_Number = 27;
@@ -2038,6 +2092,17 @@ static int DSP_Send_Clr(void)
 }
 
 /**
+ * Internal DSP command to tell the timing board to immediately start reading out the array.
+ * @return Returns true if sending the command succeeded, false if it failed.
+ * @see #DSP_Send_Command
+ * @see ccd_pci.html#CCD_PCI_HCVR_READ_ARRAY
+ */
+static int DSP_Send_Rdc(void)
+{
+	return DSP_Send_Command(CCD_PCI_HCVR_READ_ARRAY,NULL,0);
+}
+
+/**
  * Internal DSP command to put the CCD clocks in the readout sequence but not transfering any data. This stops the
  * CCD building up any charge.
  * @return Returns true if sending the command succeeded, false if it failed.
@@ -2051,7 +2116,8 @@ static int DSP_Send_Idl(void)
 }
 
 /**
- * Internal DSP command to immediately readout the ccd. Calls DSP_Set_Destination before sending
+ * Internal DSP command to tell the PCI board to expect to recieve image data. 
+ * Calls DSP_Set_Destination before sending
  * the read image command, this needs reviewing.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Command
@@ -2164,6 +2230,10 @@ static int DSP_Send_Set_NCols(int ncols)
 		return FALSE;
 #endif
 /* send command to interface */
+#if DEBUG == 1
+	fprintf(stdout,"SET_NCOLS:value:%d\n",ncols);
+	fflush(stdout);
+#endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_NCOLS,&ncols))
 	{
 		DSP_Error_Number = 61;
@@ -2196,6 +2266,10 @@ static int DSP_Send_Set_NRows(int nrows)
 		return FALSE;
 #endif
 /* send command to interface */
+#if DEBUG == 1
+	fprintf(stdout,"SET_NROWS:value:%d\n",nrows);
+	fflush(stdout);
+#endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_NROWS,&nrows))
 	{
 		DSP_Error_Number = 63;
@@ -2461,6 +2535,16 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
 		return FALSE;
 #endif
 /* send command to interface */
+#if DEBUG == 1
+	fprintf(stdout,"SET_EXPTIME:value:%d\n",msecs);
+	fflush(stdout);
+#endif
+/* diddly bodge fix!!!
+** We need to review whether this set destination call is needed.
+** Acording to the Voodoo code it is, according to the DSP code it is not.
+*/
+	if(!DSP_Set_Destination(CCD_DSP_UTIL_BOARD_ID,1))
+		return FALSE;
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_EXPTIME,&msecs))
 	{
 		DSP_Error_Number = 67;
@@ -2478,6 +2562,10 @@ static int DSP_Send_Set_Exposure_Time(int msecs)
  */
 static int DSP_Send_Read_Exposure_Time(void)
 {
+#if DEBUG == 1
+	fprintf(stdout,"READ_EXPOSURE_TIME\n");
+	fflush(stdout);
+#endif
 	return DSP_Send_Command(CCD_PCI_HCVR_READ_EXPOSURE_TIME,NULL,0);
 }
 
@@ -2497,6 +2585,10 @@ static int DSP_Set_Destination(enum CCD_DSP_BOARD_ID board_id,int argument_count
 	int value;
 
 	value = (argument_count << 16)|board_id;
+#if DEBUG == 1
+	fprintf(stdout,"SET_DESTINATION:value:%#x\n",value);
+	fflush(stdout);
+#endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_DESTINATION,&value))
 	{
 		DSP_Error_Number = 30;
@@ -2547,6 +2639,10 @@ static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argum
 	{
 	/* This next line only works because CCD_PCI_IOCTL_SET_ARG1 to CCD_PCI_IOCTL_SET_ARG5
 	** have contiguous numbering */
+#if DEBUG == 1
+		fprintf(stdout,"SET_ARG:index:%d:value:%#x\n",argument_index,argument_list[argument_index]);
+		fflush(stdout);
+#endif
 		if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_ARG1+argument_index,&(argument_list[argument_index])))
 		{
 			DSP_Error_Number = 32;
@@ -2555,6 +2651,10 @@ static int DSP_Send_Manual_Command(int cmdr_command,int *argument_list,int argum
 		}
 	}
 /* send the command to device driver */
+#if DEBUG == 1
+		fprintf(stdout,"SET_CMDR:value:%#x\n",cmdr_command);
+		fflush(stdout);
+#endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_CMDR,&cmdr_command))
 	{
 		DSP_Error_Number = 33;
@@ -2599,6 +2699,10 @@ static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_cou
 /* put the argument words into data memory */
 	for(argument_index = 0;argument_index < argument_count;argument_index++)
 	{
+#if DEBUG == 1
+		fprintf(stdout,"SET_ARG:index:%d:value:%#x\n",argument_index,argument_list[argument_index]);
+		fflush(stdout);
+#endif
 	/* This next line works because CCD_PCI_IOCTL_SET_ARG1 to CCD_PCI_IOCTL_SET_ARG5
 	** have contiguous numbering */
 		if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_ARG1+argument_index,&(argument_list[argument_index])))
@@ -2609,6 +2713,10 @@ static int DSP_Send_Command(int hcvr_command,int *argument_list,int argument_cou
 		}
 	}
 /* send the command to device driver */
+#if DEBUG == 1
+		fprintf(stdout,"SET_HCVR:value:%#x\n",hcvr_command);
+		fflush(stdout);
+#endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCVR,&hcvr_command))
 	{
 		DSP_Error_Number = 36;
@@ -2643,6 +2751,10 @@ static int DSP_Get_Reply(int expected_reply)
 {
 	int reply;
 
+#if DEBUG == 1
+	fprintf(stdout,"GET_REPLY:expected:%#x",expected_reply);
+	fflush(stdout);
+#endif
 	if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_REPLY,&reply))
 	{
 		DSP_Error_Number = 38;
@@ -2650,6 +2762,10 @@ static int DSP_Get_Reply(int expected_reply)
 			CCD_PCI_IOCTL_GET_REPLY);
 		return FALSE;
 	}
+#if DEBUG == 1
+	fprintf(stdout,":actual:%#x\n",reply);
+	fflush(stdout);
+#endif
 
 	/* If the expected reply was an actual value we can't test whether this is correct or not
 	** so just return it. We do this first as a RDM may return the value for ERR correctly etc... */
@@ -3207,7 +3323,15 @@ static int DSP_Image_Transfer(int ncols,int nrows,enum CCD_DSP_DEINTERLACE_TYPE 
 		sprintf(DSP_Error_String,"DSP_Image_Transfer:Memory Allocation Error(%d).",numbytes);
 		return FALSE;
 	}
+#if DEBUG == 1
+	fprintf(stdout,"Get_Reply_Data:number of bytes:%d",numbytes);
+	fflush(stdout);
+#endif
 	retval = CCD_Interface_Get_Reply_Data((char *)exposure_data,numbytes);
+#if DEBUG == 1
+	fprintf(stdout,":returned:%d\n",retval);
+	fflush(stdout);
+#endif
 	if(retval == -1)
 	{
 		if(exposure_data != NULL)
@@ -3708,6 +3832,10 @@ static int DSP_Mutex_Unlock(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.22  2000/06/14 13:29:27  cjm
+** Further DSP_DeInterlace enhancements - don't allocate new_iptr unless it's
+** nessassary.
+**
 ** Revision 0.21  2000/06/14 12:58:35  cjm
 ** Fixed DSP_DeInterlace memory error.
 **

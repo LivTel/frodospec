@@ -1,13 +1,13 @@
 /* ccd_exposure.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.9 2000-06-13 17:14:13 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.10 2000-06-19 08:48:34 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.9 2000-06-13 17:14:13 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.10 2000-06-19 08:48:34 cjm Exp $";
 
 /* external variables */
 
@@ -205,6 +205,7 @@ int CCD_Exposure_Expose(int open_shutter,int readout_ccd,struct timespec start_t
  * @param filename The filename to save the resultant data (in FITS format) to.
  * @return The routine returns TRUE if the operation was completed successfully, FALSE if it failed.
  * @see ccd_dsp.html#CCD_DSP_Command_CLR
+ * @see ccd_dsp.html#CCD_DSP_Command_RDC
  * @see ccd_dsp.html#CCD_DSP_Command_RDI
  */
 int CCD_Exposure_Bias(char *filename)
@@ -239,6 +240,7 @@ int CCD_Exposure_Bias(char *filename)
 /* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort())
 	{
+/* diddly IDL clocks again!! */
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 8;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Aborted.");
@@ -247,6 +249,23 @@ int CCD_Exposure_Bias(char *filename)
 /* Bias frames do not call start exposure and hence the exposure start time is not set
 ** It is saved in the FITS file however, so set it manually here. */
 	CCD_DSP_Set_Exposure_Start_Time();
+/* tell the timing board to readout the ccd */
+	if(!CCD_DSP_Command_RDC())
+	{
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 29;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Read CCD failed.");
+		return FALSE;
+	}
+/* if we have aborted - stop here */
+	if(CCD_DSP_Get_Abort())
+	{
+/* diddly abort readout */
+		CCD_DSP_Set_Abort(FALSE);
+		Exposure_Error_Number = 30;
+		sprintf(Exposure_Error_String,"CCD_Exposure_Bias:Aborted.");
+		return FALSE;
+	}
 /* read out ccd and save to filename */
 	return_value = CCD_DSP_Command_RDI(ncols,nrows,deinterlace_type,TRUE,filename);
 	if(return_value == FALSE)
@@ -612,6 +631,9 @@ static int Exposure_Shutter_Control(int open_shutter)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.9  2000/06/13 17:14:13  cjm
+** Changes to make Ccs agree with voodoo.
+**
 ** Revision 0.8  2000/05/23 10:34:46  cjm
 ** Added call to CCD_DSP_Set_Exposure_Start_Time in CCD_Exposure_Bias,
 ** so that bias frames now have an exposure start time set,

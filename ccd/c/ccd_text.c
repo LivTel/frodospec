@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.13 2000-06-09 16:06:20 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.14 2000-06-19 08:48:34 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.13 $
+ * @version $Revision: 0.14 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.13 2000-06-09 16:06:20 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.14 2000-06-19 08:48:34 cjm Exp $";
 
 /* #defines */
 /**
@@ -569,6 +569,7 @@ int CCD_Text_Get_Reply_Data(char *data,int byte_count)
 		ushort_data[i] = (i%((1<<16)-1));
 		i++;
 	}
+	fprintf(Text_File_Ptr,"CCD_Text_Get_Reply_Data:%d.\n",byte_count);
 	return byte_count;
 }
 
@@ -979,6 +980,12 @@ static void Text_HCVR_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.13  2000/06/09 16:06:20  cjm
+** Added HCTR implementation.
+** Added Controller status implementation.
+** Removed Clear Start Time function/variable, now Text_Get_Reply sleeps for 5 seconds instead.
+** Added SOS implementation.
+**
 ** Revision 0.12  2000/05/12 15:29:19  cjm
 ** Fixed synthetic image output.
 **

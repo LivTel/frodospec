@@ -1,5 +1,5 @@
 /* ccd_pci.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.2 2000-06-13 17:15:02 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.3 2000-06-19 08:48:51 cjm Exp $
 */
 
 #ifndef CCD_PCI_H
@@ -156,17 +156,22 @@
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.
  * This command causes the SDSU controller to start an exposure. It is equivalent to issuing a SEX command to the
- * utility board. Note a CCD_PCI_HCVR_READ_IMAGE needs to issued after this command to cause the 
- * controller to read the image out.
+ * utility board. Note a CCD_PCI_HCVR_READ_IMAGE needs to issued after this command to prepare the PCI card
+ * to receive image data. CCD_PCI_HCVR_READ_ARRAY is issued internally by the START_EXPOSURE implementation on the
+ * timing board.
  * @see #CCD_PCI_IOCTL_SET_HCVR
+ * @see #CCD_PCI_HCVR_READ_ARRAY
  * @see #CCD_PCI_HCVR_READ_IMAGE
  */
 #define CCD_PCI_HCVR_START_EXPOSURE 		(0x809B)
 /**
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.
- * This command causes the timing board to read out the image data from the CCD.
+ * This command causes the PCI board to prepare to recieve image data from the timing board. The timing board
+ * must have previously been told to send image data, using CCD_PCI_HCVR_START_EXPOSURE or CCD_PCI_HCVR_READ_ARRAY.
  * @see #CCD_PCI_IOCTL_SET_HCVR
+ * @see #CCD_PCI_HCVR_START_EXPOSURE
+ * @see #CCD_PCI_HCVR_READ_ARRAY
  */
 #define CCD_PCI_HCVR_READ_IMAGE 		(0x809D)
 /**
@@ -200,6 +205,17 @@
  * @see #CCD_PCI_IOCTL_SET_HCVR
  */
 #define CCD_PCI_HCVR_RESUME_EXPOSURE 		(0x80A5)
+/**
+ * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
+ * ioctl request.
+ * This command causes the SDSU controller to immediately start readout out the array. 
+ * It is equivalent to issuing a RDC command to the
+ * timing board. Note a CCD_PCI_HCVR_READ_IMAGE needs to issued after this command to prepare the PCI card
+ * to receive image data.
+ * @see #CCD_PCI_IOCTL_SET_HCVR
+ * @see #CCD_PCI_HCVR_READ_IMAGE
+ */
+#define CCD_PCI_HCVR_READ_ARRAY 		(0x80A7)
 /**
  * HCVR (Host Command Vector Register) command. Used as an ioctl request argument for the CCD_PCI_IOCTL_SET_HCVR
  * ioctl request.
