@@ -1,12 +1,12 @@
 /* ccd_text.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.14 2000-06-19 08:48:34 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.15 2000-07-06 09:33:43 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.14 $
+ * @version $Revision: 0.15 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -34,7 +34,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.14 2000-06-19 08:48:34 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.15 2000-07-06 09:33:43 cjm Exp $";
 
 /* #defines */
 /**
@@ -679,9 +679,9 @@ static void Text_Get_Reply(int *argument)
 #endif
 	int finished = -1;
 
-/* wait for a bit - 100th of a second - emulate time taken for reply to appear */
+/* wait for a bit - 1 milli-second - emulate time taken for reply to appear */
 	delay_timespec.tv_sec = 0;
-	delay_timespec.tv_nsec = 10000000;
+	delay_timespec.tv_nsec = 1000*TEXT_ONE_MICROSECOND_NS;
 	while(finished != 0)
 	{
 		finished = nanosleep(&delay_timespec,&delay_timespec);
@@ -980,6 +980,9 @@ static void Text_HCVR_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.14  2000/06/19 08:48:34  cjm
+** Backup.
+**
 ** Revision 0.13  2000/06/09 16:06:20  cjm
 ** Added HCTR implementation.
 ** Added Controller status implementation.
