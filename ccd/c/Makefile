@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.9 2000-12-19 12:03:58 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.10 2001-01-30 10:06:49 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -53,7 +53,7 @@ JAVASRCS 	= 	$(SRCS) ngat_ccd_CCDLibrary.c
 JAVAOBJS	=	$(JAVASRCS:%.c=%.o)
 JAVADOCS 	= 	$(JAVASRCS:%.c=$(DOCSDIR)/%.html)
 
-top: shared docs
+top: $(INCDIR)/ngat_ccd_CCDLibrary.h shared docs
 
 shared: $(LT_LIB_HOME)/libccd.so
 
@@ -108,6 +108,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.9  2000/12/19 12:03:58  cjm
+# Added ccd_filter_wheel source.
+#
 # Revision 1.8  2000/12/18 11:59:42  cjm
 # Fixed JNI include dependancy on ngat.jar - now on ngat_ccd.jar.
 #
@@ -168,14 +171,12 @@ ccd_pci.o: /space/home/dev/src/ccd/include/ccd_pci.h
 ccd_text.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_text.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ccd_text.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
-ccd_text.o: /usr/include/string.h /usr/include/fcntl.h
+ccd_text.o: /usr/include/string.h /usr/include/errno.h
+ccd_text.o: /usr/include/sys/errno.h /usr/include/unistd.h
 ccd_text.o: /usr/include/sys/types.h /usr/include/sys/machtypes.h
 ccd_text.o: /usr/include/sys/int_types.h /usr/include/sys/select.h
 ccd_text.o: /usr/include/sys/time.h /usr/include/sys/time.h
-ccd_text.o: /usr/include/sys/fcntl.h /usr/include/signal.h
-ccd_text.o: /usr/include/sys/signal.h /usr/include/sys/unistd.h
-ccd_text.o: /usr/include/errno.h /usr/include/sys/errno.h
-ccd_text.o: /usr/include/unistd.h
+ccd_text.o: /usr/include/sys/unistd.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_text.o: /space/home/dev/src/ccd/include/ccd_dsp.h
@@ -197,6 +198,7 @@ ccd_global.o: /space/home/dev/src/ccd/include/ccd_dsp.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_exposure.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_temperature.h
 ccd_global.o: /space/home/dev/src/ccd/include/ccd_setup.h
+ccd_global.o: /space/home/dev/src/ccd/include/ccd_filter_wheel.h
 ccd_dsp.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_dsp.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ccd_dsp.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
@@ -207,13 +209,23 @@ ccd_dsp.o: /usr/include/sys/time.h /usr/include/sys/time.h
 ccd_dsp.o: /usr/include/sys/fcntl.h /usr/include/signal.h
 ccd_dsp.o: /usr/include/sys/signal.h /usr/include/sys/unistd.h
 ccd_dsp.o: /usr/include/errno.h /usr/include/sys/errno.h
-ccd_dsp.o: /usr/include/string.h /usr/include/unistd.h
+ccd_dsp.o: /usr/include/string.h /usr/include/unistd.h /usr/include/pthread.h
+ccd_dsp.o: /usr/include/sched.h
 ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_pci.h
 ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_dsp.h
 ccd_dsp.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_dsp.o: /space/home/dev/src/cfitsio/fitsio.h /usr/include/stddef.h
 ccd_dsp.o: /space/home/dev/src/cfitsio/longnam.h
+ccd_filter_wheel.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
+ccd_filter_wheel.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
+ccd_filter_wheel.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
+ccd_filter_wheel.o: /usr/include/string.h /usr/include/math.h
+ccd_filter_wheel.o: /space/home/dev/src/ccd/include/ccd_global.h
+ccd_filter_wheel.o: /space/home/dev/src/ccd/include/ccd_interface.h
+ccd_filter_wheel.o: /space/home/dev/src/ccd/include/ccd_dsp.h
+ccd_filter_wheel.o: /usr/include/sys/time.h
+ccd_filter_wheel.o: /space/home/dev/src/ccd/include/ccd_filter_wheel.h
 ccd_temperature.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_temperature.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
 ccd_temperature.o: /usr/include/stdio_tag.h /usr/include/stdio_impl.h
@@ -221,6 +233,7 @@ ccd_temperature.o: /usr/include/string.h /usr/include/math.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_global.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_dsp.h
+ccd_temperature.o: /usr/include/sys/time.h
 ccd_temperature.o: /space/home/dev/src/ccd/include/ccd_temperature.h
 ccd_setup.o: /usr/include/stdio.h /usr/include/sys/feature_tests.h
 ccd_setup.o: /usr/include/sys/isa_defs.h /usr/include/sys/va_list.h
@@ -260,11 +273,12 @@ ngat_ccd_CCDLibrary.o: /usr/java1.2/include/solaris/jni_md.h
 ngat_ccd_CCDLibrary.o: /usr/include/sys/types.h /usr/include/sys/machtypes.h
 ngat_ccd_CCDLibrary.o: /usr/include/sys/int_types.h /usr/include/sys/select.h
 ngat_ccd_CCDLibrary.o: /usr/include/sys/time.h /usr/include/sys/time.h
-ngat_ccd_CCDLibrary.o: /usr/include/limits.h
+ngat_ccd_CCDLibrary.o: /usr/include/limits.h /usr/include/sys/int_limits.h
 ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_global.h
 ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_interface.h
 ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_dsp.h
 ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_exposure.h
+ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_filter_wheel.h
 ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_setup.h
 ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_temperature.h
 ngat_ccd_CCDLibrary.o: /space/home/dev/src/ccd/include/ccd_text.h
