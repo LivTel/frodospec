@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.4 1999-04-27 10:55:41 dev Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.5 1999-06-07 16:57:44 dev Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -7,7 +7,7 @@ INCDIR = ../include
 DOCSDIR = ../javadocs
 DOCFLAGS = -version -author -private
 
-SRCS = CCDLibrary.java CCDLibraryDouble.java ExposureThread.java Test.java SetupThread.java AbortThread.java ReadOutThread.java
+SRCS = CCDLibrary.java CCDLibraryDouble.java CCDLibraryFormatException.java ExposureThread.java Test.java SetupThread.java AbortThread.java ReadOutThread.java
 OBJS = $(SRCS:%.java=%.class)
 DOCS = $(SRCS:%.java=$(DOCSDIR)/%.html)
 
@@ -17,6 +17,9 @@ CCDLibrary.class: CCDLibrary.java
 	javac CCDLibrary.java
 	javah -jni CCDLibrary
 	mv CCDLibrary.h $(INCDIR)
+
+CCDLibraryFormatException.class: CCDLibraryFormatException.java
+	javac CCDLibraryFormatException.java
 
 CCDLibraryDouble.class: CCDLibraryDouble.java
 	javac CCDLibraryDouble.java
