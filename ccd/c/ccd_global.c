@@ -1,11 +1,11 @@
 /* ccd_global.c -*- mode: Fundamental;-*-
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.2 2000-03-01 15:44:41 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.3 2000-03-08 18:27:11 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.2 $
+ * @version $Revision: 0.3 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -31,12 +31,16 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.2 2000-03-01 15:44:41 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.3 2000-03-08 18:27:11 cjm Exp $";
 
 /* external functions */
 /**
  * This routine calls all initialisation routines for modules in libccd. These routines are generally used to
  * initialise parts of the library. This routine should be called at the start of a program.
+ * <i>
+ * Note some of the initialisation can produce errors. Currently these are just printed out, this should
+ * perhaps return an error code when this occurs.
+ * </i>
  * @param interface_device The device the library will write DSP commands to. The routine calls
  * 	<a href="ccd_interface.html#CCD_Interface_Set_Device">CCD_Interface_Set_Device</a> to set the
  * 	device.
@@ -52,7 +56,8 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
 	if(!CCD_Interface_Set_Device(interface_device))
 		CCD_Interface_Error();
 	CCD_Interface_Initialise();
-	CCD_DSP_Initialise();
+	if(!CCD_DSP_Initialise())
+		CCD_DSP_Error();
 	CCD_Exposure_Initialise();
 	CCD_Setup_Initialise();
 }
@@ -192,6 +197,9 @@ void CCD_Global_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.2  2000/03/01 15:44:41  cjm
+** Backup.
+**
 ** Revision 0.1  2000/01/25 14:57:27  cjm
 ** initial revision (PCI version).
 **
