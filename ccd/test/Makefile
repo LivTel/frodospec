@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.4 2000-01-24 10:25:23 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.5 2000-12-18 16:36:42 cjm Exp $
 
 include ../../Makefile.common
 include ../Makefile.common
@@ -7,13 +7,17 @@ INCDIR = $(CCD_SRC_HOME)/include
 
 CFLAGS = -g -I$(INCDIR) -I$(CFITSIOINCDIR) -c
 
-SRCS = test.c
-OBJS		=	$(SRCS:%.c=%.o)
+SRCS = test.c test_filter_wheel.c
+OBJS = $(SRCS:%.c=%.o)
+PROGS = $(SRCS:%.c=$(CCD_BIN_HOME)/test/%)
 
-top: $(CCD_BIN_HOME)/test/test
+top: $(PROGS)
 
 $(CCD_BIN_HOME)/test/test: test.o
 	cc -o $@ test.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+
+$(CCD_BIN_HOME)/test/test_filter_wheel: test_filter_wheel.o
+	cc -o $@ test_filter_wheel.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
 
 depend:
 	makedepend -- $(CFLAGS) -- $(SRCS)
