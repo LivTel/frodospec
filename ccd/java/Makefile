@@ -1,5 +1,5 @@
 # Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.11 1999-09-08 10:03:09 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/java/Makefile,v 0.12 1999-09-10 15:27:25 cjm Exp $ 
 include ../../Makefile.common
 include ../Makefile.common
 
@@ -8,7 +8,7 @@ BINDIR = $(CCD_BIN_HOME)/java
 DOCSDIR = $(CCD_DOC_HOME)/javadocs
 DOCFLAGS = -version -author -private
 
-SRCS = CCDLibrary.java CCDLibraryDouble.java CCDLibraryFormatException.java ExposureThread.java Test.java SetupThread.java AbortThread.java ReadOutThread.java
+SRCS = ExposureThread.java Test.java SetupThread.java AbortThread.java ReadOutThread.java
 OBJS = $(SRCS:%.java=$(BINDIR)/%.class)
 DOCS = $(SRCS:%.java=$(DOCSDIR)/%.html)
 
@@ -43,6 +43,9 @@ checkin:
 	-$(CI) $(CI_OPTIONS) $(SRCS)
 #
 # $Log: not supported by cvs2svn $
+# Revision 0.11  1999/09/08 10:03:09  cjm
+# Changed checkin target so the return value is ignored and it uses CI_OPTIONS.
+#
 # Revision 0.10  1999/08/23 14:21:59  cjm
 # Fixed new rule for CCDLibrary.h header file.
 #

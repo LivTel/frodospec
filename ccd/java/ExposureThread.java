@@ -1,47 +1,44 @@
 // ExposureThread.java -*- mode: Fundamental;-*-
-// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.5 1999-09-08 10:52:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/ExposureThread.java,v 0.6 1999-09-10 15:27:11 cjm Exp $
 import java.lang.*;
 import java.io.*;
+
+import ngat.ccd.*;
 
 /**
  * This class extends thread to support the exposure of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway.
  * @author Chris Mottram
- * @version $Revision: 0.5 $
+ * @version $Revision: 0.6 $
  */
 class ExposureThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.5 1999-09-08 10:52:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: ExposureThread.java,v 0.6 1999-09-10 15:27:11 cjm Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
-	 * @see CCDLibrary
 	 */
 	private CCDLibrary libccd = null;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a>.
-	 * @see CCDLibrary#CCDExposureExpose
+	 * CCDExposureExpose.
 	 */
 	private boolean open_shutter;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a>.
-	 * @see CCDLibrary#CCDExposureExpose
+	 * CCDExposureExpose.
 	 */
 	private boolean readout_ccd;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a>.
-	 * @see CCDLibrary#CCDExposureExpose
+	 * CCDExposureExpose.
 	 */
 	private int msecs;
 	/**
 	 * Private copy of variable to be passed into 
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a>.
-	 * @see CCDLibrary#CCDExposureExpose
+	 * CCDExposureExpose.
 	 */
 	private String filename = null;
 	/**
@@ -54,23 +51,18 @@ class ExposureThread extends Thread
 	 * If we abort an exposure at any point,we need to save the exposure status at that point
 	 * to determine which operations we can do to recover the situation. Specifcally, if we abort
 	 * during exposure(rather than readout) we can subsequently readout any data that accumulated during exposure.
-	 * @see CCDLibrary#CCD_DSP_EXPOSURE_STATUS_NONE
-	 * @see CCDLibrary#CCD_DSP_EXPOSURE_STATUS_EXPOSE
-	 * @see CCDLibrary#CCD_DSP_EXPOSURE_STATUS_READOUT
 	 * @see #abort
 	 */
 	private int abortExposureStatus = libccd.CCD_DSP_EXPOSURE_STATUS_NONE;
 	/**
 	 * Private copy of the Return value of 
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a>.
-	 * @see CCDLibrary#CCDExposureExpose
+	 * CCDExposureExpose.
 	 */
 	private boolean returnValue = false;
 
 	/**
 	 * Constructor of the thread. Copys all the parameters, ready to pass them into
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a> when the thread is run.
-	 * @see CCDLibrary#CCDExposureExpose
+	 * CCDExposureExpose when the thread is run.
 	 */
 	public ExposureThread(CCDLibrary libccd,boolean open_shutter,boolean readout_ccd,int msecs,String filename)
 	{
@@ -86,12 +78,11 @@ class ExposureThread extends Thread
 
 	/**
 	 * Run method of the thread. Calls
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a> with the parameters passed into the
+	 * CCDExposureExpose with the parameters passed into the
 	 * constructor. This causes the CCD to expose. The success or failure of the
 	 * operation is stored in <a href="#returnValue">returnValue</a>, which can be reteived using the 
 	 * <a href="#getReturnValue">getReturnValue</a> method. Exposure can be aborted using the
 	 * <a href="#abort">abort</a> method.
-	 * @see CCDLibrary#CCDExposureExpose
 	 * @see #getReturnValue
 	 * @see #abort
 	 */
@@ -102,19 +93,15 @@ class ExposureThread extends Thread
 
 	/**
 	 * This method will terminate a partly completed Exposure. If libccd is currently exposing
-	 * <a href="CCDLibrary.html#CCDExposureAbort">CCDExposureAbort</a> is called which stops the exposure.
+	 * CCDExposureAbort is called which stops the exposure.
 	 * If libccd is currently reading out
-	 * <a href="CCDLibrary.html#CCDExposureAbortReadout">CCDExposureAbortReadout</a> is called which stops the CCD.
+	 * CCDExposureAbortReadout is called which stops the CCD.
 	 * reading out. 
-	 * <a href="CCDLibrary.html#CCDDSPGetExposureStatus">CCDDSPGetExposureStatus</a> is used to determine
+	 * CCDDSPGetExposureStatus is used to determine
 	 * the current state of the exposure. In either case libccd will cause
-	 * <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a> to stop what it is doing. This causes
+	 * CCDExposureExpose to stop what it is doing. This causes
 	 * the <a href="#run">run</a> method to finish executing, and the <a href="#returnValue">returnValue</a>
 	 * will be false
-	 * @see CCDLibrary#CCDDSPGetExposureStatus
-	 * @see CCDLibrary#CCDExposureAbort
-	 * @see CCDLibrary#CCDExposureAbortReadout
-	 * @see CCDLibrary#CCDExposureExpose
 	 * @see #getReturnValue
 	 * @see #run
 	 */
@@ -138,10 +125,9 @@ class ExposureThread extends Thread
 	}
 
 	/**
-	 * This returns the return value generated by <a href="CCDLibrary.html#CCDExposureExpose">CCDExposureExpose</a>
+	 * This returns the return value generated by CCDExposureExpose
 	 * in the <a href="#run">run</a> method. If the thread hasn't been run yet it returns false. If the exposure 
 	 * was successfully completed it returns true, otherwise it returns false.
-	 * @see CCDLibrary#CCDExposureExpose
 	 * @see #run
 	 */
 	public boolean getReturnValue()
@@ -162,11 +148,11 @@ class ExposureThread extends Thread
 	 * This returns the status of the exposure when the exposure was aborted. This variable
 	 * is set when an exposure is aborted using <a href="#abort">abort</a>.
 	 * @return If the exposure was not aborted 
-	 * <a href="CCDLibrary.html#CCD_DSP_EXPOSURE_STATUS_NONE">CCD_DSP_EXPOSURE_STATUS_NONE</a> is returned.
+	 * CCD_DSP_EXPOSURE_STATUS_NONE is returned.
 	 * If the exposure was waiting for the exposure time to complete
-	 * <a href="CCDLibrary.html#CCD_DSP_EXPOSURE_STATUS_EXPOSE">CCD_DSP_EXPOSURE_STATUS_EXPOSE</a> is returned.
+	 * CCD_DSP_EXPOSURE_STATUS_EXPOSE is returned.
 	 * If the exposure was reading out from the CCD
-	 * <a href="CCDLibrary.html#CCD_DSP_EXPOSURE_STATUS_READOUT">CCD_DSP_EXPOSURE_STATUS_READOUT</a> is returned.
+	 * CCD_DSP_EXPOSURE_STATUS_READOUT is returned.
 	 */
 	public int getAbortExposureStatus()
 	{
@@ -176,6 +162,9 @@ class ExposureThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 0.5  1999/09/08 10:52:40  cjm
+// Trying to fix file permissions of these files.
+//
 // Revision 0.4  1999/05/28 09:54:18  dev
 // "Name
 //
