@@ -1,5 +1,5 @@
 /* ccd_dsp.h  -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.18 2000-12-21 11:54:43 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.19 2001-01-23 18:23:34 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -103,6 +103,13 @@ enum CCD_DSP_EXPOSURE_STATUS
 	CCD_DSP_EXPOSURE_STATUS_NONE,CCD_DSP_EXPOSURE_STATUS_CLEAR,
 	CCD_DSP_EXPOSURE_STATUS_EXPOSE,CCD_DSP_EXPOSURE_STATUS_READOUT
 };
+
+/**
+ * The maximum exposure length that the controller can expose the CCD for, in milliseconds.
+ * This is limited by the size of a DSP word (24 bits). The word is signed, so this value is
+ * (2^23)-1. This is 8388 seconds, or 2 hours 19 minutes,
+ */
+#define CCD_DSP_EXPOSURE_MAX_LENGTH		(8388607)
 
 /* These #define/enum definitions should match with those in CCDLibrary.java */
 /**
