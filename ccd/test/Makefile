@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.10 2002-12-03 17:19:53 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.11 2004-06-09 16:03:07 cjm Exp $
 
 include ../../Makefile.common
 include ../Makefile.common
@@ -19,8 +19,10 @@ SRCS 		= test.c test_filter_wheel.c ccd_read_memory.c ccd_write_memory.c posix_t
 OBJS 		= $(SRCS:%.c=%.o)
 PROGS 		= $(SRCS:%.c=$(BINDIR)/%)
 DOCS 		= $(SRCS:%.c=$(DOCSDIR)/%.html)
+SCRIPT_SRCS	= test_filter_wheel_ltccd1.csh test_filter_wheel_ltccd2.csh test_temperature_control
+SCRIPT_BINS	= $(SCRIPT_SRCS:%=$(BINDIR)/%)
 
-top: $(PROGS) docs
+top: $(PROGS) scripts docs
 
 $(BINDIR)/test: test.o
 	cc -o $@ test.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
@@ -84,6 +86,14 @@ $(BINDIR)/posix_time: posix_time.o
 
 $(BINDIR)/time_millis: time_millis.o
 	cc -o $@ time_millis.o -L$(LT_LIB_HOME) $(TIMELIB) -lm -lc
+
+scripts: $(SCRIPT_BINS)
+
+$(BINDIR)/%.csh:%.csh
+	$(CP) $< $@
+
+$(BINDIR)/%:%
+	$(CP) $< $@
 
 docs: $(DOCS)
 
