@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.11 2001-03-12 15:14:06 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.12 2001-03-19 18:38:42 cjm Exp $
 
 include			../../Makefile.common
 include			../Makefile.common
@@ -36,6 +36,20 @@ UTILEXPOSURECHECKFLAGS =
 #BYTESWAPCFLAGS = -DCCD_DSP_BYTE_SWAP=1
 BYTESWAPCFLAGS = 
 
+# The home input of the filter wheel mechanism can be either a proximity sensor
+# or a magnetic one. The inputs received by the SDSU electronics are reversed depending
+# on which input is used. We select which to compile for here.
+# Use a proximity sensor for filter wheel input.
+#INPUTHOMETYPE = PROXIMITY
+# Use a magnetic sensor for filter wheel input.
+INPUTHOMETYPE = MAGNETIC
+# define PROXIMITY/MAGNETIC and CCD_FILTER_WHEEL_INPUT_HOME
+FILTERWHEELINPUTHOMECFLAGS = -DPROXIMITY=1 -DMAGNETIC=2 -DCCD_FILTER_WHEEL_INPUT_HOME=$(INPUTHOMETYPE)
+
+UTILEXPOSURECHECKFLAGS = -DCCD_DSP_UTIL_EXPOSURE_CHECK=1
+# Allow RDM/WRM/temperature get calls when we are exposing.
+UTILEXPOSURECHECKFLAGS = 
+
 # Do we wish to link with CFITSIO routines?
 FITSCFLAGS = -DCFITSIO=1 -I$(CFITSIOINCDIR) -L$(LT_LIB_HOME)
 CFITSIOLIB = -lcfitsio
@@ -49,7 +63,7 @@ DEBUGCFLAGS = -DDEBUG=0
 
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(FITSCFLAGS) $(MUTEXCFLAGS) \
 	$(REPLYBUFFERCFLAGS) $(TIMINGDOWNLOADIDLECFLAGS) $(UTILEXPOSURECHECKFLAGS) $(BYTESWAPCFLAGS) \
-	$(DEBUGCFLAGS)
+	$(FILTERWHEELINPUTHOMECFLAGS) $(DEBUGCFLAGS)
 
 LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
@@ -117,6 +131,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.11  2001/03/12 15:14:06  cjm
+# Added UTILEXPOSURECHECKFLAGS.
+#
 # Revision 1.10  2001/01/30 10:06:49  cjm
 # Fixed ngat_ccd_CCDLibrary.h dependancy so the header always gets built using
 # javah when the ngat_ccd.jar changes or the header does not exist (has been cleaned).
