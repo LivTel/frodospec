@@ -1,5 +1,24 @@
+/*   
+    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
+
+    This file is part of Ccs.
+
+    Ccs is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Ccs is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Ccs; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
 /* test.c
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.14 2003-03-26 15:51:55 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.15 2006-05-16 18:18:23 cjm Exp $
 */
 #include <stdio.h>
 #include <time.h>
@@ -21,7 +40,7 @@
  * Note the setup is performed by downloading two DSP .lod files, tim.lod and util.lod,
  * which must be present in the bin directory otherwise an error is returned.
  * @author $Author: cjm $
- * @version $Revision: 1.14 $
+ * @version $Revision: 1.15 $
  */
 
 /* hash defines */
@@ -54,7 +73,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: test.c,v 1.14 2003-03-26 15:51:55 cjm Exp $";
+static char rcsid[] = "$Id: test.c,v 1.15 2006-05-16 18:18:23 cjm Exp $";
 
 /* internal functions */
 static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *filename);
@@ -303,6 +322,9 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.14  2003/03/26 15:51:55  cjm
+** Changed for windowing API change.
+**
 ** Revision 1.13  2002/11/28 17:57:51  cjm
 ** Added rcsid.
 **

@@ -1,5 +1,24 @@
+/*   
+    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
+
+    This file is part of Ccs.
+
+    Ccs is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Ccs is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Ccs; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
 /* ccd_read_memory.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.4 2002-11-07 19:18:22 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.5 2006-05-16 18:18:18 cjm Exp $
  */
 #include <stdio.h>
 #include <time.h>
@@ -16,7 +35,7 @@
  * 	-i[nterface_device] &lt;pci|text&gt; -t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 /* hash definitions */
 /**
@@ -28,7 +47,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: ccd_read_memory.c,v 1.4 2002-11-07 19:18:22 cjm Exp $";
+static char rcsid[] = "$Id: ccd_read_memory.c,v 1.5 2006-05-16 18:18:18 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -263,6 +282,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2002/11/07 19:18:22  cjm
+** Changes to make library work with SDSU version 1.7 DSP code.
+**
 ** Revision 1.3  2001/01/18 14:23:16  cjm
 ** Bugfix for testing for RDM failure.
 **

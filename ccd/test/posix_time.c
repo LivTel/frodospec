@@ -1,5 +1,24 @@
+/*   
+    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
+
+    This file is part of Ccs.
+
+    Ccs is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Ccs is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Ccs; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
 /* posix_time.c -*- mode: Fundamental;-*-
-** $Header: /home/cjm/cvs/frodospec/ccd/test/posix_time.c,v 1.1 2001-02-01 11:16:25 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/posix_time.c,v 1.2 2006-05-16 18:18:21 cjm Exp $
 */
 /**
  * A little test program to prototype getting the current system time to as high a resolution as possible.
@@ -9,7 +28,7 @@
  * cc posix_time.c -o posix_time -lrt
  * </pre>
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -28,7 +47,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: posix_time.c,v 1.1 2001-02-01 11:16:25 cjm Exp $";
+static char rcsid[] = "$Id: posix_time.c,v 1.2 2006-05-16 18:18:21 cjm Exp $";
 
 /* external routines */
 /**
@@ -73,4 +92,7 @@ int main(int argc,char *argv[])
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2001/02/01 11:16:25  cjm
+** Initial revision
+**
 */

@@ -1,5 +1,24 @@
+/*   
+    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
+
+    This file is part of Ccs.
+
+    Ccs is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Ccs is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Ccs; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
 /* test_shutter.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_shutter.c,v 1.1 2002-11-07 19:18:22 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_shutter.c,v 1.2 2006-05-16 18:18:31 cjm Exp $
  */
 #include <stdio.h>
 #include <time.h>
@@ -15,7 +34,7 @@
  * 	-t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /* hash definitions */
 /**
@@ -41,7 +60,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_shutter.c,v 1.1 2002-11-07 19:18:22 cjm Exp $";
+static char rcsid[] = "$Id: test_shutter.c,v 1.2 2006-05-16 18:18:31 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -217,4 +236,7 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2002/11/07 19:18:22  cjm
+** Initial revision
+**
 */
