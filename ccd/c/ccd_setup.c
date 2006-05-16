@@ -1,12 +1,31 @@
+/*   
+    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
+
+    This file is part of Ccs.
+
+    Ccs is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Ccs is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Ccs; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.26 2004-11-04 15:59:35 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.27 2006-05-16 14:14:07 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.26 $
+ * @version $Revision: 0.27 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -37,7 +56,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.26 2004-11-04 15:59:35 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.27 2006-05-16 14:14:07 cjm Exp $";
 
 /* #defines */
 /**
@@ -2195,6 +2214,9 @@ static int Setup_Controller_Windows(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.26  2004/11/04 15:59:35  cjm
+** Added processing of CCD_DSP_DEINTERLACE_FLIP.
+**
 ** Revision 0.25  2004/05/16 14:28:18  cjm
 ** Re-wrote abort code.
 **
