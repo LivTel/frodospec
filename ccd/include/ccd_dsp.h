@@ -18,7 +18,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.27 2006-05-16 14:15:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.28 2006-05-17 17:24:36 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -402,7 +402,6 @@ extern int CCD_DSP_Command_VON(void);
 extern int CCD_DSP_Command_VOF(void);
 extern int CCD_DSP_Get_Abort(void);
 extern int CCD_DSP_Set_Abort(int value);
-extern enum CCD_DSP_FILTER_WHEEL_STATUS CCD_DSP_Get_Filter_Wheel_Status(void);
 extern void CCD_DSP_Set_Filter_Wheel_Steps_Per_Position(int steps);
 extern void CCD_DSP_Set_Filter_Wheel_Milliseconds_Per_Step(int ms);
 extern int CCD_DSP_Get_Error_Number(void);
