@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.11 2004-06-09 16:03:07 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/test/Makefile,v 1.12 2006-05-17 16:42:23 cjm Exp $
 
 include ../../Makefile.common
 include ../Makefile.common
@@ -11,11 +11,12 @@ DOCSDIR 	= $(CCD_DOC_HOME)/$(TESTDIR)
 CFLAGS 		= -g -I$(INCDIR) -I$(CFITSIOINCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) -c
 DOCFLAGS 	= -static
 
-SRCS 		= test.c test_filter_wheel.c ccd_read_memory.c ccd_write_memory.c posix_time.c time_millis.c \
+SRCS 		= test.c test_filter_wheel.c ccd_read_memory.c ccd_write_memory.c time_millis.c \
 			ccd_read_memory_17.c ccd_test_data_link_17.c test_dsp_download.c test_reset_controller.c \
 			test_data_link.c test_idle_clocking.c test_analogue_power.c test_temperature.c \
 			test_setup_startup.c test_setup_dimensions.c test_setup_shutdown.c test_exposure.c \
 			test_shutter.c test_abort.c test_vacuum_gauge.c
+# posix_time.c 
 OBJS 		= $(SRCS:%.c=%.o)
 PROGS 		= $(SRCS:%.c=$(BINDIR)/%)
 DOCS 		= $(SRCS:%.c=$(DOCSDIR)/%.html)
@@ -25,55 +26,55 @@ SCRIPT_BINS	= $(SCRIPT_SRCS:%=$(BINDIR)/%)
 top: $(PROGS) scripts docs
 
 $(BINDIR)/test: test.o
-	cc -o $@ test.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_filter_wheel: test_filter_wheel.o
-	cc -o $@ test_filter_wheel.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_filter_wheel.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/ccd_read_memory: ccd_read_memory.o
-	cc -o $@ ccd_read_memory.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ ccd_read_memory.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/ccd_write_memory: ccd_write_memory.o
-	cc -o $@ ccd_write_memory.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ ccd_write_memory.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_dsp_download: test_dsp_download.o
-	cc -o $@ test_dsp_download.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_dsp_download.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_reset_controller: test_reset_controller.o
-	cc -o $@ test_reset_controller.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_reset_controller.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_data_link: test_data_link.o
-	cc -o $@ test_data_link.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_data_link.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_idle_clocking: test_idle_clocking.o
-	cc -o $@ test_idle_clocking.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_idle_clocking.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_analogue_power: test_analogue_power.o
-	cc -o $@ test_analogue_power.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_analogue_power.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_temperature: test_temperature.o
-	cc -o $@ test_temperature.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_temperature.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_setup_startup: test_setup_startup.o
-	cc -o $@ test_setup_startup.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_setup_startup.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_setup_dimensions: test_setup_dimensions.o
-	cc -o $@ test_setup_dimensions.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_setup_dimensions.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_setup_shutdown: test_setup_shutdown.o
-	cc -o $@ test_setup_shutdown.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_setup_shutdown.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_exposure: test_exposure.o
-	cc -o $@ test_exposure.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_exposure.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_shutter: test_shutter.o
-	cc -o $@ test_shutter.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_shutter.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_abort: test_abort.o
-	cc -o $@ test_abort.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_abort.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/test_vacuum_gauge: test_vacuum_gauge.o
-	cc -o $@ test_vacuum_gauge.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) -lsocket -lm -lc
+	cc -o $@ test_vacuum_gauge.o -L$(LT_LIB_HOME) -lccd -lcfitsio $(TIMELIB) $(SOCKETLIB) -lm -lc
 
 $(BINDIR)/ccd_read_memory_17: ccd_read_memory_17.o
 	cc -o $@ ccd_read_memory_17.o -lm -lc
