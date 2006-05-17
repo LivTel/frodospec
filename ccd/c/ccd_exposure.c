@@ -19,14 +19,14 @@
 */
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.32 2006-05-16 14:14:02 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.33 2006-05-17 18:06:20 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.32 $
+ * @version $Revision: 0.33 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -138,7 +138,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.32 2006-05-16 14:14:02 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.33 2006-05-17 18:06:20 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -301,7 +301,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 	unsigned short *exposure_data = NULL;
 	int elapsed_exposure_time,done;
-	int retval,status,window_flags;
+	int status,window_flags;
 	int expected_pixel_count,current_pixel_count,last_pixel_count,readout_timeout_count;
 
 	Exposure_Error_Number = 0;
@@ -1378,7 +1378,7 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	unsigned short *subimage_data = NULL;
 	int exposure_data_index = 0;
-	int window_number,window_flags,window_count,filename_index;
+	int window_number,window_flags,filename_index;
 	int ncols,nrows,pixel_count;
 
 	/* get setup data */
@@ -1411,7 +1411,7 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 			{
 				Exposure_Error_Number = 16;
 				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
-					"Filename index greater than count.",filename_index,filename_count);
+					"Filename index %d greater than count %d.",filename_index,filename_count);
 				return FALSE;
 			}
 #if LOGGING > 4
@@ -2044,6 +2044,9 @@ static int fexist(char *filename)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.32  2006/05/16 14:14:02  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 0.31  2005/02/04 17:46:49  cjm
 ** Added Exposure_Expose_Delete_Fits_Images.
 ** Most of the time, FITS filename passed into CCD_Exposure_Expose that
