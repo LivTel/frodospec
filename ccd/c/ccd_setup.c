@@ -19,13 +19,13 @@
 */
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.27 2006-05-16 14:14:07 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.28 2006-05-17 18:01:59 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.27 $
+ * @version $Revision: 0.28 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -56,7 +56,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.27 2006-05-16 14:14:07 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.28 2006-05-17 18:01:59 cjm Exp $";
 
 /* #defines */
 /**
@@ -530,7 +530,6 @@ int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
  */
 int CCD_Setup_Shutdown(void)
 {
-	int i;
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
@@ -1393,7 +1392,7 @@ int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu)
  */
 int CCD_Setup_Get_Vacuum_Gauge_MBar(double *gauge_mbar)
 {
-	int retval,gauge_adu;
+	int gauge_adu;
 	double gauge_voltage,power_value;
 
 	Setup_Error_Number = 0;
@@ -2050,7 +2049,7 @@ static int Setup_Dimensions(int ncols,int nrows)
  */
 static int Setup_Window_List(int window_flags,struct CCD_Setup_Window_Struct window_list[])
 {
-	int i,start_window_index,end_window_index,found;
+	int start_window_index,end_window_index,found;
 	int start_x_size,start_y_size,end_x_size,end_y_size;
 
 /* check non-overlapping in y (row) directions all sub-images are same size. */
@@ -2214,6 +2213,9 @@ static int Setup_Controller_Windows(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.27  2006/05/16 14:14:07  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 0.26  2004/11/04 15:59:35  cjm
 ** Added processing of CCD_DSP_DEINTERLACE_FLIP.
 **
