@@ -19,13 +19,13 @@
 */
 /* ccd_pci.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.7 2006-05-16 14:14:06 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.8 2006-05-17 17:25:19 cjm Exp $
 */
 /**
  * ccd_pci.c will implement a specific interface that connects the SDSU CCD Controller system with a host
  * computer using a PCI interface.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 #include <stdio.h>
 #include <unistd.h>
@@ -33,6 +33,9 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
+#ifdef __linux
+#include <sys/ioctl.h>
+#endif
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/mman.h>
@@ -42,7 +45,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_pci.c,v 0.7 2006-05-16 14:14:06 cjm Exp $";
+static char rcsid[] = "$Id: ccd_pci.c,v 0.8 2006-05-17 17:25:19 cjm Exp $";
 
 /* #defines */
 /**
@@ -185,7 +188,7 @@ int CCD_PCI_Memory_UnMap(void)
 	{
 		munmap_errno = errno;
 		PCI_Error_Number = 15;
-		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap:Memory unmap failed(%p,%d,%d).",PCI_Data.Buffer,
+		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap:Memory unmap failed(%p,%d,%d).",(void *)PCI_Data.Buffer,
 			PCI_Data.Buffer_Length,munmap_errno);
 		return FALSE;
 	}
@@ -289,8 +292,6 @@ int CCD_PCI_Command_List(int request,int *argument_list,int argument_count)
  */
 int CCD_PCI_Get_Reply_Data(unsigned short **data)
 {
-	int retval,error_number;
-
 	PCI_Error_Number = 0;
 	/* if the data parameter is null we can't save anything in it ! */
 	if(data == NULL)
@@ -397,6 +398,9 @@ void CCD_PCI_Warning(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.7  2006/05/16 14:14:06  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 0.6  2002/12/16 16:49:36  cjm
 ** Removed Error routines resetting error number to zero.
 **
