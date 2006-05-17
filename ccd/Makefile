@@ -1,5 +1,5 @@
-# Makefile -*- mode: Fundamental;-*-
-# $Header: /home/cjm/cvs/frodospec/ccd/Makefile,v 1.1 2003-11-14 15:32:30 cjm Exp $ 
+# Makefile
+# $Header: /home/cjm/cvs/frodospec/ccd/Makefile,v 1.2 2006-05-17 16:42:41 cjm Exp $ 
 
 include ../Makefile.common
 
@@ -24,7 +24,7 @@ checkout:
 	done;
 
 depend:
-	@for i in c misc; \
+	@for i in c test misc; \
 	do \
 		(echo depend in $$i...; cd $$i; $(MAKE) depend);\
 	done;
@@ -57,4 +57,7 @@ backup: checkin
 
 
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2003/11/14 15:32:30  cjm
+# Initial revision
+#
 #
