@@ -19,12 +19,12 @@
 */
 /* ccd_dsp_download.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.3 2006-05-16 14:14:01 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.4 2006-05-17 17:58:56 cjm Exp $
 */
 /**
  * ccd_dsp_download.c contains the code to download DSP code to the SDSU controller.
  * @author SDSU, Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -52,7 +52,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.3 2006-05-16 14:14:01 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.4 2006-05-17 17:58:56 cjm Exp $";
 
 /* defines */
 /**
@@ -299,7 +299,7 @@ static int DSP_Download_Timing_Utility(enum CCD_DSP_BOARD_ID board_id,char *file
 		DSP_Download_Read_Line(download_fp,buff);
 		if(strncmp(buff,"_END",4) == 0)
 			finished = TRUE;
-		else if(sscanf(buff,"_DATA %c %x",&addr_type,&addr) == 2)
+		else if(sscanf(buff,"_DATA %c %x",&addr_type,(unsigned int *)&addr) == 2)
 		{
 			if(!DSP_Download_Address_Char_To_Mem_Space(addr_type,&mem_space))
 			{
@@ -350,9 +350,6 @@ static int DSP_Download_PCI_Interface(char *filename)
 	char *value_string = NULL;
 	int host_control_reg,argument,done,word_count,address,retval;
 	int word_number = 0;
-#if LOGGING > 9
-	int pci_status;
-#endif
 
 /* try to open the file */
 	if((download_fp = fopen(filename,"r")) == NULL)
@@ -455,14 +452,14 @@ static int DSP_Download_PCI_Interface(char *filename)
 #if LOGGING > 4
 			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download:Read _DATA P Line:%s.",buff);
 #endif
-			retval = sscanf(buff,"%x %x",&word_count,&address);
+			retval = sscanf(buff,"%x %x",(unsigned int *)&word_count,(unsigned int *)&address);
 			if(retval != 2)
 			{
 				DSP_Download_PCI_Finish();
 				fclose(download_fp);
 				DSP_Download_Error_Number = 17;
 				sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:"
-					"Reading line '%s' from '%s' failed.",filename);
+					"Reading line '%s' from '%s' failed.",buff,filename);
 				return FALSE;
 			}
 #if LOGGING > 4
@@ -533,7 +530,7 @@ static int DSP_Download_PCI_Interface(char *filename)
 						CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,
 							"CCD_DSP_Download:Memory Value:%s.",value_string);
 #endif
-						retval = sscanf(value_string,"%x",&argument);
+						retval = sscanf(value_string,"%x",(unsigned int *)&argument);
 						if(retval != 1)
 						{
 							DSP_Download_PCI_Finish();
@@ -745,13 +742,13 @@ static int DSP_Download_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID boa
 			/* put the byte back */
 			ungetc(c, download_fp);
 			/* read the whole word of hexadecimal data */
-			fscanf(download_fp, "%x", &value);
+			fscanf(download_fp, "%x", (unsigned int *)&value);
 			/* try writing it to a board */
 			if(!CCD_DSP_Command_WRM(board_id,mem_space,addr,value))
 			{
 				DSP_Download_Error_Number = 28;
 				sprintf(DSP_Download_Error_String,
-					"DSP_Download_Process_Data:Failed to WRM(%#x,%#x,%#x).",
+					"DSP_Download_Process_Data:Failed to WRM(%#x,%#x,%#x,%#x).",
 					board_id,mem_space,addr,value);
 				return FALSE;
 			}
@@ -763,6 +760,9 @@ static int DSP_Download_Process_Data(FILE *download_fp,enum CCD_DSP_BOARD_ID boa
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.3  2006/05/16 14:14:01  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 1.2  2002/12/16 16:49:36  cjm
 ** Removed Error routines resetting error number to zero.
 **
