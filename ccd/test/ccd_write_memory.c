@@ -18,9 +18,11 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 /* ccd_write_memory.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_write_memory.c,v 1.3 2006-05-16 18:18:20 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_write_memory.c,v 1.4 2006-11-06 16:52:49 eng Exp $
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include "ccd_dsp.h"
 #include "ccd_interface.h"
@@ -33,8 +35,8 @@
  * 	-a[ddress] &lt;address&gt; -v[alue] &lt;value&gt; -i[nterface_device] &lt;pci|text&gt; 
  * 	-t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
- * @author $Author: cjm $
- * @version $Revision: 1.3 $
+ * @author $Author: eng $
+ * @version $Revision: 1.4 $
  */
 /* hash definitions */
 /**
@@ -46,7 +48,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: ccd_write_memory.c,v 1.3 2006-05-16 18:18:20 cjm Exp $";
+static char rcsid[] = "$Id: ccd_write_memory.c,v 1.4 2006-11-06 16:52:49 eng Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -294,6 +296,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.3  2006/05/16 18:18:20  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 1.2  2002/11/07 19:18:22  cjm
 ** Changes to make library work with SDSU version 1.7 DSP code.
 **

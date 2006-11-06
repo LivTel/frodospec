@@ -17,10 +17,12 @@
     along with Ccs; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-/* test_setup_shutdown.c  -*- mode: Fundamental;-*-
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_shutdown.c,v 1.2 2006-05-16 18:18:29 cjm Exp $
+/* test_setup_shutdown.c
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_shutdown.c,v 1.3 2006-11-06 16:52:49 eng Exp $
  */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 #include "ccd_dsp.h"
 #include "ccd_dsp_download.h"
@@ -35,8 +37,8 @@
  * test_setup_shutdown -i[nterface_device] &lt;pci|text&gt; 
  * 	-t[ext_print_level] &lt;commands|replies|values|all&gt; -help
  * </pre>
- * @author $Author: cjm $
- * @version $Revision: 1.2 $
+ * @author $Author: eng $
+ * @version $Revision: 1.3 $
  */
 /* hash definitions */
 /**
@@ -48,7 +50,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_setup_shutdown.c,v 1.2 2006-05-16 18:18:29 cjm Exp $";
+static char rcsid[] = "$Id: test_setup_shutdown.c,v 1.3 2006-11-06 16:52:49 eng Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -193,6 +195,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2006/05/16 18:18:29  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 1.1  2002/11/07 19:18:22  cjm
 ** Initial revision
 **
