@@ -1,5 +1,5 @@
 // ReadOutThread.java
-// $Header: /home/cjm/cvs/frodospec/ccd/java/ReadOutThread.java,v 1.7 2003-03-26 15:52:25 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/ccd/java/ReadOutThread.java,v 1.8 2006-11-09 10:26:44 eng Exp $
 import java.lang.*;
 import java.io.*;
 
@@ -9,14 +9,14 @@ import ngat.ccd.*;
  * This class extends thread to support the readout of a CCD camera using the SDSU CCD Controller/libccd/CCDLibrary
  * in a separate thread, so that it may be aborted by the main program whilst it is underway.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 class ReadOutThread extends Thread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: ReadOutThread.java,v 1.7 2003-03-26 15:52:25 cjm Exp $");
+	public final static String RCSID = new String("$Id: ReadOutThread.java,v 1.8 2006-11-09 10:26:44 eng Exp $");
 	/**
 	 * CCDLibrary object, the library object used to interface with the SDSU CCD Controller
 	 */
@@ -69,8 +69,9 @@ class ReadOutThread extends Thread
 	}
 
 	/**
-	 * This method will terminate a partly completed Read Out. 
-	 * CCDExposureAbortReadout is called which stops the CCD reading out. 
+	 * This method will attempt to terminate a partly completed Read Out. 
+	 * CCDExposureAbort is called. This might stop the CCD Reading out, but probably not(?) - we can't
+	 * abort readout any more? 
 	 * CCDDSPGetExposureStatus is used to determine the current state of the exposure.
 	 * This causes
 	 * the <a href="#run">run</a> method to finish executing, and the 
@@ -83,8 +84,8 @@ class ReadOutThread extends Thread
 		int exposureStatus = 0;
 
 		exposureStatus = libccd.CCDExposureGetExposureStatus();
-		if(exposureStatus == libccd.CCD_EXPOSURE_STATUS_READOUT)
-			libccd.CCDExposureAbortReadout();
+		if(exposureStatus != libccd.CCD_EXPOSURE_STATUS_NONE)
+			libccd.CCDExposureAbort();
 	}
 
 	/**
@@ -102,6 +103,9 @@ class ReadOutThread extends Thread
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2003/03/26 15:52:25  cjm
+// Changed for windowing API change.
+//
 // Revision 1.6  2000/01/24 16:32:48  cjm
 // Changed so that the deprecated stop method is not called.
 //
