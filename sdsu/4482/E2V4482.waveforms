@@ -1,0 +1,343 @@
+; Waveform tables and definitions for the EEV44-82 2048 x 4096 pixel 
+;   CCD for SouthHampton, NOT AIMO, with the 250 MHz timing board, 
+;   Gen III camera.
+
+; Miscellaneous definitions
+VIDEO	EQU	$000000	; Video processor board select = 0
+CLK2	EQU	$002000	; Clock driver board select = 2 
+CLK3	EQU	$003000	; Clock driver board select = 3 
+
+; Delay numbers for clocking
+P_DELAY EQU	$8F0000	; Parallel clock delay
+R_DELAY	EQU	$000000	; Serial register transfer delay
+INT_TIM	EQU	$140000	; Dual slope integrator integration time
+S_DELAY EQU	$000000	; Serial register skipping delay
+NS_CLR	EQU	2400	; Serial clocks to clear
+NP_CLR	EQU	4800	; Parallel clocks to clear
+SH_DEL	EQU	50	; Shutter delay in milliseconds
+
+; CCD clock voltages
+RG_HI	EQU	 3.0	; Reset Gate High
+RG_LO	EQU     -9.0	; Reset Gate Low
+R_HI	EQU	 2.0	; Serial Well High
+R_LO	EQU	-8.0	; Serial Low
+SW_HI	EQU	 2.0	; Summing Well High
+SW_LO	EQU	-8.0	; Summing Well Low
+DG_HI	EQU      1.0	; Dump Gate High 
+DG_LO	EQU    -10.0	; Dump Gate Low
+P_HI	EQU	+3.0	; Parallel High
+P_LO	EQU     -8.0	; Parallel Low
+ZERO	EQU	 0.0	; Unused pins
+Vmax	EQU    +11.8	; Clock driver board rails
+
+; Output video offset parameters
+OFFSET	EQU	$7D0
+OFFSET0	EQU	OFFSET
+OFFSET1	EQU	OFFSET
+
+; DC Bias voltages
+VODL	EQU	24.0		; Output Drain Left
+VODR	EQU	24.0		; Output Drain Right
+VRDL	EQU	12.0		; Reset Drain Left
+VRDR	EQU	12.0		; Reset Drain Right			
+VOG1L	EQU     -3.0		; Output Gate #1 Left
+VOG1R	EQU     -3.0		; Output Gate #1 Right
+VOG2L	EQU	VOG1L+1		; Output Gate #2 Left
+VOG2R	EQU	VOG1R+1		; Output Gate #2 Right
+VDD	EQU	18.0		; Dump Drain
+
+; Switch state bit definitions for the CCD clocks for the EEV 42-40
+; Bit definitions for bottom half of clock driver board, CLK2
+RGL	EQU	1	; Reset Gate left, 		Pin 1
+RGR	EQU	2	; Reset Gate right 		Pin 2
+
+H1L	EQU	4	; Serial #1 left		Pin 3
+H1R	EQU	8	; Serial #1 right 		Pin 4
+H2L	EQU	$10	; Serial #2 left		Pin 5
+H2R	EQU	$20	; Serial #2 right 		Pin 6
+H3	EQU	$40	; Serial #3 left and right 	Pin 7
+SWL	EQU	$80	; Summing well left		Pin 8
+SWR	EQU	$100	; Summing well right 		Pin 9
+DG	EQU	$200	; Dump gate			Pin 10
+; Pins 11 and 12 aren't connected
+
+; Bit definitions for top half of clock driver board, CLK3
+I1	EQU	1	; Image, phase #1 		Pin 13
+I2	EQU	2	; Image, phase #2 		Pin 14
+I3	EQU	4	; Image, phase #3 		Pin 15
+; Pins 16 and beyond aren't connected
+
+;  ***  Definitions for Y: memory waveform tables  *****
+; Clock the Parallel clocks : I1->I2->I3. Store charge under I2.
+
+; Parallel clocking for a non-AIMO device
+PARALLEL
+	DC	END_PARALLEL-PARALLEL-1
+	DC	CLK2+RGL+RGR+H1L+H1R+H2L+H2R+00+000+000+00
+	DC	VIDEO+%0011000		; DC restore and reset integrator
+	DC	CLK3+P_DELAY+00+I2+I3
+	DC	CLK3+P_DELAY+00+00+I3
+	DC	CLK3+P_DELAY+I1+00+I3
+	DC	CLK3+P_DELAY+I1+00+00
+	DC	CLK3+P_DELAY+I1+I2+00
+	DC	CLK3+P_DELAY+00+I2+00
+END_PARALLEL
+
+PARALLEL_CLEAR
+	DC	END_PARALLEL_CLEAR-PARALLEL_CLEAR-1
+	DC	CLK2+RGL+RGR+H1L+H1R+H2L+H2R+00+000+000+DG
+	DC	VIDEO+%0011000		; DC restore and reset integrator
+	DC	CLK3+P_DELAY+00+I2+I3
+	DC	CLK3+P_DELAY+00+00+I3
+	DC	CLK3+P_DELAY+I1+00+I3
+	DC	CLK3+P_DELAY+I1+00+00
+	DC	CLK3+P_DELAY+I1+I2+00
+	DC	CLK3+P_DELAY+00+I2+00
+END_PARALLEL_CLEAR
+
+; Video processor bit definition
+;	     xfer, A/D, integ, Pol+, Pol-, DCrestore, rst   (1 => switch open)
+; To readout from both amps simultaneously (split serial): H1->H2->H3
+; Left amp only:  H1->H2->H3 (also both amps)	
+; Right amp only: H3->H2->H1
+
+SERIAL_IDLE	; Clock serial charge from both L and R ends
+	DC	END_SERIAL_IDLE-SERIAL_IDLE-1
+	DC	CLK2+R_DELAY+RGL+RGR+H1L+H1R+H2L+H2R+00+00+00
+	DC	VIDEO+$000000+%1110100
+	DC	CLK2+R_DELAY+RGL+RGR+000+000+H2L+H2R+00+000+000+00
+	DC	CLK2+R_DELAY+000+000+000+000+H2L+H2R+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+000+000+H3+SWL+SWR+00
+	DC 	CLK2+$020000+00+H1L+H1R+000+000+00+SWL+SWR+00
+	DC 	CLK2+$000000+00+H1L+H1R+000+000+00+SWL+SWR+00	; dup
+	DC	VIDEO+$000000+%0010111		; Stop resetting integrator
+	DC	VIDEO+INT_TIM+%0000111		; Integrate
+	DC	VIDEO+$000000+%0011011		; Stop Integrate
+	DC	CLK2+$020000+00+H1L+H1R+000+000+00+000+000+00
+	DC	VIDEO+INT_TIM+%0001011		; Integrate
+	DC	VIDEO+$000000+%0011011		; Stop, A/D is sampling
+END_SERIAL_IDLE
+
+; ******************  NEW BINNING WAVEFORM TABLES ********************
+; Waveform generating tables
+RESET_CLOCKS
+	DC	END_RESET_CLOCKS-RESET_CLOCKS-1
+	DC	VIDEO+$000000+%1110100
+	DC	CLK2+$000000+RGL+RGR+H1L+H1R+H2L+H2R+00+00+00
+END_RESET_CLOCKS
+
+VPROC	DC	END_VPROC-VPROC-1
+LAST_CK	DC	CLK2+$010000+H1L+000+000+H2R+00+SWL+SWR+00
+SXMIT	DC	$00F040
+	DC	VIDEO+$000000+%0010111		; Stop resetting integrator
+RST_INT	DC	VIDEO+INT_TIM+%0000111		; Integrate
+	DC	VIDEO+$000000+%0011011		; Stop Integrate
+CH_DUMP	DC	CLK2+$010000+00+H1L+H1R+000+000+00+00+00
+SIG_INT	DC	VIDEO+INT_TIM+%0001011		; Integrate
+	DC	VIDEO+$000000+%0011011		; Stop, A/D is sampling
+END_VPROC
+
+; *********************  Left  ******************
+FIRST_CLOCKS_LEFT
+	DC	END_FIRST_CLOCKS_LEFT-FIRST_CLOCKS_LEFT-1
+	DC	CLK2+R_DELAY+000+000+000+H1R+H2L+000+00+000+000+00
+	DC	CLK2+R_DELAY+000+000+000+H1R+H2L+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+H1L+000+000+H2R+H3+SWL+SWR+00
+END_FIRST_CLOCKS_LEFT
+
+LAST_CLOCK_LEFT	 DC	CLK2+$010000+00+H1L+000+000+H2R+00+SWL+SWR+00
+
+CLOCK_LINE_LEFT
+	DC	END_CLOCK_LINE_LEFT-CLOCK_LINE_LEFT-1
+	DC	CLK2+R_DELAY+00+H1L+000+000+H2R+00+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+H1L+H1R+H2L+H2R+00+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+000+H1R+H2L+000+00+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+000+H1R+H2L+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+H1L+000+000+H2R+H3+SWL+SWR+00
+END_CLOCK_LINE_LEFT
+
+CHARGE_DUMP_LEFT DC	CLK2+$010000+00+H1L+000+000+H2R+00+00+00
+
+; ********************** Right  ********************
+FIRST_CLOCKS_RIGHT
+	DC	END_FIRST_CLOCKS_RIGHT-FIRST_CLOCKS_RIGHT-1
+	DC	CLK2+R_DELAY+000+000+H1L+000+000+H2R+00+000+000+00
+	DC	CLK2+R_DELAY+000+000+H1L+000+000+H2R+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+000+H1R+H2L+000+H3+SWL+SWR+00
+END_FIRST_CLOCKS_RIGHT
+
+LAST_CLOCK_RIGHT DC	CLK2+$010000+00+000+H1R+H2L+000+00+SWL+SWR+00
+
+CLOCK_LINE_RIGHT
+	DC	END_CLOCK_LINE_RIGHT-CLOCK_LINE_RIGHT-1
+	DC	CLK2+R_DELAY+00+000+H1R+H2L+000+00+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+H1L+H1R+H2L+H2R+00+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+H1L+000+000+H2R+00+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+H1L+000+000+H2R+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+00+000+H1R+H2L+000+H3+SWL+SWR+00
+END_CLOCK_LINE_RIGHT
+
+CHARGE_DUMP_RIGHT DC	CLK2+$010000+00+000+H1R+H2L+000+00+00+00
+
+; ************  Left and Right = Split  ***********
+FIRST_CLOCKS_SPLIT
+	DC	END_FIRST_CLOCKS_SPLIT-FIRST_CLOCKS_SPLIT-1
+	DC	CLK2+000+000+000+000+H2L+H2R+00+000+000+00
+	DC	CLK2+000+000+000+000+H2L+H2R+H3+SWL+SWR+00
+	DC	CLK2+000+000+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+000+000+H1L+H1R+000+000+H3+SWL+SWR+00
+END_FIRST_CLOCKS_SPLIT
+
+LAST_CLOCK_SPLIT DC 	CLK2+$010000+00+H1L+H1R+000+000+00+SWL+SWR+00
+
+CLOCK_LINE_SPLIT
+	DC	END_CLOCK_LINE_SPLIT-CLOCK_LINE_SPLIT-1
+	DC	CLK2+00+H1L+H1R+000+000+00+SWL+SWR+00
+	DC	CLK2+00+H1L+H1R+H2L+H2R+00+SWL+SWR+00
+	DC	CLK2+00+000+000+H2L+H2R+00+SWL+SWR+00
+	DC	CLK2+00+000+000+H2L+H2R+H3+SWL+SWR+00
+	DC	CLK2+00+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+00+H1L+H1R+000+000+H3+SWL+SWR+00
+END_CLOCK_LINE_SPLIT
+
+CHARGE_DUMP_SPLIT DC	CLK2+$010000+00+H1L+H1R+000+000+00+00+00
+
+; ********************* END OF NEW BINNING TABLES **********************
+	
+SERIAL_SKIP_LEFT		; Serial clocking waveform for skipping left
+	DC	END_SERIAL_SKIP_LEFT-SERIAL_SKIP_LEFT-1
+	DC	CLK2+R_DELAY+RGL+000+000+H1R+H2L+000+00+000+000+00
+	DC	CLK2+R_DELAY+000+000+000+H1R+H2L+000+H3+000+000+00
+	DC	CLK2+R_DELAY+000+000+000+000+000+000+H3+SWL+000+00
+	DC	CLK2+R_DELAY+000+000+H1L+000+000+H2R+H3+SWL+000+00
+	DC	CLK2+R_DELAY+000+000+H1L+000+000+H2R+00+SWL+000+00
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+H2L+H2R+00+000+000+00
+END_SERIAL_SKIP_LEFT
+
+
+SERIAL_SKIP_RIGHT		; Serial clocking waveform for skipping right
+	DC	END_SERIAL_SKIP_RIGHT-SERIAL_SKIP_RIGHT-1
+	DC	VIDEO+$000000+%1110100	; Change nearly everything
+	DC	CLK2+R_DELAY+000+RGR+H1L+000+000+H2R+00+000+000+00
+	DC	CLK2+R_DELAY+000+000+H1L+000+000+H2R+H3+000+000+00
+	DC	CLK2+R_DELAY+000+000+000+000+000+000+H3+000+SWR+00
+	DC	CLK2+R_DELAY+000+000+000+H1R+H2L+000+H3+000+SWR+00
+	DC	CLK2+R_DELAY+000+000+000+H1R+H2L+000+00+000+SWR+00
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+H2L+H2R+00+000+000+00
+END_SERIAL_SKIP_RIGHT
+
+SERIAL_SKIP_SPLIT	; Serial clocking waveform for skipping both ends
+	DC	END_SERIAL_SKIP_SPLIT-SERIAL_SKIP_SPLIT-1
+	DC	VIDEO+$000000+%1110100	; Change nearly everything
+	DC	CLK2+R_DELAY+RGL+RGR+000+000+H2L+H2R+00+000+000+00
+	DC	CLK2+R_DELAY+000+000+000+000+H2L+H2R+H3+000+000+00
+	DC	CLK2+R_DELAY+000+000+000+000+000+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+000+000+H3+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+000+000+00+SWL+SWR+00
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+H2L+H2R+00+000+000+00
+END_SERIAL_SKIP_SPLIT
+
+SERIALS_CLEAR
+	DC	END_SERIALS_CLEAR-SERIALS_CLEAR-1
+	DC	CLK2+R_DELAY+RGL+RGR+000+000+H2L+H2R+00+000+000+00+DG
+	DC	CLK2+R_DELAY+000+000+000+000+H2L+H2R+H3+000+000+00+DG
+	DC	CLK2+R_DELAY+000+000+000+000+000+000+H3+SWL+SWR+00+DG
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+000+000+H3+SWL+SWR+00+DG
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+000+000+00+SWL+SWR+00+DG
+	DC	CLK2+R_DELAY+000+000+H1L+H1R+H2L+H2R+00+000+000+00+DG
+END_SERIALS_CLEAR
+
+; Code for ARC32 = universal clock driver board
+DACS	DC	END_DACS-DACS-1
+	DC	$2A0080					; DAC = unbuffered mode
+
+	DC	$200100+@CVI((RG_HI+Vmax)/(2*Vmax)*255)	; Pin #1, Reset Gate Left
+	DC	$200200+@CVI((RG_LO+Vmax)/(2*Vmax)*255)
+	DC	$200400+@CVI((RG_HI+Vmax)/(2*Vmax)*255)	; Pin #2, Reset Gate Right
+	DC	$200800+@CVI((RG_LO+Vmax)/(2*Vmax)*255)
+	DC	$202000+@CVI((R_HI+Vmax)/(2*Vmax)*255)	; Pin #3, Serial #1 Left
+	DC	$204000+@CVI((R_LO+Vmax)/(2*Vmax)*255)
+	DC	$208000+@CVI((R_HI+Vmax)/(2*Vmax)*255)	; Pin #4, Serial #1 Right
+	DC	$210000+@CVI((R_LO+Vmax)/(2*Vmax)*255)
+	DC	$220100+@CVI((R_HI+Vmax)/(2*Vmax)*255)	; Pin #5, Serial #2 Left
+	DC	$220200+@CVI((R_LO+Vmax)/(2*Vmax)*255)
+	DC	$220400+@CVI((R_HI+Vmax)/(2*Vmax)*255)	; Pin #6, Serial #2 Right
+	DC	$220800+@CVI((R_LO+Vmax)/(2*Vmax)*255)
+	DC	$222000+@CVI((R_HI+Vmax)/(2*Vmax)*255)	; Pin #7, Serial #3 Both
+	DC	$224000+@CVI((R_LO+Vmax)/(2*Vmax)*255)
+	DC	$228000+@CVI((SW_HI+Vmax)/(2*Vmax)*255)	; Pin #8, Summing Well, Left
+	DC	$230000+@CVI((SW_LO+Vmax)/(2*Vmax)*255)
+	DC	$240100+@CVI((SW_HI+Vmax)/(2*Vmax)*255)	; Pin #9, Summing Well, Right
+	DC	$240200+@CVI((SW_LO+Vmax)/(2*Vmax)*255)
+	DC	$240400+@CVI((DG_HI+Vmax)/(2*Vmax)*255)	; Pin #10, Dump Gate
+	DC	$240800+@CVI((DG_LO+Vmax)/(2*Vmax)*255)
+	DC	$242000+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #11, Unused
+	DC	$244000+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$248000+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #12, Unused
+	DC	$250000+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+
+	DC	$260100+@CVI((P_HI+Vmax)/(2*Vmax)*255)	; Pin #13, I1
+	DC	$260200+@CVI((P_LO+Vmax)/(2*Vmax)*255)
+	DC	$260400+@CVI((P_HI+Vmax)/(2*Vmax)*255)	; Pin #14, I2
+	DC	$260800+@CVI((P_LO+Vmax)/(2*Vmax)*255)
+	DC	$262000+@CVI((P_HI+Vmax)/(2*Vmax)*255)	; Pin #15, I3
+	DC	$264000+@CVI((P_LO+Vmax)/(2*Vmax)*255)
+	DC	$268000+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #16, Unused
+	DC	$270000+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$280100+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #17, Unused
+	DC	$280200+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$280400+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #18, Unused
+	DC	$280800+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$282000+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #19, Unused
+	DC	$284000+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$288000+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #33, Unused
+	DC	$290000+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$2A0100+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #34, Unused
+	DC	$2A0200+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$2A0400+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #35, Unused
+	DC	$2A0800+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$2A2000+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #36, Unused
+	DC	$2A4000+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+	DC	$2A8000+@CVI((ZERO+Vmax)/(2*Vmax)*255)	; Pin #37, Unused
+	DC	$2B0000+@CVI((ZERO+Vmax)/(2*Vmax)*255)
+
+; Set gain and integrator speed. (77, bb, dd, ee; low gain to high)
+;	DC	$0c3c77			; x1 Gain, slow integrate, board #0
+;	DC	$0c3f77			; Gain x1, fast integ speed, board #0
+;	DC	$0c3fbb			; Gain x2, fast integ speed, board #0
+;	DC	$0c3fdd			; Gain x4.75, fast integ speed, board #0
+;	DC	$0c3fee			; Gain x9.50, fast integ speed, board #0
+;	DC	$0c3fbb			; Gain x2, fast integ speed, board #0
+
+	DC	$0c3f77			; 77 = x1 gain
+
+; Output offset voltages
+	DC	$0c8000+OFFSET0 	; Output video offset, ch. A
+	DC	$0cc000+OFFSET1		; Output video offset, ch. B
+
+; Output and reset drain DC bias voltages
+	DC	$0d0000+@CVI((VODL-7.50)/22.5*4095)	; VODL pin #1
+	DC	$0d4000+@CVI((VODR-7.50)/22.5*4095)	; VODR pin #2
+
+	DC	$0c0000+@CVI((VRDL-5.00)/15.0*4095)	; VRDL pin #3
+	DC	$0c4000+@CVI((VRDR-5.00)/15.0*4095)	; VRDR pin #4
+
+	DC	$0d8000+@CVI((VDD-7.50)/22.5*4095)	; VDD Left pin #5
+	DC	$0dc000+@CVI((VDD-7.50)/22.5*4095)	; VDD Right pin #6
+
+; Output and anti-blooming gates
+	DC	$0e0000+@CVI((VOG1L+10.0)/20.0*4095)	; VOG1 Left pin #9
+	DC	$0e4000+@CVI((VOG1R+10.0)/20.0*4095)	; VOG1 Right pin #10
+	DC	$0e8000+@CVI((VOG2L+10.0)/20.0*4095)	; VOG2 Left pin #11
+	DC	$0ec000+@CVI((VOG2R+10.0)/20.0*4095)	; VOG2 Right pin #12
+
+END_DACS
+
+
+; Pixel table generated in "timCCD.asm"
+PXL_TBL	DC	0

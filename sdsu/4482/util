@@ -1,0 +1,74 @@
+#!/bin/sh
+#
+# This is a script for generating DSP code from the utilboot.asm and 
+#   utilappl.asm files for the utility board
+# 
+
+DOWNLOAD=HOST
+INTERFACE=PCI
+
+#  DOWNLOAD specifies whether the application code generated is to be downloaded
+#	from the host to the utility board, or from the ROM on board.
+#    = 'ROM' 
+#    = 'HOST'
+#
+#  INTERFACE specifies whether the controller is connected to the host
+#	computer via a VME interface or a PCI interface
+#    = 'VME'  for a VME bus interface
+#    = 'PCI' for a PCI interface
+#
+#    Only Revision 6 or later power control boards are supported. These
+#       have a metal, circular power connector
+
+# Fist check that all the parameters are allowed values
+if [ "$DOWNLOAD" != "ROM" ] 	
+	then
+	if [ "$DOWNLOAD" != "HOST" ]
+	   then
+	   echo "The download parameter DOWNLOAD must be either ROM or HOST."
+	   exit 0
+	fi
+fi	
+
+if [ "$INTERFACE" != "VME" ] 	
+	then
+	if [ "$INTERFACE" != "PCI" ]
+	   then
+	   echo "The download parameter INTERFACE must be either VME or PCI."
+	   exit 0
+	fi
+fi	
+
+# First check the download parameter DOWNLOAD
+	echo " "
+if [ "$DOWNLOAD" = "ROM" ] ; then
+	echo "Files named util.p0, util.p1 and util.p2 will be generated"
+	echo "   in Motorola S-record format for burning ROMs."
+fi
+if [ "$DOWNLOAD" = "HOST" ] ; then
+	echo "A file named 'util.lod' will be generated for" 
+	echo "   downloading from the host to the controller."
+fi
+
+# Then check the interface board parameter INTERFACE
+if [ "$INTERFACE" = "VME" ] ; then
+	echo "A VMEbus interface board is assumed."
+	echo " "
+fi
+if [ "$INTERFACE" = "PCI" ] ; then
+	echo "A PCI interface board is assumed."
+	echo " "
+fi
+
+asm56000 -b -lutilboot.ls utilboot.asm
+asm56000 -b -lutilappl.ls -d DOWNLOAD $DOWNLOAD -d INTERFACE $INTERFACE utilappl.asm 
+dsplnk -butil.cld -v utilboot.cln utilappl.cln
+rm util.lod
+cldlod util.cld > util.lod
+rm utilboot.cln ; rm utilappl.cln ; rm util.cld
+
+if [ "$DOWNLOAD" = "ROM" ] ; then
+	srec -mw util.lod
+	rm util.lod
+fi
+exit 0
