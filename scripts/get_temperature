@@ -1,0 +1,9 @@
+#!/bin/csh
+# $Header: /home/cjm/cvs/frodospec/scripts/get_temperature,v 1.1 2007-07-06 15:54:50 cjm Exp $
+alias test_temperature '/icc/bin/frodospec/ccd/test/i386-linux/test_temperature'
+test_temperature -i pci -get | grep 'The current temperature'
+test_temperature -i pci -heater_adus | grep 'The current heater'
+#test_temperature -i pci -heater_adus | grep 'The current heater'
+#
+# $Log: not supported by cvs2svn $
+#

@@ -1,0 +1,25 @@
+#!/bin/csh
+# $Header: /home/cjm/cvs/frodospec/scripts/simple_image,v 1.1 2007-07-06 15:54:55 cjm Exp $
+alias test_exposure '/icc/bin/frodospec/ccd/test/i386-linux/test_exposure'
+set timing_filename = '/icc/bin/frodospec/dsp/tim.lod'
+set util_filename = '/icc/bin/frodospec/dsp/util.lod'
+set temperature = '-100.0'
+set xsize = 2048
+set ysize = 4100
+if ( $#argv < 1 ) then
+	echo "simple_image <exposure_length> [<image filename>]"
+	exit 1
+else
+	set exposure_length = $1
+endif
+if ( $#argv == 2 ) then
+	set image_filename = $2
+else
+	set image_filename  = "/icc/tmp/Image-"`date +"%s"`".fits"
+endif
+echo "About to expose ${exposure_length} ms and save to ${image_filename}."
+test_exposure -i pci -timing_filename "${timing_filename}" -utility_filename "${util_filename}"  -temperature ${temperature} -xs ${xsize} -ys ${ysize} -xb 1 -yb 1 -a left -f ${image_filename} -expose ${exposure_length}
+echo "Imaged saved to ${image_filename}."
+#
+# $Log: not supported by cvs2svn $
+#
