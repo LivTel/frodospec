@@ -14,7 +14,8 @@ INT_TIM	EQU	$140000	; Dual slope integrator integration time
 S_DELAY EQU	$000000	; Serial register skipping delay
 NS_CLR	EQU	2400	; Serial clocks to clear
 NP_CLR	EQU	4800	; Parallel clocks to clear
-SH_DEL	EQU	50	; Shutter delay in milliseconds
+; Original shutter delay was 50msec - led to ghosting
+SH_DEL	EQU	1000	; Shutter delay in milliseconds
 
 ; CCD clock voltages
 RG_HI	EQU	 3.0	; Reset Gate High
