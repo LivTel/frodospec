@@ -1,0 +1,13 @@
+#!/bin/csh
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_log_remove_dsp,v 1.1 2007-07-23 10:42:28 cjm Exp $
+# Print out ccs log without some low level DSP data
+if ( $#argv < 1) then
+	echo "frodospec_log_remove_dsp <log filename> [<log filename> ...]"
+	exit 1
+endif
+foreach filename ( $argv )
+    cat $filename | grep -v 'SET_ARG' | grep -v 'COMMAND:' | grep -v 'CHECK_REPLY:' | grep -v 'CCD_DSP_Command_WRM('
+end
+#
+# $Log: not supported by cvs2svn $
+#
