@@ -1,0 +1,31 @@
+#!/bin/csh
+# $Header: /home/cjm/cvs/frodospec/scripts/arc_lamp,v 1.1 2008-10-21 14:36:11 cjm Exp $
+# Switch the temporary comissioning Arc lamp on or off
+# arc_lamp <on | off>
+if ( $#argv < 1 ) then
+	echo "arc_lamp <on|off>"
+	exit 1
+endif
+set onoff = $1
+if ( "${onoff}" == "on" ) then
+	set truefalse = "true"
+else if ( "${onoff}" == "off" ) then
+	set truefalse = "false"
+else
+	echo "arc_lamp <on|off>"
+	exit 1
+endif
+if( -x /icc/bin/eip/test/i386-linux/eip_test_write_boolean ) then
+	alias write_boolean '/icc/bin/eip/test/i386-linux/eip_test_write_boolean'
+else
+	echo "Failed to find eip_test_write_boolean."
+	exit 1
+endif
+# configuration
+set hostname = "frodospecplc"
+# temporary comissioning arc lamp is wired to "power to light source"
+set address = "N10:0/12"
+write_boolean -ip ${hostname} -a ${address} -v ${truefalse}
+#
+# $Log: not supported by cvs2svn $
+#
