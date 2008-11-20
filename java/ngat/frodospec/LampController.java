@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.2 2008-11-20 17:30:58 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.2 2008-11-20 17:30:58 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -223,7 +223,10 @@ public class LampController
 				else
 				{
 					// wait until lamp in use is lampsString or inUseCount is zero
-					while((inUseLamps.equals(lampsString) == false) && (inUseCount > 0))
+					// use short circuit evaluation here, if lock is released whilst this
+					// thread is in wait inUseLamps can become null, but then inUseCount
+					// _must_ be zero
+					while((inUseCount > 0) && (inUseLamps.equals(lampsString) == false))
 					{
 						logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_MULTRUN,
 							   this.getClass().getName()+
@@ -318,4 +321,7 @@ public class LampController
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
