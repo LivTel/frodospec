@@ -1,24 +1,5 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* test_setup_dimensions.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_dimensions.c,v 1.4 2006-11-06 16:52:49 eng Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_dimensions.c,v 1.5 2008-11-20 11:34:58 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +8,7 @@
 #include "ccd_dsp.h"
 #include "ccd_dsp_download.h"
 #include "ccd_interface.h"
+#include "ccd_pci.h"
 #include "ccd_text.h"
 #include "ccd_temperature.h"
 #include "ccd_setup.h"
@@ -41,8 +23,8 @@
  * 	[-w[indow] &lt;no&gt; &lt;xstart&gt; &lt;ystart&gt; &lt;xend&gt; &lt;yend&gt;]
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
- * @author $Author: eng $
- * @version $Revision: 1.4 $
+ * @author $Author: cjm $
+ * @version $Revision: 1.5 $
  */
 /* hash definitions */
 /**
@@ -70,7 +52,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_setup_dimensions.c,v 1.4 2006-11-06 16:52:49 eng Exp $";
+static char rcsid[] = "$Id: test_setup_dimensions.c,v 1.5 2008-11-20 11:34:58 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -136,6 +118,8 @@ static void Help(void);
  */
 int main(int argc, char *argv[])
 {
+	CCD_Interface_Handle_T *handle = NULL;
+	char device_pathname[256];
 	int retval;
 	int value,bit_value;
 
@@ -146,11 +130,23 @@ int main(int argc, char *argv[])
 /* set text/interface options */
 	CCD_Text_Set_Print_Level(Text_Print_Level);
 	fprintf(stdout,"Initialise Controller:Using device %d.\n",Interface_Device);
-	CCD_Global_Initialise(Interface_Device);
+	CCD_Global_Initialise();
 	CCD_Global_Set_Log_Handler_Function(CCD_Global_Log_Handler_Stdout);
 /* open SDSU connection */
 	fprintf(stdout,"Opening SDSU device.\n");
-	retval = CCD_Interface_Open();
+	switch(Interface_Device)
+	{
+		case CCD_INTERFACE_DEVICE_PCI:
+			strcpy(device_pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
+			break;
+		case CCD_INTERFACE_DEVICE_TEXT:
+			strcpy(device_pathname,"frodospec_ccd_test_setup_dimensions.txt");
+			break;
+		default:
+			fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
+			break;
+	}
+	retval = CCD_Interface_Open(Interface_Device,device_pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -163,7 +159,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Binning:(%d,%d)\n",Bin_X,Bin_Y);
 	fprintf(stdout,"Amplifier:%d:De-Interlace:%d\n",Amplifier,DeInterlace_Type);
 	fprintf(stdout,"Window Flags:%d\n",Window_Flags);
-	if(!CCD_Setup_Dimensions(Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,DeInterlace_Type,Window_Flags,Window_List))
+	if(!CCD_Setup_Dimensions(handle,Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,DeInterlace_Type,Window_Flags,Window_List))
 	{
 		CCD_Global_Error();
 		return 3;
@@ -171,7 +167,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"CCD_Setup_Dimensions completed\n");
 /* close interface to SDSU controller */
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close();
+	CCD_Interface_Close(&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return 0;
 }
@@ -465,6 +461,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2006/11/06 16:52:49  eng
+** Added includes to fix implicit function declarations.
+**
 ** Revision 1.3  2006/05/16 18:18:29  cjm
 ** gnuify: Added GNU General Public License.
 **

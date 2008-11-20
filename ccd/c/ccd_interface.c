@@ -1,49 +1,36 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_interface.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.6 2006-05-16 14:14:05 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.7 2008-11-20 11:34:46 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.6 $
+ * @version $Revision: 0.7 $
  */
-#include <stdio.h>
-#include <string.h>
-#include <fcntl.h>
-#include <signal.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include "ccd_exposure.h"
 #include "ccd_global.h"
 #include "ccd_interface.h"
 #include "ccd_text.h"
 #include "ccd_pci.h"
+#include "ccd_setup.h"
+#include "ccd_interface_private.h"
 
+/* internal structures */
+/* internal variables */
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.6 2006-05-16 14:14:05 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.7 2008-11-20 11:34:46 cjm Exp $";
 
 /* external variables */
 
@@ -56,87 +43,89 @@ static int Interface_Error_Number = 0;
  * Local variable holding description of the last error that occured.
  */
 static char Interface_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
-/**
- * The current device the interface is talking to. One of 
- * <a href="#CCD_INTERFACE_DEVICE_ID">CCD_INTERFACE_DEVICE_ID</a>:
- * CCD_INTERFACE_DEVICE_NONE,
- * CCD_INTERFACE_DEVICE_TEXT or
- * CCD_INTERFACE_DEVICE_PCI.
- * @see #CCD_INTERFACE_DEVICE_ID
- */
-static enum CCD_INTERFACE_DEVICE_ID Interface_Current_Device = CCD_INTERFACE_DEVICE_NONE;
 
 /* external functions */
 /**
- * This routine sets which device the library is going to talk to.
- * @param device_number The device the library will talk to. One of
- * <a href="#CCD_INTERFACE_DEVICE_ID">CCD_INTERFACE_DEVICE_ID</a>:
- * CCD_INTERFACE_DEVICE_NONE,
- * CCD_INTERFACE_DEVICE_TEXT or
- * CCD_INTERFACE_DEVICE_PCI.
- * @return Returns whether the device number could be set as the current device i.e. The device number
- * 	is a legal device number.
- * @see #CCD_INTERFACE_DEVICE_ID
- */
-int CCD_Interface_Set_Device(enum CCD_INTERFACE_DEVICE_ID device_number)
-{
-	Interface_Error_Number = 0;
-	/* ensure the device number is legal */
-	if(!CCD_INTERFACE_IS_INTERFACE_DEVICE(device_number))
-	{
-		Interface_Error_Number = 1;
-		sprintf(Interface_Error_String,"CCD_Interface_Set_Device:Illegal device '%d'.",
-			device_number);
-		return FALSE;
-	}
-	Interface_Current_Device = device_number;
-	return TRUE;
-}
-
-/**
- * This routine calls the setup routine for the device the library is currently using.
+ * This routine calls the setup routine for the device type implementors.
  * @see ccd_text.html#CCD_Text_Initialise
  * @see ccd_pci.html#CCD_PCI_Initialise
  */
 void CCD_Interface_Initialise(void)
 {
 	Interface_Error_Number = 0;
-	/* call the device specific setup routine */
-	switch(Interface_Current_Device)
-	{
-		case CCD_INTERFACE_DEVICE_TEXT:
-			CCD_Text_Initialise();
-			break;
-		case CCD_INTERFACE_DEVICE_PCI:
-			CCD_PCI_Initialise();
-			break;
-		default:
-			Interface_Error_Number = 2;
-			sprintf(Interface_Error_String,"CCD_Interface_Initialise failed:No device selected.");
-			CCD_Interface_Error();
-			break;
-	}
+	CCD_Text_Initialise();
+	CCD_PCI_Initialise();
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_Interface_Initialise:%s.\n",rcsid);
 }
 
 /**
  * This routine opens the interface for the device the library is currently using.
+ * @param device_number The device the library will talk to. One of
+ * <a href="#CCD_INTERFACE_DEVICE_ID">CCD_INTERFACE_DEVICE_ID</a>:
+ * CCD_INTERFACE_DEVICE_NONE,
+ * CCD_INTERFACE_DEVICE_TEXT or
+ * CCD_INTERFACE_DEVICE_PCI.
+ * @param device_pathname The pathname of the device we are trying to talk to.
+ * @param handle The address of a pointer to a CCD_Interface_Handle_T to 
+ *  store the device connection specific information into.
  * @return The routine returns the return value from the open routine it called. This will normally be TRUE
  * 	if the device was successfully opened, or FALSE if it failed in some way.
+ * @see #CCD_INTERFACE_DEVICE_ID
+ * @see #CCD_Interface_Handle_T
+ * @see ccd_exposure.html#CCD_Exposure_Data_Initialise
  * @see ccd_text.html#CCD_Text_Open
  * @see ccd_pci.html#CCD_PCI_Open
+ * @see ccd_setup.html#CCD_Setup_Data_Initialise
  */
-int CCD_Interface_Open(void)
+int CCD_Interface_Open(enum CCD_INTERFACE_DEVICE_ID device_number,char *device_pathname,
+			      CCD_Interface_Handle_T **handle)
 {
 	Interface_Error_Number = 0;
+	/* check arguments */
+	if(!CCD_INTERFACE_IS_INTERFACE_DEVICE(device_number))
+	{
+		Interface_Error_Number = 1;
+		sprintf(Interface_Error_String,"CCD_Interface_Open:Illegal device '%d'.",
+			device_number);
+		return FALSE;
+	}
+	if(device_pathname == NULL)
+	{
+		Interface_Error_Number = 2;
+		sprintf(Interface_Error_String,"CCD_Interface_Open:device_pathname was NULL.");
+		return FALSE;
+	}
+	if(handle == NULL)
+	{
+		Interface_Error_Number = 10;
+		sprintf(Interface_Error_String,"CCD_Interface_Open:handle was NULL.");
+		return FALSE;
+	}
+	/* allocate handle */
+	(*handle) = (CCD_Interface_Handle_T *)malloc(sizeof(CCD_Interface_Handle_T));
+	if((*handle) == NULL)
+	{
+		Interface_Error_Number = 17;
+		sprintf(Interface_Error_String,"CCD_Interface_Open:Failed to allocate handle.");
+		return FALSE;
+	}
+	/* set the device type */
+	(*handle)->Interface_Device = device_number;
+	/* initialise setup and exposure data */
+	CCD_Exposure_Data_Initialise((*handle));
+        CCD_Setup_Data_Initialise((*handle));
+#if LOGGING > 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_INTERFACE,"CCD_Interface_Open() %s of type %d using handle %p.",
+			      device_pathname,device_number,(*handle));
+#endif
 	/* call the device specific open routine */
-	switch(Interface_Current_Device)
+	switch((*handle)->Interface_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Open();
+			return CCD_Text_Open(device_pathname,(*handle));
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Open();
+			return CCD_PCI_Open(device_pathname,(*handle));
 		default:
 			Interface_Error_Number = 3;
 			sprintf(Interface_Error_String,"CCD_Interface_Open failed:No device selected.");
@@ -146,49 +135,69 @@ int CCD_Interface_Open(void)
 
 /**
  * This routine sorts out the memory mapping, or emulation, for the specified interface.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param buffer_size The size of the buffer, in bytes.
  * @return The routine returns TRUE if the operation was successfully completed, 
  *         or FALSE if it failed in some way.
+ * @see #CCD_Interface_Handle_T
  * @see ccd_text.html#CCD_Text_Memory_Map
  * @see ccd_pci.html#CCD_PCI_Memory_Map
  */
-int CCD_Interface_Memory_Map(int buffer_size)
+int CCD_Interface_Memory_Map(CCD_Interface_Handle_T *handle,int buffer_size)
 {
 	Interface_Error_Number = 0;
+	/* check parameters */
+	if(handle == NULL)
+	{
+		Interface_Error_Number = 11;
+		sprintf(Interface_Error_String,"CCD_Interface_Memory_Map:handle was NULL.");
+		return FALSE;
+	}
 	/* call the device specific open routine */
-	switch(Interface_Current_Device)
+	switch(handle->Interface_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Memory_Map(buffer_size);
+			return CCD_Text_Memory_Map(handle,buffer_size);
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Memory_Map(buffer_size);
+			return CCD_PCI_Memory_Map(handle,buffer_size);
 		default:
 			Interface_Error_Number = 8;
-			sprintf(Interface_Error_String,"CCD_Interface_Memory_Map failed:No device selected.");
+			sprintf(Interface_Error_String,"CCD_Interface_Memory_Map failed:No device selected(%p,%d).",
+				(void*)handle,handle->Interface_Device);
 			return FALSE;
 	}
 }
 
 /**
  * This routine frees the memory mapping, or emulation, for the specified interface.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @return The routine returns TRUE if the operation was successfully completed, 
  *         or FALSE if it failed in some way.
+ * @see #CCD_Interface_Handle_T
  * @see ccd_text.html#CCD_Text_Memory_UnMap
  * @see ccd_pci.html#CCD_PCI_Memory_UnMap
  */
-int CCD_Interface_Memory_UnMap(void)
+int CCD_Interface_Memory_UnMap(CCD_Interface_Handle_T *handle)
 {
 	Interface_Error_Number = 0;
+	/* check parameters */
+	if(handle == NULL)
+	{
+		Interface_Error_Number = 12;
+		sprintf(Interface_Error_String,"CCD_Interface_Memory_UnMap:handle was NULL.");
+		return FALSE;
+	}
 	/* call the device specific open routine */
-	switch(Interface_Current_Device)
+	switch(handle->Interface_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Memory_UnMap();
+			return CCD_Text_Memory_UnMap(handle);
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Memory_UnMap();
+			return CCD_PCI_Memory_UnMap(handle);
 		default:
 			Interface_Error_Number = 9;
-			sprintf(Interface_Error_String,"CCD_Interface_Memory_UnMap failed:No device selected.");
+			sprintf(Interface_Error_String,"CCD_Interface_Memory_UnMap failed:No device selected(%p,%d).",
+				(void*)handle,handle->Interface_Device);
 			return FALSE;
 	}
 }
@@ -196,28 +205,38 @@ int CCD_Interface_Memory_UnMap(void)
 /**
  * This routine sends a request to the device the library is currently using. It is usually called from
  * <a href="ccd_dsp.html#DSP_Send_Command">DSP_Send_Command</a>.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param request The request number sent to the device.
  * @param argument The address of the data to send as a parameter to the request. Upon a successfull return from
  * 	the routine, the return value from the DSP code may be in the argument.
  * @return The routine returns the return value from the command routine it called. This will normally be TRUE
  * 	if the request was sent correctly, or FALSE if it failed in some way.
+ * @see #CCD_Interface_Handle_T
  * @see ccd_text.html#CCD_Text_Command
  * @see ccd_pci.html#CCD_PCI_Command
  * @see ccd_dsp.html#DSP_Send_Command
  */
-int CCD_Interface_Command(int request,int *argument)
+int CCD_Interface_Command(CCD_Interface_Handle_T *handle,int request,int *argument)
 {
 	Interface_Error_Number = 0;
+	/* check parameters */
+	if(handle == NULL)
+	{
+		Interface_Error_Number = 13;
+		sprintf(Interface_Error_String,"CCD_Interface_Command:handle was NULL.");
+		return FALSE;
+	}
 	/* call the device specific command routine */
-	switch(Interface_Current_Device)
+	switch(handle->Interface_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Command(request,argument);
+			return CCD_Text_Command(handle,request,argument);
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Command(request,argument);
+			return CCD_PCI_Command(handle,request,argument);
 		default:
 			Interface_Error_Number = 4;
-			sprintf(Interface_Error_String,"CCD_Interface_Command failed:No device selected.");
+			sprintf(Interface_Error_String,"CCD_Interface_Command failed:No device selected(%p,%d).",
+				(void*)handle,handle->Interface_Device);
 			return FALSE;
 	}
 }
@@ -225,80 +244,128 @@ int CCD_Interface_Command(int request,int *argument)
 /**
  * This routine sends a request to the device the library is currently using. It is usually called from
  * <a href="ccd_dsp.html#DSP_Send_Command">DSP_Send_Command</a>.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param request The ioctl request number sent to the device.
  * @param argument_list A list of arguments to send as a parameter to the request. Upon a successfull return from
  * 	the routine, the return value from the DSP code may be in the argument list.
  * @param argument_count The number of arguments in argument_list.
  * @return The routine returns the return value from the command routine it called. This will normally be TRUE
  * 	if the request was sent correctly, or FALSE if it failed in some way.
+ * @see #CCD_Interface_Handle_T
  * @see ccd_text.html#CCD_Text_Command_List
  * @see ccd_pci.html#CCD_PCI_Command_List
  * @see ccd_dsp.html#DSP_Send_Command
  */
-int CCD_Interface_Command_List(int request,int *argument_list,int argument_count)
+int CCD_Interface_Command_List(CCD_Interface_Handle_T *handle,int request,int *argument_list,int argument_count)
 {
 	Interface_Error_Number = 0;
+	/* check parameters */
+	if(handle == NULL)
+	{
+		Interface_Error_Number = 14;
+		sprintf(Interface_Error_String,"CCD_Interface_Command_List:handle was NULL.");
+		return FALSE;
+	}
 	/* call the device specific command routine */
-	switch(Interface_Current_Device)
+	switch(handle->Interface_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Command_List(request,argument_list,argument_count);
+			return CCD_Text_Command_List(handle,request,argument_list,argument_count);
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Command_List(request,argument_list,argument_count);
+			return CCD_PCI_Command_List(handle,request,argument_list,argument_count);
 		default:
 			Interface_Error_Number = 5;
-			sprintf(Interface_Error_String,"CCD_Interface_Command_List failed:No device selected.");
+			sprintf(Interface_Error_String,"CCD_Interface_Command_List failed:No device selected(%p,%d).",
+				(void*)handle,handle->Interface_Device);
 			return FALSE;
 	}
 }
 
 /**
  * This routine gets reply data from the device the library is currently using. 
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param data The address of an unsigned short pointer, which on return from this routine will point to
  *        an area of memory containing the read out CCD image.
  * @return The routine returns TRUE on success, and FALSE if a failure occured.
+ * @see #CCD_Interface_Handle_T
  * @see ccd_text.html#CCD_Text_Get_Reply_Data
  * @see ccd_pci.html#CCD_PCI_Get_Reply_Data
  */
-int CCD_Interface_Get_Reply_Data(unsigned short **data)
+int CCD_Interface_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short **data)
 {
 	Interface_Error_Number = 0;
+	/* check parameters */
+	if(handle == NULL)
+	{
+		Interface_Error_Number = 15;
+		sprintf(Interface_Error_String,"CCD_Interface_Get_Reply_Data:handle was NULL.");
+		return FALSE;
+	}
 	/* call the device specific get reply data routine */
-	switch(Interface_Current_Device)
+	switch(handle->Interface_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Get_Reply_Data(data);
+			return CCD_Text_Get_Reply_Data(handle,data);
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Get_Reply_Data(data);
+			return CCD_PCI_Get_Reply_Data(handle,data);
 		default:
 			Interface_Error_Number = 6;
-			sprintf(Interface_Error_String,"CCD_Interface_Get_Reply_Data failed:No device selected.");
+			sprintf(Interface_Error_String,
+				"CCD_Interface_Get_Reply_Data failed:No device selected(%p,%d).",
+				(void*)handle,handle->Interface_Device);
 			return FALSE;
 	}
 }
 
 /**
  * This routine closes the interface for the device the library is currently using.
+ * @param handle The address of a pointer to a CCD_Interface_Handle_T to 
+ *      store the device connection specific information into.
  * @return The routine returns the return value from the close routine it called. This will normally be TRUE
  * 	if the device was successfully closed, or FALSE if it failed in some way.
+ * @see #CCD_Interface_Handle_T
  * @see ccd_text.html#CCD_Text_Close
  * @see ccd_pci.html#CCD_PCI_Close
  */
-int CCD_Interface_Close(void)
+int CCD_Interface_Close(CCD_Interface_Handle_T **handle)
 {
 	Interface_Error_Number = 0;
+	/* check parameters */
+	if(handle == NULL)
+	{
+		Interface_Error_Number = 16;
+		sprintf(Interface_Error_String,"CCD_Interface_Close:handle was NULL.");
+		return FALSE;
+	}
+	if((*handle) == NULL)
+	{
+		Interface_Error_Number = 18;
+		sprintf(Interface_Error_String,"CCD_Interface_Close:handle points to NULL.");
+		return FALSE;
+	}
 	/* call the device specific close routine */
-	switch(Interface_Current_Device)
+	switch((*handle)->Interface_Device)
 	{
 		case CCD_INTERFACE_DEVICE_TEXT:
-			return CCD_Text_Close();
+			if(!CCD_Text_Close((*handle)))
+				return FALSE;
 		case CCD_INTERFACE_DEVICE_PCI:
-			return CCD_PCI_Close();
+			if(!CCD_PCI_Close((*handle)))
+				return FALSE;
 		default:
 			Interface_Error_Number = 7;
-			sprintf(Interface_Error_String,"CCD_Interface_Close failed:No device selected.");
+			sprintf(Interface_Error_String,"CCD_Interface_Close failed:No device selected(%p,%d).",
+				(void*)(*handle),(*handle)->Interface_Device);
 			return FALSE;
 	}
+#if LOGGING > 1
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_INTERFACE,"CCD_Interface_Close(): Closing handle %p of type %d.",
+			      (*handle),(*handle)->Interface_Device);
+#endif
+	/* free alocated handle */
+	free((*handle));
+	(*handle) = NULL;
+	return TRUE;
 }
 
 /**
@@ -351,6 +418,9 @@ void CCD_Interface_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.6  2006/05/16 14:14:05  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 0.5  2002/12/16 16:49:36  cjm
 ** Removed Error routines resetting error number to zero.
 **

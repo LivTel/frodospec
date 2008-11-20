@@ -1,38 +1,20 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_pci.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.8 2006-05-17 17:25:19 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_pci.c,v 0.9 2008-11-20 11:34:46 cjm Exp $
 */
 /**
  * ccd_pci.c will implement a specific interface that connects the SDSU CCD Controller system with a host
  * computer using a PCI interface.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
-#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #ifdef __linux
 #include <sys/ioctl.h>
 #endif
@@ -41,11 +23,13 @@
 #include <sys/mman.h>
 #include "ccd_global.h"
 #include "ccd_pci.h"
+#include "ccd_text.h"
+#include "ccd_interface_private.h"
 
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_pci.c,v 0.8 2006-05-17 17:25:19 cjm Exp $";
+static char rcsid[] = "$Id: ccd_pci.c,v 0.9 2008-11-20 11:34:46 cjm Exp $";
 
 /* #defines */
 /**
@@ -55,25 +39,23 @@ static char rcsid[] = "$Id: ccd_pci.c,v 0.8 2006-05-17 17:25:19 cjm Exp $";
 
 /* structures */
 /**
- * Internal Data type needed by the device. PCI_Dev0 and PCI_Dev1 hold the names of the two devices
+ * Internal Data type needed by the device. PCI_Dev holds the name of the device
  * the device driver can connect to, and PCI_Fd is the opened file descriptor for the connected device.
  * <dl>
- * <dt>PCI_Dev0</dt> <dd>The first PCI device name, a string of length PCI_MAX_DEV_SIZE.</dd>
- * <dt>PCI_Dev1</dt> <dd>The second PCI device name, a string of length PCI_MAX_DEV_SIZE.</dd>
+ * <dt>PCI_Dev</dt> <dd>The PCI device name, a string of length PCI_MAX_DEV_SIZE.</dd>
  * <dt>PCI_Fd</dt> <dd>The file descriptor, used for communication with the SDSU device driver.</dd>
  * <dt>Buffer</dt> <dd>Pointer to a memory buffer used for image storage.</dd>
  * <dt>Buffer_Length</dt> <dd>The allocated size of Buffer, in bytes.</dd>
  * </dl>
  * @see #PCI_MAX_DEV_SIZE
  */
-typedef struct PCI_Attr_Struct
+struct CCD_PCI_Handle_Struct 
 {
-	char PCI_Dev0[PCI_MAX_DEV_SIZE+1];
-	char PCI_Dev1[PCI_MAX_DEV_SIZE+1];
+	char PCI_Dev[PCI_MAX_DEV_SIZE+1];
 	int PCI_Fd;
 	unsigned short *Buffer;
 	int Buffer_Length;
-} PCI_ATTR_T;
+};
 
 /* external variables */
 
@@ -86,10 +68,6 @@ static int PCI_Error_Number = 0;
  * Local variable holding description of the last error that occured.
  */
 static char PCI_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
-/**
- * Local variable holding data used to communicate with the interface.
- */
-static PCI_ATTR_T PCI_Data;
 
 /* external functions */
 /**
@@ -100,33 +78,63 @@ static PCI_ATTR_T PCI_Data;
 void CCD_PCI_Initialise(void)
 {
 	PCI_Error_Number = 0;
-	strcpy(PCI_Data.PCI_Dev0,CCD_PCI_DEFAULT_DEVICE_ZERO);
-	strcpy(PCI_Data.PCI_Dev1,CCD_PCI_DEFAULT_DEVICE_ONE);
-	PCI_Data.PCI_Fd = 0;
-	PCI_Data.Buffer = NULL;
-	PCI_Data.Buffer_Length = 0;
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_PCI_Initialise:%s.\n",rcsid);
 }
 
 /**
  * This routine will open the device so that commands and replies can be sent and received across the
- * connection. Trys to open the first device only.
+ * connection. 
+ * @param device_pathname The pathname of the device we are trying to talk to.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @return Returns TRUE if a device can be opened, otherwise it returns FALSE.
  * @see ccd_interface.html#CCD_Interface_Open
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_PCI_Open(void)
+int CCD_PCI_Open(char *device_pathname,CCD_Interface_Handle_T *handle)
 {
 	int error_number;
 
 	PCI_Error_Number = 0;
-	/* try to open the first device */
-	if((PCI_Data.PCI_Fd = open(PCI_Data.PCI_Dev0,O_RDWR))==-1)
+	/* test parameters */
+	if(device_pathname == NULL)
+	{
+		PCI_Error_Number = 7;
+		sprintf(PCI_Error_String,"CCD_PCI_Open:device_pathname was NULL.");
+		return FALSE;
+	}
+	if(handle == NULL)
+	{
+		PCI_Error_Number = 16;
+		sprintf(PCI_Error_String,"CCD_PCI_Open:handle was NULL.");
+		return FALSE;
+	}
+	if(strlen(device_pathname) > PCI_MAX_DEV_SIZE)
+	{
+		PCI_Error_Number = 17;
+		sprintf(PCI_Error_String,"CCD_PCI_Open:device_pathname was too long:%d.",strlen(device_pathname));
+		return FALSE;
+	}
+	/* Allocate PCI block */
+	handle->Handle.PCI = (struct CCD_PCI_Handle_Struct *)malloc(sizeof(struct CCD_PCI_Handle_Struct));
+	if(handle->Handle.PCI == NULL)
+	{
+		PCI_Error_Number = 18;
+		sprintf(PCI_Error_String,"CCD_PCI_Open:Failed to allocate memory.");
+		return FALSE;
+	}
+	/* try to open the device */
+	strcpy(handle->Handle.PCI->PCI_Dev,device_pathname);
+	handle->Handle.PCI->PCI_Fd = 0;
+	handle->Handle.PCI->Buffer = NULL;
+	handle->Handle.PCI->Buffer_Length = 0;
+	if((handle->Handle.PCI->PCI_Fd = open(handle->Handle.PCI->PCI_Dev,O_RDWR))==-1)
 	{
 		error_number = errno;
 		PCI_Error_Number = 1;
 		sprintf(PCI_Error_String,"CCD_PCI_Open:failed(%d,%s).",
-			error_number,PCI_Data.PCI_Dev0);
+			error_number,handle->Handle.PCI->PCI_Dev);
+		free(handle->Handle.PCI);
 		return FALSE;
 	}
 	return TRUE;
@@ -134,35 +142,48 @@ int CCD_PCI_Open(void)
 
 /**
  * Routine to create a memory map for image download.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param buffer_size The size of the buffer, in bytes.
  * @return Return TRUE if buffer initialisation is successful, FALSE if it wasn't.
- * @see #PCI_Data
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_PCI_Memory_Map(int buffer_size)
+int CCD_PCI_Memory_Map(CCD_Interface_Handle_T *handle,int buffer_size)
 {
 	int mmap_errno;
 
+	if(handle == NULL)
+	{
+		PCI_Error_Number = 19;
+		sprintf(PCI_Error_String,"CCD_PCI_Memory_Map failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.PCI == NULL)
+	{
+		PCI_Error_Number = 20;
+		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap failed:handle PCI pointer was NULL.");
+		return FALSE;
+	}
 	if(buffer_size <= 0)
 	{
 		PCI_Error_Number = 12;
 		sprintf(PCI_Error_String,"CCD_PCI_Memory_Map failed:Illegal buffer size %d.",buffer_size);
 		return FALSE;
 	}
-	if(PCI_Data.PCI_Fd == NULL)
+	if(handle->Handle.PCI->PCI_Fd == 0)
 	{
 		PCI_Error_Number = 13;
 		sprintf(PCI_Error_String,"CCD_PCI_Memory_Map failed:PCI file descriptor was NULL.");
 		return FALSE;
 	}
-	PCI_Data.Buffer_Length = buffer_size;
-	PCI_Data.Buffer = (unsigned short *)mmap(0,PCI_Data.Buffer_Length,(PROT_READ|PROT_WRITE),MAP_SHARED,
-						    PCI_Data.PCI_Fd,0);
-	if(PCI_Data.Buffer == MAP_FAILED)
+	handle->Handle.PCI->Buffer_Length = buffer_size;
+	handle->Handle.PCI->Buffer = (unsigned short *)mmap(0,handle->Handle.PCI->Buffer_Length,(PROT_READ|PROT_WRITE),MAP_SHARED,
+						    handle->Handle.PCI->PCI_Fd,0);
+	if(handle->Handle.PCI->Buffer == MAP_FAILED)
 	{
 		mmap_errno = errno;
 		PCI_Error_Number = 6;
 		sprintf(PCI_Error_String,"CCD_PCI_Memory_Map:Memory map failed(%d,%d:%s).",
-			PCI_Data.Buffer_Length,mmap_errno,strerror(mmap_errno));
+			handle->Handle.PCI->Buffer_Length,mmap_errno,strerror(mmap_errno));
 		return FALSE;
 	}
 	return TRUE;
@@ -170,46 +191,75 @@ int CCD_PCI_Memory_Map(int buffer_size)
 
 /**
  * Routine to unmap the memory map used for image download.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @return Return TRUE if the operation was successful, FALSE if it wasn't.
- * @see #PCI_Data
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_PCI_Memory_UnMap(void)
+int CCD_PCI_Memory_UnMap(CCD_Interface_Handle_T *handle)
 {
 	int retval,munmap_errno;
 
-	if(PCI_Data.Buffer == NULL)
+	if(handle == NULL)
 	{
-		PCI_Error_Number = 14;
-		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap failed:Buffer was NULL (%d).",PCI_Data.Buffer_Length);
+		PCI_Error_Number = 21;
+		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap failed:handle was NULL.");
 		return FALSE;
 	}
-	retval = munmap((void *)PCI_Data.Buffer,PCI_Data.Buffer_Length);
+	if(handle->Handle.PCI == NULL)
+	{
+		PCI_Error_Number = 22;
+		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap failed:handle PCI pointer was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.PCI->Buffer == NULL)
+	{
+		PCI_Error_Number = 14;
+		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap failed:Buffer was NULL (%d).",
+			handle->Handle.PCI->Buffer_Length);
+		return FALSE;
+	}
+	retval = munmap((void *)handle->Handle.PCI->Buffer,handle->Handle.PCI->Buffer_Length);
 	if(retval < 0)
 	{
 		munmap_errno = errno;
 		PCI_Error_Number = 15;
-		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap:Memory unmap failed(%p,%d,%d).",(void *)PCI_Data.Buffer,
-			PCI_Data.Buffer_Length,munmap_errno);
+		sprintf(PCI_Error_String,"CCD_PCI_Memory_UnMap:Memory unmap failed(%p,%d,%d).",
+			(void *)(handle->Handle.PCI->Buffer),
+			handle->Handle.PCI->Buffer_Length,munmap_errno);
 		return FALSE;
 	}
-	PCI_Data.Buffer = NULL;
-	PCI_Data.Buffer_Length = 0;
+	handle->Handle.PCI->Buffer = NULL;
+	handle->Handle.PCI->Buffer_Length = 0;
 	return TRUE;
 }
 
 /**
  * This routine will send a command to the device driver to be sent to the controller. 
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param request The type of request sent.
  * @param argument The address of an integer that contains the data to be sent as a parameter to this request,
  * 	or to receive the results of this request.
  * @return Returns TRUE if the command was sent to the device driver successfully, FALSE if an error occured.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Command
  */
-int CCD_PCI_Command(int request,int *argument)
+int CCD_PCI_Command(CCD_Interface_Handle_T *handle,int request,int *argument)
 {
 	int retval,error_number;
 
 	PCI_Error_Number = 0;
+	if(handle == NULL)
+	{
+		PCI_Error_Number = 23;
+		sprintf(PCI_Error_String,"CCD_PCI_Command failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.PCI == NULL)
+	{
+		PCI_Error_Number = 24;
+		sprintf(PCI_Error_String,"CCD_PCI_Command failed:handle PCI pointer was NULL.");
+		return FALSE;
+	}
 	if(argument == NULL)
 	{
 		PCI_Error_Number = 2;
@@ -217,33 +267,47 @@ int CCD_PCI_Command(int request,int *argument)
 		return FALSE;
 	}
 	/* send the command 'request' to the PCI interface, using the passed in memory */
-	retval = ioctl(PCI_Data.PCI_Fd,request,argument);
+	retval = ioctl(handle->Handle.PCI->PCI_Fd,request,argument);
 	if (retval < 0)
 	{
 		error_number = errno;
 		PCI_Error_Number = 3;
 		sprintf(PCI_Error_String,"CCD_PCI_Command:failed(%d,%d,%d,%d).",
-			PCI_Data.PCI_Fd,request,(*argument),error_number);
+			handle->Handle.PCI->PCI_Fd,request,(*argument),error_number);
 	}
 	return (retval == 0);
 }
 
 /**
  * This routine will send a command to the device driver to be sent to the controller. 
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param request The type of request sent.
  * @param argument_list A list of arguments to send as a parameter to the request.
  * @param argument_count The number of arguments in argument_list.
  * @return Returns TRUE if the command was sent to the device driver successfully, FALSE if an error occured.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Command_List
  * @see #CCD_PCI_IOCTL_ARGUMENT_LIST_COUNT
  */
-int CCD_PCI_Command_List(int request,int *argument_list,int argument_count)
+int CCD_PCI_Command_List(CCD_Interface_Handle_T *handle,int request,int *argument_list,int argument_count)
 {
 	int ioctl_argument_list[CCD_PCI_IOCTL_ARGUMENT_LIST_COUNT];
 	int retval,error_number,i;
 
 	PCI_Error_Number = 0;
 /* check arguments */
+	if(handle == NULL)
+	{
+		PCI_Error_Number = 25;
+		sprintf(PCI_Error_String,"CCD_PCI_Command_List failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.PCI == NULL)
+	{
+		PCI_Error_Number = 26;
+		sprintf(PCI_Error_String,"CCD_PCI_Command_List failed:handle PCI pointer was NULL.");
+		return FALSE;
+	}
 	if(argument_list == NULL)
 	{
 		PCI_Error_Number = 9;
@@ -266,13 +330,13 @@ int CCD_PCI_Command_List(int request,int *argument_list,int argument_count)
 			ioctl_argument_list[i] = -1;
 	}
 /* send the command 'request' to the PCI interface */
-	retval = ioctl(PCI_Data.PCI_Fd,request,ioctl_argument_list);
+	retval = ioctl(handle->Handle.PCI->PCI_Fd,request,ioctl_argument_list);
 	if (retval < 0)
 	{
 		error_number = errno;
 		PCI_Error_Number = 11;
 		sprintf(PCI_Error_String,"CCD_PCI_Command_List:failed(%d,%d,%d,%d).",
-			PCI_Data.PCI_Fd,request,argument_count,error_number);
+			handle->Handle.PCI->PCI_Fd,request,argument_count,error_number);
 	}
 /* copy return ioctl_arguments  back to argument list, as they contain results from ioctl. */
 	for(i=0;i<argument_count;i++)
@@ -285,50 +349,82 @@ int CCD_PCI_Command_List(int request,int *argument_list,int argument_count)
 /**
  * This routine will get reply data from the SDSU CCD Controller via the PCI interface. The data parameter
  * is set to the memory mapped area, mapped to the PCI file descriptor, which will contain the read out data.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param data The address of an unsigned short pointer, which on return from this routine will point to
  *        an area of memory containing the read out CCD image.
  * @return The routine returns TRUE on success, and FALSE if a failure occured.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Get_Reply_Data
  */
-int CCD_PCI_Get_Reply_Data(unsigned short **data)
+int CCD_PCI_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short **data)
 {
 	PCI_Error_Number = 0;
 	/* if the data parameter is null we can't save anything in it ! */
+	if(handle == NULL)
+	{
+		PCI_Error_Number = 27;
+		sprintf(PCI_Error_String,"CCD_PCI_Get_Reply_Data failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.PCI == NULL)
+	{
+		PCI_Error_Number = 28;
+		sprintf(PCI_Error_String,"CCD_PCI_Get_Reply_Data failed:handle PCI pointer was NULL.");
+		return FALSE;
+	}
 	if(data == NULL)
 	{
 		PCI_Error_Number = 4;
 		sprintf(PCI_Error_String,"CCD_PCI_Get_Reply_Data:data is NULL");
 		return FALSE;
 	}
-	if(PCI_Data.Buffer == NULL)
+	if(handle->Handle.PCI->Buffer == NULL)
 	{
 		PCI_Error_Number = 5;
 		sprintf(PCI_Error_String,"CCD_PCI_Get_Reply_Data:Reply Buffer is NULL");
 		return FALSE;
 	}
-	(*data) = (unsigned short *)(PCI_Data.Buffer);
+	(*data) = (unsigned short *)(handle->Handle.PCI->Buffer);
 	return TRUE;
 }
 
 /**
  * This routine will close the PCI interface.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @return The routine returns the return value from the close routine it called. This will normally be TRUE
  * 	if the device was successfully closed, or FALSE if it failed in some way.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Close
  */
-int CCD_PCI_Close(void)
+int CCD_PCI_Close(CCD_Interface_Handle_T *handle)
 {
 	int error_number;
 
 	PCI_Error_Number = 0;
+	/* check parameters */
+	if(handle == NULL)
+	{
+		PCI_Error_Number = 29;
+		sprintf(PCI_Error_String,"CCD_PCI_Close failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.PCI == NULL)
+	{
+		PCI_Error_Number = 30;
+		sprintf(PCI_Error_String,"CCD_PCI_Close failed:handle PCI pointer was NULL.");
+		return FALSE;
+	}
 	/* close the interface - close returns -1 on failure */
-	if((close(PCI_Data.PCI_Fd))==-1)
+	if((close(handle->Handle.PCI->PCI_Fd))==-1)
 	{
 		error_number = errno;
 		PCI_Error_Number = 8;
 		sprintf(PCI_Error_String,"CCD_PCI_Close:failed %d",error_number);
 		return FALSE;
 	}
+	/* free allocated handle space */
+	free(handle->Handle.PCI);
+	handle->Handle.PCI = NULL;
 	return TRUE;
 }
 /**
@@ -398,6 +494,10 @@ void CCD_PCI_Warning(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2006/05/17 17:25:19  cjm
+** Added ioctl include for Linux.
+** Fixed casting problem.
+**
 ** Revision 0.7  2006/05/16 14:14:06  cjm
 ** gnuify: Added GNU General Public License.
 **

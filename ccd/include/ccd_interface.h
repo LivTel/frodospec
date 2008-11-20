@@ -1,24 +1,5 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_interface.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_interface.h,v 0.3 2006-05-16 14:15:30 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_interface.h,v 0.4 2008-11-20 11:34:52 cjm Exp $
 */
 
 #ifndef CCD_INTERFACE_H
@@ -48,18 +29,23 @@ enum CCD_INTERFACE_DEVICE_ID
 #define CCD_INTERFACE_IS_INTERFACE_DEVICE(interface_device)	(((interface_device) == CCD_INTERFACE_DEVICE_NONE)|| \
 	((interface_device) == CCD_INTERFACE_DEVICE_TEXT)||((interface_device) == CCD_INTERFACE_DEVICE_PCI))
 
-/* configuration of the device the library will talk to */
-extern int CCD_Interface_Set_Device(enum CCD_INTERFACE_DEVICE_ID device_number);
+/**
+ * Typedef for the interface handle pointer, which is an instance of CCD_Interface_Handle_Struct.
+ * @see #CCD_Interface_Handle_Struct
+ */
+typedef struct CCD_Interface_Handle_Struct CCD_Interface_Handle_T;
 
 /* top level implementation of device interface */
 extern void CCD_Interface_Initialise(void);
-extern int CCD_Interface_Open(void);
-extern int CCD_Interface_Memory_Map(int buffer_size);
-extern int CCD_Interface_Memory_UnMap(void);
-extern int CCD_Interface_Command(int request,int *argument);
-extern int CCD_Interface_Command_List(int request,int *argument_list,int argument_count);
-extern int CCD_Interface_Get_Reply_Data(unsigned short **data);
-extern int CCD_Interface_Close(void);
+extern int CCD_Interface_Open(enum CCD_INTERFACE_DEVICE_ID device_number,char *device_pathname,
+			      CCD_Interface_Handle_T **handle);
+extern int CCD_Interface_Memory_Map(CCD_Interface_Handle_T *handle,int buffer_size);
+extern int CCD_Interface_Memory_UnMap(CCD_Interface_Handle_T *handle);
+extern int CCD_Interface_Command(CCD_Interface_Handle_T *handle,int request,int *argument);
+extern int CCD_Interface_Command_List(CCD_Interface_Handle_T *handle,int request,int *argument_list,
+				      int argument_count);
+extern int CCD_Interface_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short **data);
+extern int CCD_Interface_Close(CCD_Interface_Handle_T **handle);
 extern int CCD_Interface_Get_Error_Number(void);
 extern void CCD_Interface_Error(void);
 extern void CCD_Interface_Error_String(char *error_string);

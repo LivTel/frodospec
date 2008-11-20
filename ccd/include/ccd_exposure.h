@@ -1,24 +1,5 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_exposure.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.10 2006-05-16 14:15:28 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.11 2008-11-20 11:34:52 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
@@ -29,11 +10,14 @@
 #define _POSIX_SOURCE 1
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
- * for time.
+ * for time. Only defined if not already defined.
  */
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 199309L
+#endif
 #include <time.h>
 #include "ccd_global.h"
+#include "ccd_interface.h"
 
 /* These #define/enum definitions should match with those in CCDLibrary.java */
 /**
@@ -78,27 +62,29 @@ enum CCD_EXPOSURE_STATUS
         ((status) == CCD_EXPOSURE_STATUS_READOUT)||((status) == CCD_EXPOSURE_STATUS_POST_READOUT))
 
 extern void CCD_Exposure_Initialise(void);
-extern int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_time,int exposure_time,
+extern void CCD_Exposure_Data_Initialise(CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_shutter,
+			       struct timespec start_time,int exposure_time,
 			       char **filename_list,int filename_count);
-extern int CCD_Exposure_Bias(char *filename);
-extern int CCD_Exposure_Open_Shutter(void);
-extern int CCD_Exposure_Close_Shutter(void);
-extern int CCD_Exposure_Pause(void);
-extern int CCD_Exposure_Resume(void);
-extern int CCD_Exposure_Abort(void);
-extern int CCD_Exposure_Read_Out_CCD(char *filename);
+extern int CCD_Exposure_Bias(CCD_Interface_Handle_T* handle,char *filename);
+extern int CCD_Exposure_Open_Shutter(CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Close_Shutter(CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Pause(CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Abort(CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Read_Out_CCD(CCD_Interface_Handle_T* handle,char *filename);
 
-extern int CCD_Exposure_Set_Exposure_Status(enum CCD_EXPOSURE_STATUS status);
-extern enum CCD_EXPOSURE_STATUS CCD_Exposure_Get_Exposure_Status(void);
-extern struct timespec CCD_Exposure_Get_Exposure_Start_Time(void);
-extern int CCD_Exposure_Get_Exposure_Length(void);
-extern void CCD_Exposure_Set_Start_Exposure_Clear_Time(int time);
-extern int CCD_Exposure_Get_Start_Exposure_Clear_Time(void);
-extern void CCD_Exposure_Set_Start_Exposure_Offset_Time(int time);
-extern int CCD_Exposure_Get_Start_Exposure_Offset_Time(void);
-extern void CCD_Exposure_Set_Readout_Remaining_Time(int time);
-extern int CCD_Exposure_Get_Readout_Remaining_Time(void);
-extern void CCD_Exposure_Set_Exposure_Start_Time(void);
+extern int CCD_Exposure_Set_Exposure_Status(CCD_Interface_Handle_T* handle,enum CCD_EXPOSURE_STATUS status);
+extern enum CCD_EXPOSURE_STATUS CCD_Exposure_Get_Exposure_Status(CCD_Interface_Handle_T* handle);
+extern struct timespec CCD_Exposure_Get_Exposure_Start_Time(CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Get_Exposure_Length(CCD_Interface_Handle_T* handle);
+extern void CCD_Exposure_Set_Start_Exposure_Clear_Time(CCD_Interface_Handle_T* handle,int time);
+extern int CCD_Exposure_Get_Start_Exposure_Clear_Time(CCD_Interface_Handle_T* handle);
+extern void CCD_Exposure_Set_Start_Exposure_Offset_Time(CCD_Interface_Handle_T* handle,int time);
+extern int CCD_Exposure_Get_Start_Exposure_Offset_Time(CCD_Interface_Handle_T* handle);
+extern void CCD_Exposure_Set_Readout_Remaining_Time(CCD_Interface_Handle_T* handle,int time);
+extern int CCD_Exposure_Get_Readout_Remaining_Time(CCD_Interface_Handle_T* handle);
+extern void CCD_Exposure_Set_Exposure_Start_Time(CCD_Interface_Handle_T* handle);
 
 extern int CCD_Exposure_Get_Error_Number(void);
 extern void CCD_Exposure_Error(void);

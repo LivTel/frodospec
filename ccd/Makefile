@@ -1,9 +1,10 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/ccd/Makefile,v 1.3 2007-01-09 14:36:45 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/Makefile,v 1.4 2008-11-20 11:35:39 cjm Exp $ 
 
 include ../Makefile.common
 
-DIRS = c test java latex misc
+DIRS = c test 
+#java latex misc
 
 top:
 	@for i in $(DIRS); \
@@ -24,7 +25,7 @@ checkout:
 	done;
 
 depend:
-	@for i in c test misc; \
+	@for i in $(DIRS); \
 	do \
 		(echo depend in $$i...; $(MAKE) -C $$i depend);\
 	done;
@@ -51,12 +52,12 @@ backup: checkin
 	$(RM) $(RM_OPTIONS) $(TIDY_OPTIONS)
 	$(RM) $(RM_OPTIONS) */*.fits
 	$(RM) $(RM_OPTIONS) */core
-	$(RM) $(RM_OPTIONS) misc/dsp_command_num
-	tar cvf $(BACKUP_DIR)/ccd.tar .
-	compress $(BACKUP_DIR)/ccd.tar
 
 
 # $Log: not supported by cvs2svn $
+# Revision 1.3  2007/01/09 14:36:45  cjm
+# Changed some 'cd's for $(MAKE) -C.
+#
 # Revision 1.2  2006/05/17 16:42:41  cjm
 # Changed depend dirs.
 #

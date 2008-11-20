@@ -1,31 +1,12 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_text.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.25 2006-05-16 14:14:09 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.26 2008-11-20 11:34:46 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.25 $
+ * @version $Revision: 0.26 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -51,11 +32,12 @@
 #include "ccd_dsp.h"
 #include "ccd_pci.h"
 #include "ccd_text.h"
+#include "ccd_interface_private.h"
 
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.25 2006-05-16 14:14:09 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.26 2008-11-20 11:34:46 cjm Exp $";
 
 /* #defines */
 /**
@@ -69,6 +51,10 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.25 2006-05-16 14:14:09 cjm Exp $";
  * The number of nanoseconds in one microsecond.
  */
 #define TEXT_ONE_MICROSECOND_NS		(1000)
+/**
+ * Maximum length of the filename specifying the output text file.
+ */
+#define TEXT_MAX_FILENAME_LENGTH        (256)
 
 /**
  * The default value to set the Controller_Config to. This is the default value of the timing boards
@@ -89,6 +75,21 @@ static char rcsid[] = "$Id: ccd_text.c,v 0.25 2006-05-16 14:14:09 cjm Exp $";
 	CCD_DSP_CONTROLLER_CONFIG_BIT_SERIAL_SPLIT)
 
 /* structures */
+/**
+ * Internal handle data structure.
+ * <dl>
+ * <dt>Text_Device_Filename</dt> <dd>Filename of file to write text data to.</dd>
+ * <dt>Text_File_Ptr</dt> <dd>FILE pointer to open text file to write to.</dd>
+ * </dl>
+ * File pointer to where the prints should be sent to.
+ * @see #TEXT_MAX_FILENAME_LENGTH
+ */
+struct CCD_Text_Handle_Struct
+{
+	char Text_Device_Filename[TEXT_MAX_FILENAME_LENGTH+1];
+	FILE *Text_File_Ptr;
+};
+
 /**
  * Structure holding data that the PCI interface would normally know about. This includes
  * the driver request being processed, the HCVR value, values held in the argument registers.
@@ -149,7 +150,7 @@ struct Text_Command_Struct
 	int Command;
 	char Name[64];
 	int Reply;
-	void (*Function)(void);
+	void (*Function)(CCD_Interface_Handle_T *handle);
 };
 
 /**
@@ -172,21 +173,20 @@ struct Memory_Struct
 /* external variables */
 
 /* internal routines */
-static void Text_Print_Reply(void);
-static void Text_HCVR(int hcvr_command);
+static void Text_Print_Reply(CCD_Interface_Handle_T *handle);
+static void Text_HCVR(CCD_Interface_Handle_T *handle,int hcvr_command);
 static void Text_HSTR(void);
 static void Text_Readout_Progress(void);
-static void Text_Manual(int manual_command);
-static void Text_Destination(int destination_number);
-static void Text_Manual_Read_Controller_Config(void);
-static void Text_Manual_Test_Data_Link(void);
-static void Text_Manual_Read_Memory(void);
-static void Text_Manual_Read_Exposure_Time(void);
-static void Text_Manual_Set_Exposure_Time(void);
-static void Text_Manual_Start_Exposure(void);
-static void Text_Manual_Start_Readout_CCD(void);
-static void Text_Manual_Pause_Exposure(void);
-static void Text_Manual_Resume_Exposure(void);
+static void Text_Manual(CCD_Interface_Handle_T *handle,int manual_command);
+static void Text_Destination(CCD_Interface_Handle_T *handle,int destination_number);
+static void Text_Manual_Read_Controller_Config(CCD_Interface_Handle_T *handle);
+static void Text_Manual_Test_Data_Link(CCD_Interface_Handle_T *handle);
+static void Text_Manual_Read_Memory(CCD_Interface_Handle_T *handle);
+static void Text_Manual_Read_Exposure_Time(CCD_Interface_Handle_T *handle);
+static void Text_Manual_Set_Exposure_Time(CCD_Interface_Handle_T *handle);
+static void Text_Manual_Start_Exposure(CCD_Interface_Handle_T *handle);
+static void Text_Manual_Pause_Exposure(CCD_Interface_Handle_T *handle);
+static void Text_Manual_Resume_Exposure(CCD_Interface_Handle_T *handle);
 
 /* local variables */
 /**
@@ -197,10 +197,6 @@ static int Text_Error_Number = 0;
  * Local variable holding description of the last error that occured.
  */
 static char Text_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
-/**
- * File pointer to where the prints should be sent to.
- */
-static FILE *Text_File_Ptr = NULL;
 /**
  * Local variable for deciding how detailed the print information is.
  */
@@ -242,9 +238,6 @@ static struct Text_Command_Struct Text_Manual_Command_List[] =
 	{CCD_DSP_AEX,"Abort Exposure",CCD_DSP_DON,NULL},
 	{CCD_DSP_CLR,"Clear Array",CCD_DSP_DON,NULL},
 	{CCD_DSP_CSH,"Close Shutter",CCD_DSP_DON,NULL},
-	{CCD_DSP_FWA,"Filter Wheel Abort",CCD_DSP_DON,NULL},
-	{CCD_DSP_FWM,"Filter Wheel Move",CCD_DSP_DON,NULL},
-	{CCD_DSP_FWR,"Filter Wheel Reset",CCD_DSP_DON,NULL},
 	{CCD_DSP_IDL,"Resume Idling",CCD_DSP_DON,NULL},
 	{CCD_DSP_LDA,"Load Application",CCD_DSP_DON,NULL},
 	{CCD_DSP_OSH,"Open Shutter",CCD_DSP_DON,NULL},
@@ -263,8 +256,6 @@ static struct Text_Command_Struct Text_Manual_Command_List[] =
 	{CCD_DSP_SSS,"Set Subarray Size",CCD_DSP_DON,NULL},
 	{CCD_DSP_STP,"Stop Idling",CCD_DSP_DON,NULL},
 	{CCD_DSP_TDL,"Test Data Link",0,Text_Manual_Test_Data_Link},
-	{CCD_DSP_VON,"Vacuum Gauge On",CCD_DSP_DON,NULL},
-	{CCD_DSP_VOF,"Vacuum Gauge On",CCD_DSP_DON,NULL},
 	{CCD_DSP_WRM,"Write Memory",CCD_DSP_DON,NULL}
 };
 
@@ -282,25 +273,12 @@ static struct Text_Command_Struct Text_Manual_Command_List[] =
 static struct Memory_Struct Memory_List[] =
 {
 	{CCD_DSP_INTERFACE_BOARD_ID,CCD_DSP_MEM_SPACE_X,1,1},
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_X,0,0}, /* FWR/FWM - clear move/reset bits */
-#if CCD_FILTER_WHEEL_INPUT_HOME == PROXIMITY
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0,15}, 	/* set Y:DIG_IN first four bits, both wheels in detents
-								** and home positions */
-#elif CCD_FILTER_WHEEL_INPUT_HOME == MAGNETIC
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0,5}, 	/* set Y:DIG_IN first four bits, both wheels in detents
-								** and home positions - home positions are clear
-								** for magnetic sensors. */
-#else
-#error CCD_FILTER_WHEEL_INPUT_HOME uses illegal value. Should be PROXIMITY or MAGNETIC.
-#endif
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x3d,0}, /* FILTER_WHEEL_POS_MOVE - 0 */
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x2,0xc60}, /* Heater ADUs from dewar */
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x7,0xb1f}, /* Thermistor ADUs from utility board */
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x8,0xcdf}, /* High voltage (+36v) power supply monitor (2051/0x803=failure) */
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0x9,0xdd0}, /* Low Voltage (+15v) power supply monitor (2051/0x803=failure) */
 	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xa,0x245}, /* Low Voltage (-15v) power supply monitor (2051/0x803=failure) */
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xc,0xc60}, /* Thermistor ADUs from dewar:3168 - -127 C (-102) */
-	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xf,0x9d2}, /* Pressure gauge ADUs: 0xb77 = 1x10^-2 mbar, 0x9d2 = 1x10^-4 mbar */
+	{CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,0xc,0xc60} /* Thermistor ADUs from dewar:3168 - -127 C (-102) */
 };
 
 /**
@@ -336,16 +314,6 @@ void CCD_Text_Set_Print_Level(enum CCD_TEXT_PRINT_LEVEL level)
 	Text_Print_Level = level;
 }
 
-/**
- * This routine sets the file pointer to the passed in argument, to re-direct the output of the text driver
- * to the specified file.
- * @param fp A valid non-NULL file pointer.
- */
-void CCD_Text_Set_File_Pointer(FILE *fp)
-{
-	Text_File_Ptr = fp;
-}
-
 /* device driver implementation functions */
 /**
  * This routine should be called at startup. 
@@ -361,8 +329,6 @@ void CCD_Text_Initialise(void)
 {
 	int i;
 
-	if(Text_File_Ptr == NULL)
-		Text_File_Ptr = stdout;
 	Text_Error_Number = 0;
 	Text_Data.Ioctl_Request = 0;
 	Text_Data.HCVR_Command = 0;
@@ -375,11 +341,7 @@ void CCD_Text_Initialise(void)
 		Text_Data.Argument_List[i] = 0;
 	Text_Data.Reply = -1;
 	Text_Data.Controller_Config = TEXT_DEFAULT_CONTROLLER_CONFIG;
-	Text_Data.Buffer = NULL;
-	Text_Data.Buffer_Length = 0;
 	Text_Data.Readout_Progress = 0;
-	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
-		fprintf(Text_File_Ptr,"CCD_Text_Initialise\n");
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_Text_Initialise:%s.\n",rcsid);
 }
@@ -387,33 +349,90 @@ void CCD_Text_Initialise(void)
 /**
  * This routine is called to open the device for communication. In this driver it just
  * prints out a message. 
+ * @param device_pathname The pathname of the device we are trying to talk to.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @return Returns TRUE if a device can be opened, otherwise it returns FALSE. Currently, the device can
  * 	always be opened.
+ * @see #TEXT_MAX_FILENAME_LENGTH
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Open
  */
-int CCD_Text_Open(void)
+int CCD_Text_Open(char *device_pathname,CCD_Interface_Handle_T *handle)
 {
 	Text_Error_Number = 0;
+	/* check parameters */
+	if(device_pathname == NULL)
+	{
+		Text_Error_Number = 7;
+		sprintf(Text_Error_String,"CCD_Text_Open failed:device_pathname was NULL.");
+		return FALSE;
+	}
+	if(handle == NULL)
+	{
+		Text_Error_Number = 8;
+		sprintf(Text_Error_String,"CCD_Text_Open failed:handle was NULL.");
+		return FALSE;
+	}
+	if(strlen(device_pathname) > TEXT_MAX_FILENAME_LENGTH)
+	{
+		Text_Error_Number = 9;
+		sprintf(Text_Error_String,"CCD_Text_Open failed:handle was NULL.");
+		return FALSE;
+	}
+	/* Allocate Text block */
+	handle->Handle.Text = (struct CCD_Text_Handle_Struct *)malloc(sizeof(struct CCD_Text_Handle_Struct));
+	if(handle->Handle.Text == NULL)
+	{
+		Text_Error_Number = 10;
+		sprintf(Text_Error_String,"CCD_Text_Open failed:Failed to allocate handle memory.");
+		return FALSE;
+	}
+	/* try to open the device */
+	strcpy(handle->Handle.Text->Text_Device_Filename,device_pathname);
+	Text_Data.Buffer = NULL;
+	Text_Data.Buffer_Length = 0;
+	handle->Handle.Text->Text_File_Ptr = fopen(handle->Handle.Text->Text_Device_Filename,"a+");
+	if(handle->Handle.Text->Text_File_Ptr == NULL)
+	{
+		Text_Error_Number = 11;
+		sprintf(Text_Error_String,"CCD_Text_Open failed:Failed to open '%s' for appending.",
+			handle->Handle.Text->Text_Device_Filename);
+		return FALSE;
+	}
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
-		fprintf(Text_File_Ptr,"CCD_Text_Open\n");
+		fprintf(handle->Handle.Text->Text_File_Ptr,"CCD_Text_Open\n");
 	return TRUE;
 }
 
 /**
  * Routine to create a memory map for image download. This is done using malloc, as we are only emulating
  * the interface.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param buffer_size The size of the buffer, in bytes.
  * @return Return TRUE if buffer initialisation is successful, FALSE if it wasn't.
- * @see #Text_Data
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Text_Memory_Map(int buffer_size)
+int CCD_Text_Memory_Map(CCD_Interface_Handle_T *handle,int buffer_size)
 {
+	if(handle == NULL)
+	{
+		Text_Error_Number = 12;
+		sprintf(Text_Error_String,"CCD_Text_Memory_Map failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.Text == NULL)
+	{
+		Text_Error_Number = 13;
+		sprintf(Text_Error_String,"CCD_Text_Memory_Map failed:handle Text pointer was NULL.");
+		return FALSE;
+	}
 	if(buffer_size <= 0)
 	{
 		Text_Error_Number = 3;
 		sprintf(Text_Error_String,"CCD_Text_Memory_Map failed:Illegal buffer size %d.",buffer_size);
 		return FALSE;
 	}
+	/* diddly think about putting Buffer/Buffer_Length inside the Text handle, to allow multiple connections */
 	Text_Data.Buffer_Length = buffer_size;
 	Text_Data.Buffer = (unsigned short *)malloc(Text_Data.Buffer_Length);
 	if(Text_Data.Buffer == NULL)
@@ -428,11 +447,24 @@ int CCD_Text_Memory_Map(int buffer_size)
 /**
  * Routine to free a memory buffer for image download. This is done using free, as we are only emulating
  * the interface.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @return Return TRUE if buffer initialisation is successful, FALSE if it wasn't.
- * @see #Text_Data
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Text_Memory_UnMap(void)
+int CCD_Text_Memory_UnMap(CCD_Interface_Handle_T *handle)
 {
+	if(handle == NULL)
+	{
+		Text_Error_Number = 14;
+		sprintf(Text_Error_String,"CCD_Text_Memory_UnMap failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.Text == NULL)
+	{
+		Text_Error_Number = 15;
+		sprintf(Text_Error_String,"CCD_Text_Memory_UnMap failed:handle Text pointer was NULL.");
+		return FALSE;
+	}
 	if(Text_Data.Buffer == NULL)
 	{
 		Text_Error_Number = 6;
@@ -449,12 +481,14 @@ int CCD_Text_Memory_UnMap(void)
  * This routine will send a command to the controller. 
  * This driver just prints out the command to be sent. The argument contains the data element associated with
  * this IOCTL command. Any reply value generated is passed back using the argument. 
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param request The type of request sent.
  * @param argument A pointer to the argument(s) to the request. On entry to the routine this should contain
  * 	the address of an integer containing any parameter data. On leaving this routine, any reply value
  * 	generated as a result of this command will be put into this integer.
  * @return Returns TRUE if the command was sent to the device driver successfully, FALSE if an error occured.
  * 	In this driver it always return TRUE.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Command
  * @see #Text_Print_Reply
  * @see #Text_HSTR
@@ -464,181 +498,209 @@ int CCD_Text_Memory_UnMap(void)
  * @see #Text_File_Ptr
  * @see #Text_Print_Level
  */
-int CCD_Text_Command(int request,int *argument)
+int CCD_Text_Command(CCD_Interface_Handle_T *handle,int request,int *argument)
 {
 	Text_Error_Number = 0;
+	if(handle == NULL)
+	{
+		Text_Error_Number = 16;
+		sprintf(Text_Error_String,"CCD_Text_Command failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.Text == NULL)
+	{
+		Text_Error_Number = 17;
+		sprintf(Text_Error_String,"CCD_Text_Command failed:handle Text pointer was NULL.");
+		return FALSE;
+	}
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 	{
 		/* some command arguments have interdetminate arguments 
 		** - the argument is not used or is filled in with a reply */
 		if((request==CCD_PCI_IOCTL_GET_HCTR))
-			fprintf(Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
+			fprintf(handle->Handle.Text->Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
 		else if(argument != NULL)
-			fprintf(Text_File_Ptr,"ioctl(%#x,%#x)\n",request,*argument);
+			fprintf(handle->Handle.Text->Text_File_Ptr,"ioctl(%#x,%#x)\n",request,*argument);
 		else
-			fprintf(Text_File_Ptr,"ioctl(%#x,NULL)\n",request);
+			fprintf(handle->Handle.Text->Text_File_Ptr,"ioctl(%#x,NULL)\n",request);
 	}
 /* set Text_Data Ioctl_Request */
 	Text_Data.Ioctl_Request = request;
 	switch(request)
 	{
 		case CCD_PCI_IOCTL_GET_HCTR:
-			fprintf(Text_File_Ptr,"Request:Get Host Control Register:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Get Host Control Register:");
 			if(argument != NULL)
 				Text_Data.Reply = Text_Data.HCTR_Register;
 			else
-				fprintf(Text_File_Ptr,"HCTR not filled in:argument was NULL:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"HCTR not filled in:argument was NULL:");
 			break;
 		case CCD_PCI_IOCTL_GET_PROGRESS:
-			fprintf(Text_File_Ptr,"Request:Get Readout Progress:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Get Readout Progress:");
 			Text_Readout_Progress();
 			if(argument != NULL)
 				Text_Data.Reply = Text_Data.Readout_Progress;
 			else
-				fprintf(Text_File_Ptr,"Readout Progress not filled in:argument was NULL:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,
+					"Readout Progress not filled in:argument was NULL:");
 			break;
 		case CCD_PCI_IOCTL_GET_HSTR:
-			fprintf(Text_File_Ptr,"Request:Get Host Status Transfer Register:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Get Host Status Transfer Register:");
 			Text_HSTR();
 			if(argument != NULL)
 				Text_Data.Reply = Text_Data.HSTR_Register;
 			else
-				fprintf(Text_File_Ptr,"HSTR not filled in:argument was NULL:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"HSTR not filled in:argument was NULL:");
 			break;
 		case CCD_PCI_IOCTL_GET_DMA_ADDR:
-			fprintf(Text_File_Ptr,"Request:Get DMA Address:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Get DMA Address:");
 			break;
 		case CCD_PCI_IOCTL_SET_HCTR:
-			fprintf(Text_File_Ptr,"Request:Set HCTR (Host Interface Control Register):");
+			fprintf(handle->Handle.Text->Text_File_Ptr,
+				"Request:Set HCTR (Host Interface Control Register):");
 			if(argument != NULL)
 			{
 				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
+					fprintf(handle->Handle.Text->Text_File_Ptr,"%#x:",(*argument));
 				Text_Data.HCTR_Register = *argument;
 			}
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"NULL Argument:");
 			break;
 		case CCD_PCI_IOCTL_SET_HCVR:
-			fprintf(Text_File_Ptr,"Request:Set HCVR (Host Command Vector Register):");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Set HCVR (Host Command Vector Register):");
 			Text_Data.HCVR_Command = *argument;
 			if(argument != NULL)
-				Text_HCVR(*argument);
+				Text_HCVR(handle,*argument);
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"NULL Argument:");
 			break;
 		case CCD_PCI_IOCTL_HCVR_DATA:
-			fprintf(Text_File_Ptr,"Request:Set HCVR data:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Set HCVR data:");
 			if(argument != NULL)
 			{
 				Text_Data.Argument_List[0] = (*argument);
 				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
+					fprintf(handle->Handle.Text->Text_File_Ptr,"%#x:",(*argument));
 			/* HCVR_DATA does not return a reply. So we set the Text_Data.Reply to the input argument,
 			** so that it is not changed. */
 				Text_Data.Reply = (*argument);
 			}
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"NULL Argument:");
 			break;
 		case CCD_PCI_IOCTL_COMMAND:
-			fprintf(Text_File_Ptr,"Request:Command:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Command:");
 			break;
 		case CCD_PCI_IOCTL_PCI_DOWNLOAD:
-			fprintf(Text_File_Ptr,"Request:PCI Download:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:PCI Download:");
 			if(argument != NULL)
 			{
 				Text_Data.Argument_List[0] = (*argument);
 				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
+					fprintf(handle->Handle.Text->Text_File_Ptr,"%#x:",(*argument));
 			}
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"NULL Argument:");
 			break;
 		case CCD_PCI_IOCTL_PCI_DOWNLOAD_WAIT:
-			fprintf(Text_File_Ptr,"Request:PCI Download Wait:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:PCI Download Wait:");
 			if(argument != NULL)
 			{
 				Text_Data.Argument_List[0] = (*argument);
 				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%#x:",(*argument));
+					fprintf(handle->Handle.Text->Text_File_Ptr,"%#x:",(*argument));
 				Text_Data.Reply = CCD_DSP_DON;
 			}
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"NULL Argument:");
 			break;
 		case CCD_PCI_IOCTL_SET_IMAGE_BUFFERS:
-			fprintf(Text_File_Ptr,"Request:Set address of the image data buffers:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Set address of the image data buffers:");
 			break;
 		case CCD_PCI_IOCTL_SET_UTIL_OPTIONS:
-			fprintf(Text_File_Ptr,"Request:Set Utility options:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Set Utility options:");
 			if(argument != NULL)
 			{
 				if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_VALUES)
-					fprintf(Text_File_Ptr,"%d:",(*argument));
+					fprintf(handle->Handle.Text->Text_File_Ptr,"%d:",(*argument));
 				Text_Data.Reply = CCD_DSP_DON;
 			}
 			else
-				fprintf(Text_File_Ptr,"NULL Argument:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"NULL Argument:");
 			break;
 		default:
-			fprintf(Text_File_Ptr,"Unknown Request");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Unknown Request");
 			break;
 	}
 /* reply is passed back in argument - copy any set from Text_Data.Reply */
 	if(argument != NULL)
 	{
 		(*argument) = Text_Data.Reply;
-		Text_Print_Reply();
+		Text_Print_Reply(handle);
 	}
-	fprintf(Text_File_Ptr,"\n");
-	fflush(Text_File_Ptr);
+	fprintf(handle->Handle.Text->Text_File_Ptr,"\n");
+	fflush(handle->Handle.Text->Text_File_Ptr);
 	return TRUE;
 }
 
 /**
  * This routine will send a command to the SDSU controller boards. 
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param request The type of request sent.
  * @param argument_list The list of arguments to be sent to the controller.
  * @param argument_count The number of arguments in the argument_list.
  * @return Returns TRUE if the command was sent to the device driver successfully, FALSE if an error occured.
  * 	In this driver it always return TRUE.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Command_List
  * @see #Text_Destination
  * @see #Text_Manual
  * @see #Text_Print_Reply
  */
-int CCD_Text_Command_List(int request,int *argument_list,int argument_count)
+int CCD_Text_Command_List(CCD_Interface_Handle_T *handle,int request,int *argument_list,int argument_count)
 {
 	int i;
 
 	Text_Error_Number = 0;
+	if(handle == NULL)
+	{
+		Text_Error_Number = 18;
+		sprintf(Text_Error_String,"CCD_Text_Command_List failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.Text == NULL)
+	{
+		Text_Error_Number = 19;
+		sprintf(Text_Error_String,"CCD_Text_Command_List failed:handle Text pointer was NULL.");
+		return FALSE;
+	}
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
 	{
 		/* some command arguments have interdetminate arguments 
 		** - the argument is not used or is filled in with a reply */
 		if((request==CCD_PCI_IOCTL_GET_HCTR))
-			fprintf(Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
+			fprintf(handle->Handle.Text->Text_File_Ptr,"ioctl(%#x,indeterminate)\n",request);
 		else if(argument_count > 0)
 		{
-			fprintf(Text_File_Ptr,"ioctl(%#x",request);
+			fprintf(handle->Handle.Text->Text_File_Ptr,"ioctl(%#x",request);
 			for(i=0;i< argument_count;i++)
 			{
-				fprintf(Text_File_Ptr,",%#x",argument_list[i]);
+				fprintf(handle->Handle.Text->Text_File_Ptr,",%#x",argument_list[i]);
 			}
-			fprintf(Text_File_Ptr,")\n");
+			fprintf(handle->Handle.Text->Text_File_Ptr,")\n");
 		}
 		else
-			fprintf(Text_File_Ptr,"ioctl(%#x,NULL)\n",request);
+			fprintf(handle->Handle.Text->Text_File_Ptr,"ioctl(%#x,NULL)\n",request);
 	}
 /* set Text_Data Ioctl_Request */
 	Text_Data.Ioctl_Request = request;
 	switch(request)
 	{
 		case CCD_PCI_IOCTL_COMMAND:
-			fprintf(Text_File_Ptr,"Request:Command:");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Request:Command:");
 			if(argument_count > 0)
-				Text_Destination(argument_list[0]);
+				Text_Destination(handle,argument_list[0]);
 		/* Copy arguments.
 		** Loop starts from 2, first 2 CCD_PCI_IOCTL_COMMAND arguments are header word and 
 		** Manual Command itself. */
@@ -649,17 +711,17 @@ int CCD_Text_Command_List(int request,int *argument_list,int argument_count)
 			}
 		/* Call manual command routine */
 			if(argument_count > 1)
-				Text_Manual(argument_list[1]);
+				Text_Manual(handle,argument_list[1]);
 		/* put reply value in argument_list[0] */
 			argument_list[0] = Text_Data.Reply;
-			Text_Print_Reply();
+			Text_Print_Reply(handle);
 			break;
 		default:
-			fprintf(Text_File_Ptr,"Unknown Request");
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Unknown Request");
 			break;
 	}
-	fprintf(Text_File_Ptr,"\n");
-	fflush(Text_File_Ptr);
+	fprintf(handle->Handle.Text->Text_File_Ptr,"\n");
+	fflush(handle->Handle.Text->Text_File_Ptr);
 	return TRUE;
 }
 
@@ -667,20 +729,34 @@ int CCD_Text_Command_List(int request,int *argument_list,int argument_count)
  * This routine emulates getting reply data from the SDSU CCD Controller. The reply data is stored in
  * the data parameter, up to byte_count bytes of it. This allows the routine to read an arbitary amount of data 
  * (an image for instance).
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param data The address of an unsigned short pointer, which on return from this routine will point to
  *        an area of memory containing the read out CCD image. 
  *        In this routine the image is filled with bytes that are ASCII characters so the resultant image 
  *        can be printed out.
  * @return The routine returns TRUE on success and FALSE on failure.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Get_Reply_Data
  */
-int CCD_Text_Get_Reply_Data(unsigned short **data)
+int CCD_Text_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short **data)
 {
 	int i;
 
 	Text_Error_Number = 0;
+	if(handle == NULL)
+	{
+		Text_Error_Number = 24;
+		sprintf(Text_Error_String,"CCD_Text_Get_Reply_Data failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.Text == NULL)
+	{
+		Text_Error_Number = 20;
+		sprintf(Text_Error_String,"CCD_Text_Get_Reply_Data failed:handle Text pointer was NULL.");
+		return FALSE;
+	}
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
-		fprintf(Text_File_Ptr,"CCD_Text_Reply_Data\n");
+		fprintf(handle->Handle.Text->Text_File_Ptr,"CCD_Text_Reply_Data\n");
 	/* if data is null we can't put information in it */
 	if(data == NULL)
 	{
@@ -702,22 +778,49 @@ int CCD_Text_Get_Reply_Data(unsigned short **data)
 		(*data)[i] = (i%((1<<16)-1));
 		i++;
 	}
-	fprintf(Text_File_Ptr,"CCD_Text_Get_Reply_Data:%d.\n",Text_Data.Buffer_Length);
+	fprintf(handle->Handle.Text->Text_File_Ptr,"CCD_Text_Get_Reply_Data:%d.\n",Text_Data.Buffer_Length);
 	return TRUE;
 }
 
 /**
  * This routine will close the interface.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @return The routine returns the return value from the close routine it called. This will normally be TRUE
  * 	if the device was successfully closed, or FALSE if it failed in some way. In this device, it always
  * 	returns TRUE.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see ccd_interface.html#CCD_Interface_Close
  */
-int CCD_Text_Close(void)
+int CCD_Text_Close(CCD_Interface_Handle_T *handle)
 {
+	int error_number;
+	int retval;
+
 	Text_Error_Number = 0;
+	if(handle == NULL)
+	{
+		Text_Error_Number = 21;
+		sprintf(Text_Error_String,"CCD_Text_Close failed:handle was NULL.");
+		return FALSE;
+	}
+	if(handle->Handle.Text == NULL)
+	{
+		Text_Error_Number = 22;
+		sprintf(Text_Error_String,"CCD_Text_Close failed:handle Text pointer was NULL.");
+		return FALSE;
+	}
 	if(Text_Print_Level == CCD_TEXT_PRINT_LEVEL_ALL)
-		fprintf(Text_File_Ptr,"CCD_Text_Close\n");
+		fprintf(handle->Handle.Text->Text_File_Ptr,"CCD_Text_Close\n");
+	retval = fclose(handle->Handle.Text->Text_File_Ptr);
+	if(retval < 0)
+	{
+		error_number = errno;
+		Text_Error_Number = 23;
+		sprintf(Text_Error_String,"CCD_Text_Close failed:fclose returned %d(%d).",retval,error_number);
+		return FALSE;
+	}
+	free(handle->Handle.Text);
+	handle->Handle.Text = NULL;
 	return TRUE;
 }
 
@@ -794,14 +897,16 @@ void CCD_Text_Warning(void)
  * if Text_Print_Level is greater than or equal to CCD_TEXT_PRINT_LEVEL_REPLIES.
  * The spacial case return values CCD_DSP_DON, CCD_DSP_ERR and
  * CCD_DSP_SYR are checked for special printouts.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_Print_Level
  * @see #Text_Data
  * @see #CCD_TEXT_PRINT_LEVEL_REPLIES
  * @see ccd_dsp.html#CCD_DSP_DON
  * @see ccd_dsp.html#CCD_DSP_ERR
  * @see ccd_dsp.html#CCD_DSP_SYR
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Print_Reply(void)
+static void Text_Print_Reply(CCD_Interface_Handle_T *handle)
 {
 /* if it's a standard reply print out a text representation. */
 	if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_REPLIES)
@@ -809,16 +914,16 @@ static void Text_Print_Reply(void)
 		switch(Text_Data.Reply)
 		{
 			case CCD_DSP_DON:
-				fprintf(Text_File_Ptr,"DON:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"DON:");
 				break;
 			case CCD_DSP_ERR:
-				fprintf(Text_File_Ptr,"ERR:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"ERR:");
 				break;
 			case CCD_DSP_SYR:
-				fprintf(Text_File_Ptr,"SYR:");
+				fprintf(handle->Handle.Text->Text_File_Ptr,"SYR:");
 				break;
 			default:
-				fprintf(Text_File_Ptr,"%#x:",Text_Data.Reply);
+				fprintf(handle->Handle.Text->Text_File_Ptr,"%#x:",Text_Data.Reply);
 				break;
 		}/* end switch on reply value */
 	}/* end if printing replies */
@@ -828,10 +933,12 @@ static void Text_Print_Reply(void)
  * Internal routine which prints information about the HCVR command passed in.
  * This uses the Text_HCVR_Command_List to determines what the command is.
  * It also performs any operations as a result of this command using a function pointer in the list.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param hcvr_command The value to put into the HCVR register.
  * @see #Text_HCVR_Command_List
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_HCVR(int hcvr_command)
+static void Text_HCVR(CCD_Interface_Handle_T *handle,int hcvr_command)
 {
 	int i,found;
 
@@ -846,13 +953,13 @@ static void Text_HCVR(int hcvr_command)
 	if(found)
 	{
 		if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_COMMANDS)
-			fprintf(Text_File_Ptr,":%s:",Text_HCVR_Command_List[i].Name);
+			fprintf(handle->Handle.Text->Text_File_Ptr,":%s:",Text_HCVR_Command_List[i].Name);
 		Text_Data.Reply = Text_HCVR_Command_List[i].Reply;
 		if(Text_HCVR_Command_List[i].Function != NULL)
-			Text_HCVR_Command_List[i].Function();
+			Text_HCVR_Command_List[i].Function(handle);
 	}
 	else
-		fprintf(Text_File_Ptr,":Unknown HCVR command:");
+		fprintf(handle->Handle.Text->Text_File_Ptr,":Unknown HCVR command:");
 }
 
 /**
@@ -867,7 +974,7 @@ static void Text_HSTR(void)
 	int elapsed_exposure_time;
 
 	/* call routine to get current elapsed exposure time - result put in Text_Data.Reply */
-	Text_Manual_Read_Exposure_Time();
+	Text_Manual_Read_Exposure_Time(NULL);
 	elapsed_exposure_time = Text_Data.Reply;
 	/* if elapsed exposure time > exposure length, go into readout mode. */
 	if(elapsed_exposure_time> Text_Data.Exposure_Length)
@@ -897,10 +1004,12 @@ static void Text_Readout_Progress(void)
  * Internal routine which prints information about the Manual command passed in.
  * This uses the Text_Manual_Command_List to determines what the command is.
  * It also performs any operations as a result of this command using a function pointer in the list.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param manual_command The value to put into the Manual register.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #Text_Manual_Command_List
  */
-static void Text_Manual(int manual_command)
+static void Text_Manual(CCD_Interface_Handle_T *handle,int manual_command)
 {
 	int i,found;
 
@@ -915,21 +1024,23 @@ static void Text_Manual(int manual_command)
 	if(found)
 	{
 		if(Text_Print_Level >= CCD_TEXT_PRINT_LEVEL_COMMANDS)
-			fprintf(Text_File_Ptr,":%s:",Text_Manual_Command_List[i].Name);
+			fprintf(handle->Handle.Text->Text_File_Ptr,":%s:",Text_Manual_Command_List[i].Name);
 		Text_Data.Reply = Text_Manual_Command_List[i].Reply;
 		if(Text_Manual_Command_List[i].Function != NULL)
-			Text_Manual_Command_List[i].Function();
+			Text_Manual_Command_List[i].Function(handle);
 	}
 	else
-		fprintf(Text_File_Ptr,":Unknown Manual command:");
+		fprintf(handle->Handle.Text->Text_File_Ptr,":Unknown Manual command:");
 }
 
 /**
  * Routine to convert a manual command header word into a textual description string.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @param destination_number The first argument to the CCD_PCI_IOCTL_COMMAND ioctl request.
  * @see ccd_pci.html#CCD_PCI_IOCTL_COMMAND
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Destination(int destination_number)
+static void Text_Destination(CCD_Interface_Handle_T *handle,int destination_number)
 {
 	char *Board_Name_List[] = {"Host","Interface","Timing board","Utility board"};
 	int Board_Name_Count = 4;
@@ -941,13 +1052,13 @@ static void Text_Destination(int destination_number)
 	{
 		if((Text_Data.Destination > 0)&&(Text_Data.Destination<Board_Name_Count))
 		{
-			fprintf(Text_File_Ptr,":%s:Number of Arguments:%d:",Board_Name_List[Text_Data.Destination],
-				Text_Data.Argument_Count);
+			fprintf(handle->Handle.Text->Text_File_Ptr,":%s:Number of Arguments:%d:",
+				Board_Name_List[Text_Data.Destination],Text_Data.Argument_Count);
 		}
 		else
 		{
-			fprintf(Text_File_Ptr,":UNKNOWN BOARD %d:Number of Arguments:%d:",Text_Data.Destination,
-				Text_Data.Argument_Count);
+			fprintf(handle->Handle.Text->Text_File_Ptr,":UNKNOWN BOARD %d:Number of Arguments:%d:",
+				Text_Data.Destination,Text_Data.Argument_Count);
 		}
 	}
 }
@@ -956,10 +1067,12 @@ static void Text_Destination(int destination_number)
  * Function invoked from Text_Manual when a RCC command is sent to the driver.
  * This retrieves the controller configuration word.
  * This function sets Text_Data.Reply to Text_Data.Controller_Config.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_Manual
  * @see ccd_dsp.html#CCD_DSP_RCC
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Read_Controller_Config(void)
+static void Text_Manual_Read_Controller_Config(CCD_Interface_Handle_T *handle)
 {
 	Text_Data.Reply = Text_Data.Controller_Config;
 }
@@ -968,10 +1081,12 @@ static void Text_Manual_Read_Controller_Config(void)
  * Function invoked from Text_Manual when a TDL command is sent to the driver.
  * This tests the driver by sending argument 1 to the required board, which should return the value.
  * Hence this function sets Text_Data.Reply to Text_Data.Argument_List[0].
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_Manual
  * @see ccd_dsp.html#CCD_DSP_TDL
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Test_Data_Link(void)
+static void Text_Manual_Test_Data_Link(CCD_Interface_Handle_T *handle)
 {
 	Text_Data.Reply = Text_Data.Argument_List[0];
 }
@@ -980,17 +1095,20 @@ static void Text_Manual_Test_Data_Link(void)
  * Routine invoked from Text_Manual when a Read Memory command is sent to the driver.
  * This routine needs to get the relevant memory address we are reading (board/memory space/address)
  * and return a suitable value for some cases. This uses the Memory_List defined above.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_Manual
  * @see #Memory_List
  * @see ccd_dsp.html#CCD_DSP_RDM
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Read_Memory(void)
+static void Text_Manual_Read_Memory(CCD_Interface_Handle_T *handle)
 {
 	int i,memory_space,address;
 
 	memory_space = Text_Data.Argument_List[0] & 0xf00000;
 	address = Text_Data.Argument_List[0] & 0xfffff;
-	fprintf(Text_File_Ptr,"Text_Manual_Read_Memory:Destination = %#x:Memory Space = %#x:Address = %#x\n",
+	fprintf(handle->Handle.Text->Text_File_Ptr,
+		"Text_Manual_Read_Memory:Destination = %#x:Memory Space = %#x:Address = %#x\n",
 		Text_Data.Destination,memory_space,address);
 	for(i=0;i<MEMORY_COUNT;i++)
 	{
@@ -998,7 +1116,7 @@ static void Text_Manual_Read_Memory(void)
 			(memory_space == Memory_List[i].Mem_Space)&&
 			(address == Memory_List[i].Address))
 		{
-			fprintf(Text_File_Ptr,"Text_Manual_Read_Memory:Match Found:Value = %#x\n",
+			fprintf(handle->Handle.Text->Text_File_Ptr,"Text_Manual_Read_Memory:Match Found:Value = %#x\n",
 				Memory_List[i].Value);
 			Text_Data.Reply = Memory_List[i].Value;
 		}
@@ -1011,10 +1129,12 @@ static void Text_Manual_Read_Memory(void)
  * Text_Data.Reply is set to the elapsed time, measured as the current time minus Text_Data.Exposure_Start_Time. 
  * However, if the exposure is currently paused Text_Data.Pause_Start_Time is non zero. In this case the 
  * current elapsed exposure time is the pause start time minus the exposure start time.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_Manual
  * @see ccd_dsp.html#CCD_DSP_RET
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Read_Exposure_Time(void)
+static void Text_Manual_Read_Exposure_Time(CCD_Interface_Handle_T *handle)
 {
 	struct timespec current_time;
 #ifndef _POSIX_TIMERS
@@ -1050,9 +1170,11 @@ static void Text_Manual_Read_Exposure_Time(void)
 /**
  * Invoked from Text_Manual when a SET (Set Exposure Time) command is sent to the driver.
  * Sets exposure time in Text_Data from argument list.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_Data
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Set_Exposure_Time(void)
+static void Text_Manual_Set_Exposure_Time(CCD_Interface_Handle_T *handle)
 {
 	Text_Data.Exposure_Length = Text_Data.Argument_List[0];
 }
@@ -1062,10 +1184,12 @@ static void Text_Manual_Set_Exposure_Time(void)
  * Text_Data sets the reply value to CCD_DSP_DON.
  * We set the Text_Data.Exposure_Start_Time to the current time when the exposure started.
  * We also reset Text_Data.Pause_Start_Time to zero - we are starting an exposure - we can't be paused.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_Manual
  * @see ccd_dsp.html#CCD_DSP_SEX
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Start_Exposure(void)
+static void Text_Manual_Start_Exposure(CCD_Interface_Handle_T *handle)
 {
 #ifndef _POSIX_TIMERS
 	struct timeval gtod_current_time;
@@ -1088,26 +1212,15 @@ static void Text_Manual_Start_Exposure(void)
 }
 
 /**
- * Routine called when manual command RDC is received. Sets HSTR to readout mode, and resets  readout progress.
- * @see ccd_exposure.html#CCD_EXPOSURE_HSTR_READOUT
- * @see ccd_exposure.html#CCD_EXPOSURE_HSTR_BIT_SHIFT
- */
-static void Text_Manual_Start_Readout_CCD(void)
-{
-/* sort out HSTR - switch on readout flags */
-	Text_Data.HSTR_Register = (CCD_EXPOSURE_HSTR_READOUT<<CCD_EXPOSURE_HSTR_BIT_SHIFT);
-/* re-initialise Readout_Progress, started reading out from 0. */
-	Text_Data.Readout_Progress = 0;
-}
-
-/**
  * Function invoked from Text_HCVR when a PAUSE_EXPOSURE command is sent to the driver.
  * Text_Data sets the reply value to CCD_DSP_DON.
  * We set the Text_Data.Pause_Start_Time to the current time when the exposure started.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_HCVR
  * @see ccd_pci.html#CCD_PCI_HCVR_PAUSE_EXPOSURE
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Pause_Exposure(void)
+static void Text_Manual_Pause_Exposure(CCD_Interface_Handle_T *handle)
 {
 #ifndef _POSIX_TIMERS
 	struct timeval gtod_current_time;
@@ -1129,10 +1242,12 @@ static void Text_Manual_Pause_Exposure(void)
  * to the Text_Data.Exposure_Start_Time so that subsequent calls to get the elapsed exposure time do not
  * include the paused time. The Text_Data.Pause_Start_Time is reset.
  * Note the paused time is calculated only to the nearest second for simplicity.
+ * @param handle The address of a CCD_Interface_Handle_T to store the device connection specific information into.
  * @see #Text_HCVR
  * @see ccd_pci.html#CCD_PCI_HCVR_RESUME_EXPOSURE
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static void Text_Manual_Resume_Exposure(void)
+static void Text_Manual_Resume_Exposure(CCD_Interface_Handle_T *handle)
 {
 	struct timespec resume_time;
 #ifndef _POSIX_TIMERS
@@ -1158,6 +1273,9 @@ static void Text_Manual_Resume_Exposure(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.25  2006/05/16 14:14:09  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 0.24  2003/06/06 12:36:01  cjm
 ** Added VON/VOF emulation.
 **

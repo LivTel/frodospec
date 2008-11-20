@@ -1,24 +1,5 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_global.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.7 2006-05-16 14:15:30 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.8 2008-11-20 11:34:52 cjm Exp $
 */
 
 #ifndef CCD_GLOBAL_H
@@ -109,7 +90,7 @@
 
 /* external functions */
 
-extern void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device);
+extern void CCD_Global_Initialise(void);
 extern void CCD_Global_Error(void);
 extern void CCD_Global_Error_String(char *error_string);
 

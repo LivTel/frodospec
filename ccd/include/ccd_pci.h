@@ -1,24 +1,5 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_pci.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.6 2006-05-16 14:15:31 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_pci.h,v 0.7 2008-11-20 11:34:52 cjm Exp $
 */
 
 #ifndef CCD_PCI_H
@@ -155,15 +136,21 @@
  */
 #define CCD_PCI_IOCTL_ABORT_READ 		(0x302)
 
+/**
+ * Typedef for the PCI handle pointer, which is an instance of CCD_PCI_Handle_Struct.
+ * @see #CCD_PCI_Handle_Struct
+ */
+typedef struct CCD_PCI_Handle_Struct CCD_PCI_Handle_T;
+
 /* external routines */
 extern void CCD_PCI_Initialise(void);
-extern int CCD_PCI_Open(void);
-extern int CCD_PCI_Memory_Map(int buffer_size);
-extern int CCD_PCI_Memory_UnMap(void);
-extern int CCD_PCI_Command(int request,int *argument);
-extern int CCD_PCI_Command_List(int request,int *argument_list,int argument_count);
-extern int CCD_PCI_Get_Reply_Data(unsigned short **data);
-extern int CCD_PCI_Close(void);
+extern int CCD_PCI_Open(char *device_pathname,CCD_Interface_Handle_T *handle);
+extern int CCD_PCI_Memory_Map(CCD_Interface_Handle_T *handle,int buffer_size);
+extern int CCD_PCI_Memory_UnMap(CCD_Interface_Handle_T *handle);
+extern int CCD_PCI_Command(CCD_Interface_Handle_T *handle,int request,int *argument);
+extern int CCD_PCI_Command_List(CCD_Interface_Handle_T *handle,int request,int *argument_list,int argument_count);
+extern int CCD_PCI_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short **data);
+extern int CCD_PCI_Close(CCD_Interface_Handle_T *handle);
 extern int CCD_PCI_Get_Error_Number(void);
 extern void CCD_PCI_Error(void);
 extern void CCD_PCI_Error_String(char *error_string);

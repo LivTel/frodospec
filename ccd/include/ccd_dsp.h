@@ -1,29 +1,10 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.28 2006-05-17 17:24:36 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.29 2008-11-20 11:34:52 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
 #include <time.h>
-#include "ccd_global.h"
+#include "ccd_interface.h"
 
 /**
  * This enum defines board identifiers.
@@ -290,33 +271,6 @@ enum CCD_DSP_AMPLIFIER
  */
 #define CCD_DSP_OSH		(0x4F5348)	/* OSH */
 /**
- * Utility board command that means Filter Wheel Abort. This stops any filter wheel movement taking place. 
- * It takes no arguments.
- * @see #CCD_DSP_FWM
- * @see #CCD_DSP_FWR
- */
-#define CCD_DSP_FWA		(0x465741)	/* FWA */
-/**
- * Utility board command that means Filter Wheel Move. This moves a specified filter wheel in a specified direction
- * a specified number of positions. 
- * It takes three arguments:
- * <ul>
- * <li><b>wheel</b>. Which wheel to move, [0|1].
- * <li><b>direction</b>. Which direction to move the wheel, either [0|1].
- * <li><b>no. of positions</b>. The number of positions to move in the specified direction, a number, usually less than
- * 	seven and greater than zero.
- * </ul>
- */
-#define CCD_DSP_FWM		(0x46574d)	/* FWM */
-/**
- * Utility board command that means Filter Wheel Reset. This drives a specified filter wheel into it's home position. 
- * It takes one argument:
- * <ul>
- * <li><b>wheel</b>. Which wheel to move, [0|1].
- * </ul>
- */
-#define CCD_DSP_FWR		(0x465752)	/* FWR */
-/**
  * Utility board command that means Vacuum gauge ON. This turns on a digital output connected to a relay that
  * turns on power to the vacuum gauge circuitry. 
  * It has no arguments.
@@ -362,48 +316,41 @@ enum CCD_DSP_AMPLIFIER
 
 extern int CCD_DSP_Initialise(void);
 /* Boot commands */
-extern int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number);
-extern int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address);
-extern int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data);
-extern int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data);
+extern int CCD_DSP_Command_LDA(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int application_number);
+extern int CCD_DSP_Command_RDM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address);
+extern int CCD_DSP_Command_TDL(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data);
+extern int CCD_DSP_Command_WRM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data);
 /* timing board commands */
-extern int CCD_DSP_Command_ABR(void);
-extern int CCD_DSP_Command_CLR(void);
-extern int CCD_DSP_Command_RDC(void);
-extern int CCD_DSP_Command_IDL(void);
-extern int CCD_DSP_Command_SBV(void);
-extern int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed);
-extern int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier);
-extern int CCD_DSP_Command_SSP(int y_offset,int x_offset,int bias_x_offset);
-extern int CCD_DSP_Command_SSS(int bias_width,int box_width,int box_height);
-extern int CCD_DSP_Command_STP(void);
+extern int CCD_DSP_Command_ABR(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_CLR(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_RDC(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_IDL(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SBV(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SGN(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed);
+extern int CCD_DSP_Command_SOS(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier);
+extern int CCD_DSP_Command_SSP(CCD_Interface_Handle_T* handle,int y_offset,int x_offset,int bias_x_offset);
+extern int CCD_DSP_Command_SSS(CCD_Interface_Handle_T* handle,int bias_width,int box_width,int box_height);
+extern int CCD_DSP_Command_STP(CCD_Interface_Handle_T* handle);
 
-extern int CCD_DSP_Command_AEX(void);
-extern int CCD_DSP_Command_CSH(void);
-extern int CCD_DSP_Command_OSH(void);
-extern int CCD_DSP_Command_PEX(void);
-extern int CCD_DSP_Command_PON(void);
-extern int CCD_DSP_Command_POF(void);
-extern int CCD_DSP_Command_REX(void);
-extern int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_length);
-extern int CCD_DSP_Command_Reset(void);
-extern int CCD_DSP_Command_Get_HSTR(int *value);
-extern int CCD_DSP_Command_Get_Readout_Progress(int *value);
-extern int CCD_DSP_Command_RCC(int *value);
-extern int CCD_DSP_Command_PCI_Download(void);
-extern int CCD_DSP_Command_PCI_Download_Wait(void);
-extern int CCD_DSP_Command_PCI_PC_Reset(void);
-extern int CCD_DSP_Command_SET(int msecs);
-extern int CCD_DSP_Command_RET(void);
-extern int CCD_DSP_Command_FWA(void);
-extern int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count);
-extern int CCD_DSP_Command_FWR(int wheel);
-extern int CCD_DSP_Command_VON(void);
-extern int CCD_DSP_Command_VOF(void);
+extern int CCD_DSP_Command_AEX(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_CSH(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_OSH(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PEX(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PON(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_POF(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_REX(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SEX(CCD_Interface_Handle_T* handle,struct timespec start_time,int exposure_length);
+extern int CCD_DSP_Command_Reset(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_Get_HSTR(CCD_Interface_Handle_T* handle,int *value);
+extern int CCD_DSP_Command_Get_Readout_Progress(CCD_Interface_Handle_T* handle,int *value);
+extern int CCD_DSP_Command_RCC(CCD_Interface_Handle_T* handle,int *value);
+extern int CCD_DSP_Command_PCI_Download(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PCI_Download_Wait(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PCI_PC_Reset(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SET(CCD_Interface_Handle_T* handle,int msecs);
+extern int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle);
 extern int CCD_DSP_Get_Abort(void);
 extern int CCD_DSP_Set_Abort(int value);
-extern void CCD_DSP_Set_Filter_Wheel_Steps_Per_Position(int steps);
-extern void CCD_DSP_Set_Filter_Wheel_Milliseconds_Per_Step(int ms);
 extern int CCD_DSP_Get_Error_Number(void);
 extern void CCD_DSP_Error(void);
 extern void CCD_DSP_Error_String(char *error_string);

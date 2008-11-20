@@ -1,31 +1,12 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.49 2006-05-16 14:12:17 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.50 2008-11-20 11:34:46 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.49 $
+ * @version $Revision: 0.50 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -61,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.49 2006-05-16 14:12:17 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.50 2008-11-20 11:34:46 cjm Exp $";
 
 /* defines */
 /**
@@ -117,47 +98,42 @@ static struct DSP_Attr_Struct DSP_Data =
 };
 
 /* internal functions */
-static int DSP_Send_Lda(enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value);
-static int DSP_Send_Wrm(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data,
+static int DSP_Send_Lda(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value);
+static int DSP_Send_Wrm(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data,
 	int *reply_value);
-static int DSP_Send_Rdm(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int *reply_value);
-static int DSP_Send_Tdl(enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value);
+static int DSP_Send_Rdm(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int *reply_value);
+static int DSP_Send_Tdl(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value);
 
-static int DSP_Send_Abr(int *reply_value);
-static int DSP_Send_Clr(int *reply_value);
-static int DSP_Send_Rdc(int *reply_value);
-static int DSP_Send_Idl(int *reply_value);
-static int DSP_Send_Sbv(int *reply_value);
-static int DSP_Send_Sgn(enum CCD_DSP_GAIN gain,int speed,int *reply_value);
-static int DSP_Send_Sos(enum CCD_DSP_AMPLIFIER amplifier,int *reply_value);
-static int DSP_Send_Ssp(int y_offset,int x_offset,int bias_x_offset,int *reply_value);
-static int DSP_Send_Sss(int bias_width,int box_width,int box_height,int *reply_value);
-static int DSP_Send_Stp(int *reply_value);
+static int DSP_Send_Abr(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Clr(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Rdc(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Idl(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Sbv(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Sgn(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed,int *reply_value);
+static int DSP_Send_Sos(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier,int *reply_value);
+static int DSP_Send_Ssp(CCD_Interface_Handle_T* handle,int y_offset,int x_offset,int bias_x_offset,int *reply_value);
+static int DSP_Send_Sss(CCD_Interface_Handle_T* handle,int bias_width,int box_width,int box_height,int *reply_value);
+static int DSP_Send_Stp(CCD_Interface_Handle_T* handle,int *reply_value);
 
-static int DSP_Send_Aex(int *reply_value);
-static int DSP_Send_Csh(int *reply_value);
-static int DSP_Send_Osh(int *reply_value);
-static int DSP_Send_Pex(int *reply_value);
-static int DSP_Send_Pon(int *reply_value);
-static int DSP_Send_Pof(int *reply_value);
-static int DSP_Send_Rex(int *reply_value);
-static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *reply_value);
-static int DSP_Send_Reset(int *reply_value);
-static int DSP_Send_Rcc(int *reply_value);
-static int DSP_Send_PCI_Download(void);
-static int DSP_Send_PCI_Download_Wait(int *reply_value);
-static int DSP_Send_PCI_PC_Reset(int *reply_value);
-static int DSP_Send_Set(int msecs,int *reply_value);
-static int DSP_Send_Ret(int *reply_value);
-static int DSP_Send_Fwa(int *reply_value);
-static int DSP_Send_Fwm(int wheel,int direction,int posn_count,int *reply_value);
-static int DSP_Send_Fwr(int wheel,int *reply_value);
-static int DSP_Send_Von(int *reply_value);
-static int DSP_Send_Vof(int *reply_value);
+static int DSP_Send_Aex(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Csh(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Osh(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Pex(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Pon(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Pof(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Rex(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Sex(CCD_Interface_Handle_T* handle,struct timespec start_time,int exposure_length, int *reply_value);
+static int DSP_Send_Reset(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Rcc(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_PCI_Download(CCD_Interface_Handle_T* handle);
+static int DSP_Send_PCI_Download_Wait(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_PCI_PC_Reset(CCD_Interface_Handle_T* handle,int *reply_value);
+static int DSP_Send_Set(CCD_Interface_Handle_T* handle,int msecs,int *reply_value);
+static int DSP_Send_Ret(CCD_Interface_Handle_T* handle,int *reply_value);
 
-static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,int *argument_list,int argument_count,
-	int *reply_value);
-static int DSP_Send_Command(int hcvr_command,int *reply_value);
+static int DSP_Send_Manual_Command(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int command,
+				   int *argument_list,int argument_count,int *reply_value);
+static int DSP_Send_Command(CCD_Interface_Handle_T* handle,int hcvr_command,int *reply_value);
 static int DSP_Check_Reply(int reply,int expected_reply);
 
 #ifdef CCD_DSP_MUTEXED
@@ -211,6 +187,7 @@ int CCD_DSP_Initialise(void)
  * causes some DSP application code to be loaded from (EEP)ROM into DSP memory for the controller to execute.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -218,8 +195,9 @@ int CCD_DSP_Initialise(void)
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Lda
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
+int CCD_DSP_Command_LDA(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int application_number)
 {
 	int retval;
 
@@ -247,7 +225,7 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Lda(board_id,application_number,&retval))
+	if(!DSP_Send_Lda(handle,board_id,application_number,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -276,6 +254,7 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
  * and receiving a reply from it.
  * The routine checks that the exposure status is non-zero if we are reading from the utility board, 
  * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -296,8 +275,9 @@ int CCD_DSP_Command_LDA(enum CCD_DSP_BOARD_ID board_id,int application_number)
  * @see #DSP_Error_Number
  * @see ccd_exposure.html#CCD_Exposure_Get_Exposure_Status
  * @see ccd_exposure.html#CCD_EXPOSURE_STATUS
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address)
+int CCD_DSP_Command_RDM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address)
 {
 	int retval;
 
@@ -337,12 +317,18 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
-	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
+	if ((CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
+#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 3
+	if ((CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_WAIT_START)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_CLEAR)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_EXPOSE)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -350,11 +336,11 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #endif
 		DSP_Error_Number = 64; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDM failed:Illegal Exposure Status (%d) when"
-			" reading from the utility board.", CCD_Exposure_Get_Exposure_Status());
+			" reading from the utility board.", CCD_Exposure_Get_Exposure_Status(handle));
 		return FALSE;
 	}
 #endif
-	if(!DSP_Send_Rdm(board_id,mem_space,address,&retval))
+	if(!DSP_Send_Rdm(handle,board_id,mem_space,address,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -381,6 +367,7 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  * and receiving a reply from it.
  * The routine checks that the exposure status is non-zero if we are writing to the utility board, 
  * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -390,8 +377,9 @@ int CCD_DSP_Command_RDM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  * @see #DSP_Check_Reply
  * @see ccd_exposure.html#CCD_Exposure_Get_Exposure_Status
  * @see ccd_exposure.html#CCD_EXPOSURE_STATUS
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
+int CCD_DSP_Command_TDL(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data)
 {
 	int retval;
 
@@ -414,12 +402,18 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
-	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
+	if ((CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
+#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 3
+	if ((CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_WAIT_START)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_CLEAR)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_EXPOSE)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -427,11 +421,11 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
 #endif
 		DSP_Error_Number = 65; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_TDL failed:Illegal Exposure Status (%d) when"
-			" testing the utility board.",CCD_Exposure_Get_Exposure_Status());
+			" testing the utility board.",CCD_Exposure_Get_Exposure_Status(handle));
 		return FALSE;
 	}
 #endif
-	if(!DSP_Send_Tdl(board_id,data,&retval))
+	if(!DSP_Send_Tdl(handle,board_id,data,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -455,6 +449,7 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
  * and receiving a reply from it.
  * The routine checks that the exposure status is non-zero if we are writing to the utility board, 
  * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The SDSU CCD Controller board to send the command to, one of 
  * 	CCD_DSP_INTERFACE_BOARD_ID(interface),
  *	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
@@ -471,8 +466,9 @@ int CCD_DSP_Command_TDL(enum CCD_DSP_BOARD_ID board_id,int data)
  * @see #DSP_Check_Reply
  * @see ccd_exposure.html#CCD_Exposure_Get_Exposure_Status
  * @see ccd_exposure.html#CCD_EXPOSURE_STATUS
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data)
+int CCD_DSP_Command_WRM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data)
 {
 	int retval;
 
@@ -511,12 +507,18 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_NONE)&&
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_WAIT_START)&&
+	   (CCD_Exposure_Get_Exposure_Status(handle) != CCD_EXPOSURE_STATUS_POST_READOUT))
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
-	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
+	if ((CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
+#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 3
+	if ((CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_WAIT_START)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_CLEAR)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_EXPOSE)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	    (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
@@ -524,11 +526,11 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 #endif
 		DSP_Error_Number = 91; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM failed:Illegal Exposure Status (%d) when"
-			" writing to the utility board.",CCD_Exposure_Get_Exposure_Status());
+			" writing to the utility board.",CCD_Exposure_Get_Exposure_Status(handle));
 		return FALSE;
 	}
 #endif
-	if(!DSP_Send_Wrm(board_id,mem_space,address,data,&retval))
+	if(!DSP_Send_Wrm(handle,board_id,mem_space,address,data,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -557,11 +559,13 @@ int CCD_DSP_Command_WRM(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  * after the PCI and timing boards have stopped the flow of readout data.
  * This routine is not mutexed, the Abort Readout command should be sent whilst a mutexed read is underway from the 
  * controller.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Abr
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_ABR(void)
+int CCD_DSP_Command_ABR(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -569,7 +573,7 @@ int CCD_DSP_Command_ABR(void)
 #if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_ABR() started.");
 #endif
-	if(!DSP_Send_Abr(&retval))
+	if(!DSP_Send_Abr(handle,&retval))
 		return FALSE;
 	/* check reply - DON should be returned */
 	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
@@ -585,12 +589,14 @@ int CCD_DSP_Command_ABR(void)
  * clocks out any stored charge on the CCD, leaving the CCD ready for an exposure.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Clr
  * @see #DSP_Check_Reply
  * @see #DSP_Data
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_CLR(void)
+int CCD_DSP_Command_CLR(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -602,7 +608,7 @@ int CCD_DSP_Command_CLR(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Clr(&retval))
+	if(!DSP_Send_Clr(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -629,12 +635,14 @@ int CCD_DSP_Command_CLR(void)
  * The Exposure_Status variable is maintained to show the current status of the exposure.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Data
  * @see #CCD_DSP_Command_SEX
  * @see #DSP_Send_Rdc
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_RDC(void)
+int CCD_DSP_Command_RDC(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -647,7 +655,7 @@ int CCD_DSP_Command_RDC(void)
 		return FALSE;
 #endif
 /* set exposure status */
-	if(!DSP_Send_Rdc(&retval))
+	if(!DSP_Send_Rdc(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -673,12 +681,14 @@ int CCD_DSP_Command_RDC(void)
  * building up on the CCD.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_STP
  * @see #DSP_Send_Idl
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_IDL(void)
+int CCD_DSP_Command_IDL(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -690,7 +700,7 @@ int CCD_DSP_Command_IDL(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Idl(&retval))
+	if(!DSP_Send_Idl(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -716,11 +726,13 @@ int CCD_DSP_Command_IDL(void)
  * sets the voltage of the video processor DC bias and clock driver DACs from information in DSP memory.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Sbv
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_SBV(void)
+int CCD_DSP_Command_SBV(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -729,7 +741,7 @@ int CCD_DSP_Command_SBV(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Sbv(&retval))
+	if(!DSP_Send_Sbv(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -752,6 +764,7 @@ int CCD_DSP_Command_SBV(void)
  * The integrator speed is also set using this command to slow or fast.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param gain The gain to set the video processors to. One of:
  * 	CCD_DSP_GAIN_ONE(one),CCD_DSP_GAIN_TWO(two),CCD_DSP_GAIN_FOUR(4.75) and
  * 	CCD_DSP_GAIN_NINE(9.5).
@@ -759,8 +772,9 @@ int CCD_DSP_Command_SBV(void)
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Sgn
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
+int CCD_DSP_Command_SGN(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed)
 {
 	int retval;
 
@@ -787,7 +801,7 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Sgn(gain,speed,&retval))
+	if(!DSP_Send_Sgn(handle,gain,speed,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -813,14 +827,16 @@ int CCD_DSP_Command_SGN(enum CCD_DSP_GAIN gain,int speed)
  * This sets which video amplifier to read the CCD chip out from.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param amplifier The amplifier to use when reading out the CCD. One of:
  * 	CCD_DSP_AMPLIFIER_LEFT, CCD_DSP_AMPLIFIER_RIGHT or CCD_DSP_AMPLIFIER_BOTH.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Sos
  * @see #DSP_Check_Reply
  * @see #CCD_DSP_AMPLIFIER
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
+int CCD_DSP_Command_SOS(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier)
 {
 	int retval;
 
@@ -839,7 +855,7 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Sos(amplifier,&retval))
+	if(!DSP_Send_Sos(handle,amplifier,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -866,6 +882,7 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
  * CCD_DSP_Command_SSS, which resets the number of subarray boxes to zero.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param y_offset The number of rows (parallel) to clear AFTER THE LAST BOX (in pixels).
  * @param x_offset The number of columns (serial) to clear from the left hand edge of the chip (in pixels).
  * @param bias_x_offset The number of columns (serial) gap to leave between the right hand side of
@@ -873,8 +890,9 @@ int CCD_DSP_Command_SOS(enum CCD_DSP_AMPLIFIER amplifier)
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Ssp
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_SSP(int y_offset,int x_offset,int bias_x_offset)
+int CCD_DSP_Command_SSP(CCD_Interface_Handle_T* handle,int y_offset,int x_offset,int bias_x_offset)
 {
 	int retval;
 
@@ -905,7 +923,7 @@ int CCD_DSP_Command_SSP(int y_offset,int x_offset,int bias_x_offset)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Ssp(y_offset,x_offset,bias_x_offset,&retval))
+	if(!DSP_Send_Ssp(handle,y_offset,x_offset,bias_x_offset,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -930,14 +948,16 @@ int CCD_DSP_Command_SSP(int y_offset,int x_offset,int bias_x_offset)
  * This sets the width and heights of all the subarray boxes.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param bias_width The width of the bias strip (in pixels).
  * @param box_width The width of the subarray box (in pixels).
  * @param box_height The height of the subarray box (in pixels).
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Sss
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_SSS(int bias_width,int box_width,int box_height)
+int CCD_DSP_Command_SSS(CCD_Interface_Handle_T* handle,int bias_width,int box_width,int box_height)
 {
 	int retval;
 
@@ -968,7 +988,7 @@ int CCD_DSP_Command_SSS(int bias_width,int box_width,int box_height)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Sss(bias_width,box_width,box_height,&retval))
+	if(!DSP_Send_Sss(handle,bias_width,box_width,box_height,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -993,12 +1013,14 @@ int CCD_DSP_Command_SSS(int bias_width,int box_width,int box_height)
  * stops the clocks clocking the readout sequence.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_IDL
  * @see #DSP_Send_Stp
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_STP(void)
+int CCD_DSP_Command_STP(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1010,7 +1032,7 @@ int CCD_DSP_Command_STP(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Stp(&retval))
+	if(!DSP_Send_Stp(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1036,11 +1058,13 @@ int CCD_DSP_Command_STP(void)
  * exposure is currently underway this is stopped by closing the shutter and putting the CCD in idle mode.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Aex
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_AEX(void)
+int CCD_DSP_Command_AEX(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1052,7 +1076,7 @@ int CCD_DSP_Command_AEX(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Aex(&retval))
+	if(!DSP_Send_Aex(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1077,11 +1101,13 @@ int CCD_DSP_Command_AEX(void)
  * This closes the shutter.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Csh
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_CSH(void)
+int CCD_DSP_Command_CSH(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1090,7 +1116,7 @@ int CCD_DSP_Command_CSH(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Csh(&retval))
+	if(!DSP_Send_Csh(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1112,11 +1138,13 @@ int CCD_DSP_Command_CSH(void)
  * This opens the shutter.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Osh
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_OSH(void)
+int CCD_DSP_Command_OSH(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1125,7 +1153,7 @@ int CCD_DSP_Command_OSH(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Osh(&retval))
+	if(!DSP_Send_Osh(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1147,12 +1175,14 @@ int CCD_DSP_Command_OSH(void)
  * SDSU utility board. This closes the shutter and stops the timer.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_REX
  * @see #DSP_Send_Pex
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_PEX(void)
+int CCD_DSP_Command_PEX(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1164,7 +1194,7 @@ int CCD_DSP_Command_PEX(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Pex(&retval))
+	if(!DSP_Send_Pex(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1189,11 +1219,13 @@ int CCD_DSP_Command_PEX(void)
  * This turns the analog power on safely, using the power control board.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Pon
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_PON(void)
+int CCD_DSP_Command_PON(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1205,7 +1237,7 @@ int CCD_DSP_Command_PON(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Pon(&retval))
+	if(!DSP_Send_Pon(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1230,11 +1262,13 @@ int CCD_DSP_Command_PON(void)
  * This turns the analog power off safely, using the power control board.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Pof
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_POF(void)
+int CCD_DSP_Command_POF(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1246,7 +1280,7 @@ int CCD_DSP_Command_POF(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Pof(&retval))
+	if(!DSP_Send_Pof(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1271,12 +1305,14 @@ int CCD_DSP_Command_POF(void)
  * SDSU Controller board. This opens the shutter and restarts the timer.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_Command_PEX
  * @see #DSP_Send_Rex
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_REX(void)
+int CCD_DSP_Command_REX(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1288,7 +1324,7 @@ int CCD_DSP_Command_REX(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Rex(&retval))
+	if(!DSP_Send_Rex(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1312,6 +1348,7 @@ int CCD_DSP_Command_REX(void)
  * This routine executes the Start EXposure (SEX) command on a SDSU Controller board.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @param exposure_length The length of exposure we are about to start. Passed to DSP_Send_Sex.
@@ -1320,8 +1357,9 @@ int CCD_DSP_Command_REX(void)
  * @see #DSP_Data
  * @see #DSP_Send_Sex
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_length)
+int CCD_DSP_Command_SEX(CCD_Interface_Handle_T* handle,struct timespec start_time,int exposure_length)
 {
 	int retval;
 
@@ -1333,7 +1371,7 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_length)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Sex(start_time,exposure_length,&retval))
+	if(!DSP_Send_Sex(handle,start_time,exposure_length,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1360,12 +1398,14 @@ int CCD_DSP_Command_SEX(struct timespec start_time,int exposure_length)
  * It then checks the reply from the interface, which should be SYR.
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns SYR if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Reset
  * @see #DSP_Check_Reply
  * @see #CCD_DSP_SYR
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_Reset(void)
+int CCD_DSP_Command_Reset(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1377,7 +1417,7 @@ int CCD_DSP_Command_Reset(void)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Reset(&retval))
+	if(!DSP_Send_Reset(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1400,11 +1440,13 @@ int CCD_DSP_Command_Reset(void)
 /**
  * Routine to get the current value of the Host Interface Status Register (HSTR).
  * @param value The address of an integer to store the HSTR value.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeds, FALSE otherwise.
  * @see ccd_pci.html#CCD_PCI_IOCTL_GET_HSTR
  * @see ccd_interface.html#CCD_Interface_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_Get_HSTR(int *value)
+int CCD_DSP_Command_Get_HSTR(CCD_Interface_Handle_T* handle,int *value)
 {
 	DSP_Error_Number = 0;
 	if(value == NULL)
@@ -1421,7 +1463,7 @@ int CCD_DSP_Command_Get_HSTR(int *value)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_HSTR,value))
+	if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_GET_HSTR,value))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1439,15 +1481,15 @@ int CCD_DSP_Command_Get_HSTR(int *value)
 
 /**
  * Routine to get the current progress of the readout. Returns the number of pixels read out.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param value The address of an integer to store the HSTR value.
  * @return The routine returns TRUE if the operation succeeds, FALSE otherwise.
  * @see ccd_pci.html#CCD_PCI_IOCTL_GET_PROGRESS
  * @see ccd_interface.html#CCD_Interface_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_Get_Readout_Progress(int *value)
+int CCD_DSP_Command_Get_Readout_Progress(CCD_Interface_Handle_T* handle,int *value)
 {
-	int retval;
-
 	DSP_Error_Number = 0;
 	if(value == NULL)
 	{
@@ -1463,7 +1505,7 @@ int CCD_DSP_Command_Get_Readout_Progress(int *value)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!CCD_Interface_Command(CCD_PCI_IOCTL_GET_PROGRESS,value))
+	if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_GET_PROGRESS,value))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1481,12 +1523,14 @@ int CCD_DSP_Command_Get_Readout_Progress(int *value)
 
 /**
  * Routine to read the controller configuration word.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param value The address on an integer to store the returned controller configuration word. 
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #DSP_Send_Rcc
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_RCC(int *value)
+int CCD_DSP_Command_RCC(CCD_Interface_Handle_T* handle,int *value)
 {
 	DSP_Error_Number = 0;
 #if LOGGING > 4
@@ -1503,7 +1547,7 @@ int CCD_DSP_Command_RCC(int *value)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Rcc(value))
+	if(!DSP_Send_Rcc(handle,value))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1527,18 +1571,18 @@ int CCD_DSP_Command_RCC(int *value)
  * Routine to tell the SDSU PCI card to prepare for it's DSP code to be downloaded.
  * This command is unusual, as we don't wait for a DON to be returned, as we have to download
  * the DSP code before this occurs. For this reason, the command is <b>NOT</b> mutexed either.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeds, FALSE otherwise.
  * @see #DSP_Send_PCI_Download
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_PCI_Download(void)
+int CCD_DSP_Command_PCI_Download(CCD_Interface_Handle_T* handle)
 {
-	int retval;
-
 	DSP_Error_Number = 0;
 #if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_Download() started.");
 #endif
-	if(!DSP_Send_PCI_Download())
+	if(!DSP_Send_PCI_Download(handle))
 		return FALSE;
 #if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_Download() finished.");
@@ -1549,11 +1593,13 @@ int CCD_DSP_Command_PCI_Download(void)
 /**
  * Routine to tell the SDSU PCI card that the DSP code has been downloaded to the SDSU PCI card
  * and to initialise itself ready for normal operation. The replt value is checked using DSP_Check_Reply.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the operation succeeds, FALSE otherwise.
  * @see #DSP_Send_PCI_Download_Wait
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_PCI_Download_Wait(void)
+int CCD_DSP_Command_PCI_Download_Wait(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1561,7 +1607,7 @@ int CCD_DSP_Command_PCI_Download_Wait(void)
 #if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_Download_Wait() started.");
 #endif
-	if(DSP_Send_PCI_Download_Wait(&retval) != TRUE)
+	if(DSP_Send_PCI_Download_Wait(handle,&retval) != TRUE)
 		return FALSE;
 	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
 		return FALSE;
@@ -1575,11 +1621,13 @@ int CCD_DSP_Command_PCI_Download_Wait(void)
  * Routine to reset the PCI board's program counter, to stop PCI lockups occuring.
  * This command is <b>not</b> mutexed, as it can be called whilst other commands are in operation,
  * to reset a command that has caused the PCI interface to appear to stop.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the operation succeeds, FALSE otherwise.
  * @see #DSP_Send_PCI_PC_Reset
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_PCI_PC_Reset(void)
+int CCD_DSP_Command_PCI_PC_Reset(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1587,7 +1635,7 @@ int CCD_DSP_Command_PCI_PC_Reset(void)
 #if LOGGING > 4
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_PC_Reset() started.");
 #endif
-	if(!DSP_Send_PCI_PC_Reset(&retval))
+	if(!DSP_Send_PCI_PC_Reset(handle,&retval))
 		return FALSE;
 /* check reply - DON should be returned */
 	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
@@ -1602,12 +1650,14 @@ int CCD_DSP_Command_PCI_PC_Reset(void)
  * Routine to set the exposure time. 
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param msecs The exposure time in milliseconds. 
  * @return The routine returns DON if the operation succeeds, FALSE otherwise.
  * @see #DSP_Send_Set
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_SET(int msecs)
+int CCD_DSP_Command_SET(CCD_Interface_Handle_T* handle,int msecs)
 {
 	int retval;
 
@@ -1626,7 +1676,7 @@ int CCD_DSP_Command_SET(int msecs)
 	if(!DSP_Mutex_Lock())
 		return FALSE;
 #endif
-	if(!DSP_Send_Set(msecs,&retval))
+	if(!DSP_Send_Set(handle,msecs,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1652,12 +1702,14 @@ int CCD_DSP_Command_SET(int msecs)
  * amount of time an exposure has been underway. 
  * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
  * and receiving a reply from it.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return If an error has occured or an exposure is not taking place, FALSE is returned. Otherwise
  * 	the amount of time an exposure has been underway is returned, in milliseconds.
  * @see #DSP_Send_Ret
  * @see #DSP_Check_Reply
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Command_RET(void)
+int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle)
 {
 	int retval;
 
@@ -1675,20 +1727,22 @@ int CCD_DSP_Command_RET(void)
 #if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
 	/* no test in this mode - we can still call RET when exposing. */
 #elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
-	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
+	if ((CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_PRE_READOUT)||
+	   (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
 #endif
 		DSP_Error_Number = 17; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RET failed:Illegal Exposure Status (%d) when"
-			" reading from the utility board.", CCD_Exposure_Get_Exposure_Status());
+			" reading from the utility board.", CCD_Exposure_Get_Exposure_Status(handle));
 		return FALSE;
 	}
+#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 3
+	/* no test in this mode - we can still call RET when exposing. */
 #endif
 #endif
-	if(!DSP_Send_Ret(&retval))
+	if(!DSP_Send_Ret(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
 		DSP_Mutex_Unlock();
@@ -1700,308 +1754,10 @@ int CCD_DSP_Command_RET(void)
 		return FALSE;
 #endif
 /* check reply - the exposure time in milliseconds returned so this does nothing! */
-	DSP_Check_Reply(retval,DSP_ACTUAL_VALUE);
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Ret() returned %d.",retval);
-#endif
-	return retval;
-}
-
-/**
- * This routine executes the Filter Wheel Abort (FWA) command on the SDSU utility board.
- * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
- * and receiving a reply from it. This routine halts any filter wheel movement currently underway.
- * @return The routine returns DON if the command succeeded and FALSE if the command failed.
- * @see #DSP_Send_Fwa
- * @see #DSP_Check_Reply
- * @see #DSP_Data
- */
-int CCD_DSP_Command_FWA(void)
-{
-	int retval;
-
-	DSP_Error_Number = 0;
-#if LOGGING > 4
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWA() started.");
-#endif
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
-		return FALSE;
-#endif
-	if(!DSP_Send_Fwa(&retval))
-	{
-#ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
-#endif
-		return FALSE;
-	}
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
-		return FALSE;
-#endif
-	/* check reply - DON should be returned */
-	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
+	if(DSP_Check_Reply(retval,DSP_ACTUAL_VALUE) != retval)
 		return FALSE;
 #if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWA() returned %#x.",retval);
-#endif
-	return retval;
-}
-
-/**
- * This routine executes the Filter Wheel Move (FWM) command on the SDSU utility board.
- * This moves a specified filter wheel in a specified direction a specified number of positions.
- * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
- * and receiving a reply from it. This routine returns when the move is started, the filter wheel move
- * status bit needs to be monitored to determine when the move has been finished.
- * @param wheel Which wheel to move. An integer, either zero or one.
- * @param direction Which direction to move the wheel. An integer, either zero or one.
- * @param posn_count How many positions to move the filter wheel.
- * @return The routine returns DON if the command succeeded and FALSE if the command failed.
- * @see #DSP_Send_Fwm
- * @see #DSP_Check_Reply
- * @see #DSP_Data
- */
-int CCD_DSP_Command_FWM(int wheel,int direction,int posn_count)
-{
-	int retval;
-
-	DSP_Error_Number = 0;
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWM(%d,%d,%d) started.",
-		wheel,direction,posn_count);
-#endif
-/* check parameters */
-	if(!CCD_GLOBAL_IS_BOOLEAN(wheel))
-	{
-		DSP_Error_Number = 88;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal wheel '%d'.",wheel);
-		return FALSE;
-	}
-	if(!CCD_GLOBAL_IS_BOOLEAN(direction))
-	{
-		DSP_Error_Number = 99;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal direction '%d'.",direction);
-		return FALSE;
-	}
-	if(posn_count <= 0)
-	{
-		DSP_Error_Number = 100;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal position count '%d'.",posn_count);
-		return FALSE;
-	}
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
-		return FALSE;
-#endif
-	if(!DSP_Send_Fwm(wheel,direction,posn_count,&retval))
-	{
-#ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
-#endif
-		return FALSE;
-	}
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
-		return FALSE;
-#endif
-/* check reply - DON should be returned. This means the FWM operation has started. */
-	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
-		return FALSE;
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWM(%d,%d,%d) returned %#x.",
-		wheel,direction,posn_count,retval);
-#endif
-	return retval;
-}
-
-/**
- * This routine executes the Filter Wheel Reset (FWR) command on the SDSU utility board.
- * This tries to drive the specified filter wheel back to it's home position.
- * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
- * and receiving a reply from it. This routine returns when the reset is started, the filter wheel reset
- * status bit needs to be monitored to determine when the reset has been finished.
- * @param wheel Which wheel to move. An integer, either zero or one.
- * @return The routine returns DON if the command succeeded and FALSE if the command failed.
- * @see #DSP_Send_Fwr
- * @see #DSP_Check_Reply
- * @see #DSP_Data
- */
-int CCD_DSP_Command_FWR(int wheel)
-{
-	int retval;
-
-	DSP_Error_Number = 0;
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWR(%d) started.",
-		wheel);
-#endif
-/* check parameters */
-	if(!CCD_GLOBAL_IS_BOOLEAN(wheel))
-	{
-		DSP_Error_Number = 101;
-		sprintf(DSP_Error_String,"CCD_DSP_Command_FWM:Illegal wheel '%d'.",wheel);
-		return FALSE;
-	}
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
-		return FALSE;
-#endif
-	if(!DSP_Send_Fwr(wheel,&retval))
-	{
-#ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
-#endif
-		return FALSE;
-	}
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
-		return FALSE;
-#endif
-/* check reply - DON should be returned. This means the FWR operation has started. */
-	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
-		return FALSE;
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_FWR(%d) returned %#x.",
-		wheel,retval);
-#endif
-	return retval;
-}
-
-/**
- * This routine executes the Vacuum gauge ON (VON) command on the SDSU utility board.
- * This turns the power on to the vacuum gauge.
- * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
- * and receiving a reply from it.
- * The routine checks that the exposure status is non-zero if we are reading from the utility board, 
- * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
- * @return The routine returns DON if the command succeeded and FALSE if the command failed.
- * @see #DSP_Send_Von
- * @see #DSP_Check_Reply
- * @see ccd_exposure.html#CCD_Exposure_Get_Exposure_Status
- * @see ccd_exposure.html#CCD_EXPOSURE_STATUS
- */
-int CCD_DSP_Command_VON(void)
-{
-	int retval;
-
-	DSP_Error_Number = 0;
-#if LOGGING > 4
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VON() started.");
-#endif
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
-		return FALSE;
-#endif
-/* Version 1.3: We can only read memory on the utility board when we are not exposing.
-** Version 1.4: We can read memory on the utility board when we are exposing.
-** Version 1.7: We can only read memory on the utility board when we are not reading out.
-*/
-#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
-#if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
-	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-		(CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
-#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
-	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
-#endif
-	{
-#ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
-#endif
-		DSP_Error_Number = 37; /* this error code is checked for in the Java layer */
-		sprintf(DSP_Error_String,"CCD_DSP_Command_VON failed:Illegal Exposure Status (%d) when"
-			" switching the vaccuum gauge on.", CCD_Exposure_Get_Exposure_Status());
-		return FALSE;
-	}
-#endif
-	if(!DSP_Send_Von(&retval))
-	{
-#ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
-#endif
-		return FALSE;
-	}
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
-		return FALSE;
-#endif
-	/* check reply - DON should be returned */
-	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
-		return FALSE;
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VON() returned %#x.",retval);
-#endif
-	return retval;
-}
-
-/**
- * This routine executes the Vacuum gauge OFf (VOF) command on the SDSU utility board.
- * This turns the vacuum gauge circuitry off.
- * If mutex locking has been compiled in, the routine is mutexed over sending the command to the controller
- * and receiving a reply from it.
- * The routine checks that the exposure status is non-zero if we are reading from the utility board, 
- * as this involves sending a DSP command to the utility board which cannot be undertaken during an exposure.
- * @return The routine returns DON if the command succeeded and FALSE if the command failed.
- * @see #DSP_Send_Vof
- * @see #DSP_Check_Reply
- * @see ccd_exposure.html#CCD_Exposure_Get_Exposure_Status
- * @see ccd_exposure.html#CCD_EXPOSURE_STATUS
- */
-int CCD_DSP_Command_VOF(void)
-{
-	int retval;
-
-	DSP_Error_Number = 0;
-#if LOGGING > 4
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VOF() started.");
-#endif
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
-		return FALSE;
-#endif
-/* Version 1.3: We can only read memory on the utility board when we are not exposing.
-** Version 1.4: We can read memory on the utility board when we are exposing.
-** Version 1.7: We can only read memory on the utility board when we are not reading out.
-*/
-#ifdef CCD_DSP_UTIL_EXPOSURE_CHECK
-#if CCD_DSP_UTIL_EXPOSURE_CHECK == 1
-	if((board_id == CCD_DSP_UTIL_BOARD_ID)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_NONE)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_WAIT_START)&&
-	   (CCD_Exposure_Get_Exposure_Status() != CCD_EXPOSURE_STATUS_POST_READOUT))
-#elif CCD_DSP_UTIL_EXPOSURE_CHECK == 2
-	if ((CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_PRE_READOUT)||
-	   (CCD_Exposure_Get_Exposure_Status() == CCD_EXPOSURE_STATUS_READOUT))
-#endif
-	{
-#ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
-#endif
-		DSP_Error_Number = 38; /* this error code is checked for in the Java layer */
-		sprintf(DSP_Error_String,"CCD_DSP_Command_VOF failed:Illegal Exposure Status (%d) when"
-			" switching the vaccuum gauge off.", CCD_Exposure_Get_Exposure_Status());
-		return FALSE;
-	}
-#endif
-	if(!DSP_Send_Vof(&retval))
-	{
-#ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
-#endif
-		return FALSE;
-	}
-#ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
-		return FALSE;
-#endif
-	/* check reply - DON should be returned */
-	if(DSP_Check_Reply(retval,CCD_DSP_DON) != CCD_DSP_DON)
-		return FALSE;
-#if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_VOF() returned %#x.",retval);
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_Ret() returned %d (%#x).",retval,retval);
 #endif
 	return retval;
 }
@@ -2115,6 +1871,7 @@ void CCD_DSP_Warning(void)
 ** ---------------------------------------------------------------- */
 /**
  * Internal DSP command to load a DSP application program from EEPROM to DSP memory.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The SDSU CCD Controller board,
  * 	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
  * @param data The application number to load.
@@ -2123,20 +1880,22 @@ void CCD_DSP_Warning(void)
  * @see #CCD_DSP_BOARD_ID
  * @see #DSP_Send_Manual_Command
  * @see #CCD_DSP_LDA
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Lda(enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value)
+static int DSP_Send_Lda(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value)
 {
 	int argument_list[1];
 	int argument_count = 0;
 
 	argument_list[argument_count++] = data;
-	if(DSP_Send_Manual_Command(board_id,CCD_DSP_LDA,argument_list,argument_count,reply_value) != TRUE)
+	if(DSP_Send_Manual_Command(handle,board_id,CCD_DSP_LDA,argument_list,argument_count,reply_value) != TRUE)
 		return FALSE;
 	return TRUE;
 }
 
 /**
  * Internal DSP command to read data from address address in memory space mem_space on board board_id. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The SDSU CCD Controller board, one of CCD_DSP_INTERFACE_BOARD_ID(interface),
  * 	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
  * @param mem_space The memory space on board board_id to read from, of type 
@@ -2151,18 +1910,20 @@ static int DSP_Send_Lda(enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value
  * @see #CCD_DSP_RDM
  * @see #CCD_DSP_BOARD_ID
  * @see #DSP_Send_Manual_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Rdm(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int *reply_value)
+static int DSP_Send_Rdm(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int *reply_value)
 {
 	int argument_list[1];
 	int argument_count = 0;
 
 	argument_list[argument_count++] = (mem_space|address);
-	return DSP_Send_Manual_Command(board_id,CCD_DSP_RDM,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,board_id,CCD_DSP_RDM,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to write data to address address in memory space mem_space to board board_id.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The SDSU CCD Controller board, one of CCD_DSP_INTERFACE_BOARD_ID(interface),
  * 	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
  * @param mem_space The memory space on board board_id to read from, of type 
@@ -2178,8 +1939,9 @@ static int DSP_Send_Rdm(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  * @see #CCD_DSP_WRM
  * @see #CCD_DSP_BOARD_ID
  * @see #DSP_Send_Manual_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Wrm(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data,
+static int DSP_Send_Wrm(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data,
 	int *reply_value)
 {
 	int argument_list[2];
@@ -2187,11 +1949,12 @@ static int DSP_Send_Wrm(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
 
 	argument_list[argument_count++] = (mem_space | address);
 	argument_list[argument_count++] = data;
-	return DSP_Send_Manual_Command(board_id,CCD_DSP_WRM,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,board_id,CCD_DSP_WRM,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to test the data link to the SDSU CCD Controller is working correctly.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id The board to send the command to. One of
  * 	CCD_DSP_TIM_BOARD_ID(timing board) or CCD_DSP_UTIL_BOARD_ID(utility board).
  * @param data The data to test the link with. This can any 24 bit number.
@@ -2199,81 +1962,93 @@ static int DSP_Send_Wrm(enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE me
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Manual_Command
  * @see #CCD_DSP_TDL
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Tdl(enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value)
+static int DSP_Send_Tdl(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value)
 {
 	int argument_list[1];
 	int argument_count = 0;
 
 	argument_list[argument_count++] = data;
-	return DSP_Send_Manual_Command(board_id,CCD_DSP_TDL,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,board_id,CCD_DSP_TDL,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to abort readout of the ccd.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Command
  * @see ccd_pci.html#CCD_PCI_HCVR_ABORT_READOUT
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Abr(int *reply_value)
+static int DSP_Send_Abr(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Command(CCD_PCI_HCVR_ABORT_READOUT,reply_value);
+	return DSP_Send_Command(handle,CCD_PCI_HCVR_ABORT_READOUT,reply_value);
 }
 
 /**
  * Internal DSP command to clear the CCD of any stored charge on it, ready to begin a new exposure.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Manual_Command
  * @see ccd_dsp.html#CCD_DSP_CLR
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Clr(int *reply_value)
+static int DSP_Send_Clr(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_CLR,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_CLR,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to tell the timing board to immediately start reading out the array.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Manual_Command
  * @see ccd_dsp.html#CCD_DSP_RDC
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Rdc(int *reply_value)
+static int DSP_Send_Rdc(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_RDC,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_RDC,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to put the CCD clocks in the readout sequence but not transfering any data. This stops the
  * CCD building up any charge.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Stp
  * @see #DSP_Send_Manual_Command
  * @see ccd_dsp.html#CCD_DSP_IDL
  * @see ccd_dsp.html#CCD_DSP_TIM_BOARD_ID
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Idl(int *reply_value)
+static int DSP_Send_Idl(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_IDL,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_IDL,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to set bias voltages.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Command
  * @see ccd_pci.html#CCD_PCI_HCVR_SET_BIAS_VOLTAGES
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Sbv(int *reply_value)
+static int DSP_Send_Sbv(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Command(CCD_PCI_HCVR_SET_BIAS_VOLTAGES,reply_value);
+	return DSP_Send_Command(handle,CCD_PCI_HCVR_SET_BIAS_VOLTAGES,reply_value);
 }
 
 /**
  * Internal DSP command to set the gain values of the video processors. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param gain What value to set the gain to. One of :
  *	<dl>
  * 	<dt>CCD_DSP_GAIN_ONE</dt> <dd>Set gain = 1</dd>
@@ -2287,19 +2062,21 @@ static int DSP_Send_Sbv(int *reply_value)
  * @see #CCD_DSP_BOARD_ID
  * @see #CCD_DSP_SGN
  * @see #DSP_Send_Manual_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Sgn(enum CCD_DSP_GAIN gain,int speed,int *reply_value)
+static int DSP_Send_Sgn(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed,int *reply_value)
 {
 	int argument_list[2];
 	int argument_count = 0;
 
 	argument_list[argument_count++] = gain;
 	argument_list[argument_count++] = speed;
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SGN,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_SGN,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to set the which amplifier to read out from during readout. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param amplifier What amplifier to use during readout. One of the CCD_DSP_AMPLIFIER enum values.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
@@ -2307,18 +2084,20 @@ static int DSP_Send_Sgn(enum CCD_DSP_GAIN gain,int speed,int *reply_value)
  * @see #CCD_DSP_SOS
  * @see #DSP_Send_Manual_Command
  * @see #CCD_DSP_AMPLIFIER
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Sos(enum CCD_DSP_AMPLIFIER amplifier,int *reply_value)
+static int DSP_Send_Sos(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier,int *reply_value)
 {
 	int argument_list[1];
 	int argument_count = 0;
 
 	argument_list[argument_count++] = amplifier;
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SOS,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_SOS,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to set the subbarray box positions. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param y_offset The number of rows (parallel) to clear AFTER THE LAST BOX (in pixels).
  * @param x_offset The number of columns (serial) to clear from the left hand edge of the chip (in pixels).
  * @param bias_x_offset The number of columns (serial) gap to leave between the right hand side of
@@ -2328,8 +2107,9 @@ static int DSP_Send_Sos(enum CCD_DSP_AMPLIFIER amplifier,int *reply_value)
  * @see #CCD_DSP_BOARD_ID
  * @see #CCD_DSP_SSS
  * @see #DSP_Send_Manual_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Ssp(int y_offset,int x_offset,int bias_x_offset,int *reply_value)
+static int DSP_Send_Ssp(CCD_Interface_Handle_T* handle,int y_offset,int x_offset,int bias_x_offset,int *reply_value)
 {
 	int argument_list[3];
 	int argument_count = 0;
@@ -2337,11 +2117,12 @@ static int DSP_Send_Ssp(int y_offset,int x_offset,int bias_x_offset,int *reply_v
 	argument_list[argument_count++] = y_offset;
 	argument_list[argument_count++] = x_offset;
 	argument_list[argument_count++] = bias_x_offset;
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SSP,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_SSP,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to set the subbarray size. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param bias_width The width of the bias strip (in pixels).
  * @param box_width The width of the subarray box (in pixels).
  * @param box_height The height of the subarray box (in pixels).
@@ -2350,8 +2131,9 @@ static int DSP_Send_Ssp(int y_offset,int x_offset,int bias_x_offset,int *reply_v
  * @see #CCD_DSP_BOARD_ID
  * @see #CCD_DSP_SSS
  * @see #DSP_Send_Manual_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Sss(int bias_width,int box_width,int box_height,int *reply_value)
+static int DSP_Send_Sss(CCD_Interface_Handle_T* handle,int bias_width,int box_width,int box_height,int *reply_value)
 {
 	int argument_list[3];
 	int argument_count = 0;
@@ -2359,109 +2141,124 @@ static int DSP_Send_Sss(int bias_width,int box_width,int box_height,int *reply_v
 	argument_list[argument_count++] = bias_width;
 	argument_list[argument_count++] = box_width;
 	argument_list[argument_count++] = box_height;
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SSS,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_SSS,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to come out of idle mode.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Idl
  * @see #DSP_Send_Command
  * @see ccd_dsp.html#CCD_DSP_TIM_BOARD_ID
  * @see ccd_dsp.html#CCD_DSP_STP
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Stp(int *reply_value)
+static int DSP_Send_Stp(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_STP,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_STP,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to abort the exposure that is currently underway.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Manual_Command
  * @see ccd_dsp.html#CCD_DSP_AEX
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Aex(int *reply_value)
+static int DSP_Send_Aex(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_AEX,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_AEX,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to close the shutter.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Osh
  * @see #DSP_Send_Manual_Command
  * @see #CCD_DSP_CSH
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Csh(int *reply_value)
+static int DSP_Send_Csh(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_CSH,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_CSH,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to open the shutter.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Csh
  * @see #DSP_Send_Manual_Command
  * @see #CCD_DSP_OSH
  */
-static int DSP_Send_Osh(int *reply_value)
+static int DSP_Send_Osh(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_OSH,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_OSH,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to pause the exposure that is currently underway.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Rex
  * @see #DSP_Send_Manual_Command
  * @see #CCD_DSP_PEX
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Pex(int *reply_value)
+static int DSP_Send_Pex(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_PEX,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_PEX,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to turn the analog power supplies on using the power control board.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Manual_Command
  * @see ccd_dsp.html#CCD_DSP_PON
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Pon(int *reply_value)
+static int DSP_Send_Pon(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_PON,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_PON,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to turn the analog power supplies off using the power control board.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Manual_Command
  * @see ccd_dsp.html#CCD_DSP_POF
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Pof(int *reply_value)
+static int DSP_Send_Pof(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_POF,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_POF,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to resume the exposure that is currently underway.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
  * @see #DSP_Send_Pex
  * @see #DSP_Send_Command
  * @see #CCD_DSP_REX
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Rex(int *reply_value)
+static int DSP_Send_Rex(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_REX,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_REX,NULL,0,reply_value);
 }
 
 /**
@@ -2470,6 +2267,7 @@ static int DSP_Send_Rex(int *reply_value)
  * passed in time, allowing for some transmission delay (DSP_Data.Start_Exposure_Offset_Time).
  * Sets the DSP_Data.Exposure_Start_Time to start of the exposure.
  * Sets the exposure status to either EXPOSING or READOUT (if the exposure length is small).
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
  * 	we can start the exposure at any convenient time.
  * @param exposure_length The length of exposure we are about to start. This used in conjunction with
@@ -2483,8 +2281,9 @@ static int DSP_Send_Rex(int *reply_value)
  * @see ccd_exposure.html#CCD_Exposure_Set_Exposure_Status
  * @see ccd_exposure.html#CCD_Exposure_Get_Start_Exposure_Offset_Time
  * @see ccd_exposure.html#CCD_Exposure_Get_Readout_Remaining_Time
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *reply_value)
+static int DSP_Send_Sex(CCD_Interface_Handle_T* handle,struct timespec start_time,int exposure_length, int *reply_value)
 {
 	enum CCD_EXPOSURE_STATUS exposure_status;
 	struct timespec current_time,sleep_time;
@@ -2497,7 +2296,7 @@ static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *rep
 	if(start_time.tv_sec > 0)
 	{
 		exposure_status = CCD_EXPOSURE_STATUS_WAIT_START;
-		if(!CCD_Exposure_Set_Exposure_Status(exposure_status))
+		if(!CCD_Exposure_Set_Exposure_Status(handle,exposure_status))
 		{
 			DSP_Error_Number = 35;
 			sprintf(DSP_Error_String,"DSP_Send_Sex:Setting exposure status %d failed.",exposure_status);
@@ -2526,7 +2325,7 @@ static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *rep
 				remaining_ns = (start_time.tv_nsec - current_time.tv_nsec);
 			/* we need to allow time for propogation of the SEX command
 			** allow offset milliseconds to do this. */
-				remaining_ns -= CCD_Exposure_Get_Start_Exposure_Offset_Time()*
+				remaining_ns -= CCD_Exposure_Get_Start_Exposure_Offset_Time(handle)*
 					CCD_GLOBAL_ONE_MILLISECOND_NS;
 				if(remaining_ns < 0)
 				{
@@ -2554,54 +2353,59 @@ static int DSP_Send_Sex(struct timespec start_time,int exposure_length, int *rep
 	}/* end if */
 /* switch status to exposing and store the actual time the exposure is going to start */
 /* If the exposure length is small, we go directly into READOUT status. */
-	if(exposure_length < CCD_Exposure_Get_Readout_Remaining_Time())
+	if(exposure_length < CCD_Exposure_Get_Readout_Remaining_Time(handle))
 		exposure_status = CCD_EXPOSURE_STATUS_READOUT;
 	else
 		exposure_status = CCD_EXPOSURE_STATUS_EXPOSE;
-	if(!CCD_Exposure_Set_Exposure_Status(exposure_status))
+	if(!CCD_Exposure_Set_Exposure_Status(handle,exposure_status))
 	{
 		DSP_Error_Number = 16;
 		sprintf(DSP_Error_String,"DSP_Send_Sex:Setting exposure status %d failed.",exposure_status);
 		return FALSE;
 	}
-	CCD_Exposure_Set_Exposure_Start_Time();
+	CCD_Exposure_Set_Exposure_Start_Time(handle);
 /* start exposure and return result */
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SEX,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_SEX,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to reset the SDSU controller board.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed. It does not return
  * 	SYR, read the reply value to get this value.
  * @see #DSP_Send_Command
  * @see ccd_pci.html#CCD_PCI_HCVR_RESET_CONTROLLER
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Reset(int *reply_value)
+static int DSP_Send_Reset(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Command(CCD_PCI_HCVR_RESET_CONTROLLER,reply_value);
+	return DSP_Send_Command(handle,CCD_PCI_HCVR_RESET_CONTROLLER,reply_value);
 }
 
 /**
  * Internal DSP command to read the controller config.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns TRUE if the command was sent without error, FALSE otherwise.
  * @see #DSP_Send_Manual_Command
  * @see #CCD_DSP_RCC
  */
-static int DSP_Send_Rcc(int *reply_value)
+static int DSP_Send_Rcc(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_RCC,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_RCC,NULL,0,reply_value);
 }
 
 /**
  * Internal DSP command to ready for SDSU PCI board for DSP code download.
  * This uses CCD_Interface_Command to call the PCI ioctl CCD_PCI_IOCTL_PCI_DOWNLOAD with no arguments.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the command was sent without error, FALSE otherwise.
  * @see ccd_interface.html#CCD_Interface_Command
  * @see ccd_pci.html#CCD_PCI_IOCTL_PCI_DOWNLOAD
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_PCI_Download(void)
+static int DSP_Send_PCI_Download(CCD_Interface_Handle_T* handle)
 {
 	int value;
 
@@ -2609,7 +2413,7 @@ static int DSP_Send_PCI_Download(void)
 #if LOGGING > 9
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_DOWNLOAD.");
 #endif
-	if(!CCD_Interface_Command(CCD_PCI_IOCTL_PCI_DOWNLOAD,&value))
+	if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_PCI_DOWNLOAD,&value))
 	{
 		DSP_Error_Number = 109;
 		sprintf(DSP_Error_String,"DSP_Send_PCI_Download:Sending PCI download failed.");
@@ -2621,12 +2425,14 @@ static int DSP_Send_PCI_Download(void)
 /**
  * Internal DSP command to wait for the SDSU PCI board to complete itialisation after a DSP code download.
  * This uses CCD_Interface_Command to call the PCI ioctl CCD_PCI_IOCTL_PCI_DOWNLOAD_WAIT with no arguments.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns CCD_DSP_DON if the command was sent without error.
  * @see ccd_interface.html#CCD_Interface_Command
  * @see ccd_pci.html#CCD_PCI_IOCTL_PCI_DOWNLOAD_WAIT
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_PCI_Download_Wait(int *reply_value)
+static int DSP_Send_PCI_Download_Wait(CCD_Interface_Handle_T* handle,int *reply_value)
 {
 #if LOGGING > 9
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"PCI_DOWNLOAD_WAIT.");
@@ -2637,31 +2443,35 @@ static int DSP_Send_PCI_Download_Wait(int *reply_value)
 		sprintf(DSP_Error_String,"DSP_Send_PCI_Download_Wait:Reply value is NULL.");
 		return FALSE;
 	}
-	return CCD_Interface_Command(CCD_PCI_IOCTL_PCI_DOWNLOAD_WAIT,reply_value);
+	return CCD_Interface_Command(handle,CCD_PCI_IOCTL_PCI_DOWNLOAD_WAIT,reply_value);
 }
 
 /**
  * Internal DSP command reset the PCI board's program counter. This uses DSP_Send_Command to set the HCVR to
  * CCD_PCI_HCVR_PCI_PC_RESET with no arguments.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns TRUE if the command was sent without error, FALSE otherwise.
  * @see #DSP_Send_Command
  * @see ccd_pci.html#CCD_PCI_HCVR_PCI_PC_RESET
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_PCI_PC_Reset(int *reply_value)
+static int DSP_Send_PCI_PC_Reset(CCD_Interface_Handle_T* handle,int *reply_value)
 {
-	return DSP_Send_Command(CCD_PCI_HCVR_PCI_PC_RESET,reply_value);
+	return DSP_Send_Command(handle,CCD_PCI_HCVR_PCI_PC_RESET,reply_value);
 }
 
 /**
  * Internal DSP command to set exposure time. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param msecs The number of milliseconds to expose the CCD for.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns TRUE if the command was sent without error, FALSE otherwise.
  * @see ccd_dsp.html#CCD_DSP_SET
  * @see ccd_dsp.html#DSP_Send_Manual_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Set(int msecs,int *reply_value)
+static int DSP_Send_Set(CCD_Interface_Handle_T* handle,int msecs,int *reply_value)
 {
 	int argument_list[1];
 	int argument_count = 0;
@@ -2671,99 +2481,24 @@ static int DSP_Send_Set(int msecs,int *reply_value)
 #endif
 /* send command to interface */
 	argument_list[argument_count++] = msecs;
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_SET,argument_list,argument_count,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_SET,argument_list,argument_count,reply_value);
 }
 
 /**
  * Internal DSP command to get the time an exposure has been underway. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns TRUE if the command was sent without error, FALSE otherwise.
  * @see #DSP_Send_Manual_Command
  * @see ccd_pci.html#CCD_PCI_HCVR_READ_EXPOSURE_TIME
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Ret(int *reply_value)
+static int DSP_Send_Ret(CCD_Interface_Handle_T* handle,int *reply_value)
 {
 #if LOGGING > 9
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"READ_EXPOSURE_TIME.");
 #endif
-	return DSP_Send_Manual_Command(CCD_DSP_TIM_BOARD_ID,CCD_DSP_RET,NULL,0,reply_value);
-}
-
-/**
- * Internal DSP command to send the filter wheel abort command. 
- * @param reply_value The address of an integer to store the value returned from the SDSU board.
- * @return Returns true if sending the command succeeded, false if it failed.
- * @see #CCD_DSP_BOARD_ID
- * @see #CCD_DSP_FWA
- * @see #DSP_Send_Manual_Command
- */
-static int DSP_Send_Fwa(int *reply_value)
-{
-	return DSP_Send_Manual_Command(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_FWA,NULL,0,reply_value);
-}
-
-/**
- * Internal DSP command to send the filter wheel move command. 
- * @param wheel Which wheel to move.
- * @param direction The direction to move the specified wheel.
- * @param posn_count The number of positions to move the wheel.
- * @param reply_value The address of an integer to store the value returned from the SDSU board.
- * @return Returns true if sending the command succeeded, false if it failed.
- * @see #CCD_DSP_BOARD_ID
- * @see #CCD_DSP_FWM
- * @see #DSP_Send_Manual_Command
- */
-static int DSP_Send_Fwm(int wheel,int direction,int posn_count,int *reply_value)
-{
-	int argument_list[3];
-	int argument_count = 0;
-
-	argument_list[argument_count++] = wheel;
-	argument_list[argument_count++] = direction;
-	argument_list[argument_count++] = posn_count;
-	return DSP_Send_Manual_Command(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_FWM,argument_list,argument_count,reply_value);
-}
-
-/**
- * Internal DSP command to send the filter wheel reset command. 
- * @param wheel Which wheel to reset to home.
- * @param reply_value The address of an integer to store the value returned from the SDSU board.
- * @return Returns true if sending the command succeeded, false if it failed.
- * @see #CCD_DSP_BOARD_ID
- * @see #CCD_DSP_FWR
- * @see #DSP_Send_Manual_Command
- */
-static int DSP_Send_Fwr(int wheel,int *reply_value)
-{
-	int argument_list[1];
-	int argument_count = 0;
-
-	argument_list[argument_count++] = wheel;
-	return DSP_Send_Manual_Command(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_FWR,argument_list,argument_count,reply_value);
-}
-
-/**
- * Internal DSP command to turn the vacuum gauge power supply on using a relay attached to DOUT5 on the utility board.
- * @param reply_value The address of an integer to store the value returned from the SDSU board.
- * @return Returns true if sending the command succeeded, false if it failed.
- * @see #DSP_Send_Manual_Command
- * @see ccd_dsp.html#CCD_DSP_VON
- */
-static int DSP_Send_Von(int *reply_value)
-{
-	return DSP_Send_Manual_Command(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_VON,NULL,0,reply_value);
-}
-
-/**
- * Internal DSP command to turn the vacuum gauge power supply off using a relay attached to DOUT5 on the utility board.
- * @param reply_value The address of an integer to store the value returned from the SDSU board.
- * @return Returns true if sending the command succeeded, false if it failed.
- * @see #DSP_Send_Manual_Command
- * @see ccd_dsp.html#CCD_DSP_VOF
- */
-static int DSP_Send_Vof(int *reply_value)
-{
-	return DSP_Send_Manual_Command(CCD_DSP_UTIL_BOARD_ID,CCD_DSP_VOF,NULL,0,reply_value);
+	return DSP_Send_Manual_Command(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_RET,NULL,0,reply_value);
 }
 
 /**
@@ -2774,6 +2509,7 @@ static int DSP_Send_Vof(int *reply_value)
  * <li>The command is sent using CCD_Interface_Command_List (CCD_PCI_IOCTL_COMMAND).
  * <li>The reply values are extracted from the local argument list and copied back to the passed in list.
  * </ul>
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board_id Which SDSU board to send the manual command to. One of the ID's in the CCD_DSP_BOARD_ID
  * 	enumeration.
  * @param command The command number to put in the CMDR(Manual Command Register) register.
@@ -2786,8 +2522,9 @@ static int DSP_Send_Vof(int *reply_value)
  * @see #DSP_Send_Command
  * @see #DSP_Manual_Command_To_String
  * @see #CCD_DSP_BOARD_ID
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,int *argument_list,int argument_count,
+static int DSP_Send_Manual_Command(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int command,int *argument_list,int argument_count,
 	int *reply_value)
 {
 	int ioctl_argument_list[CCD_PCI_IOCTL_ARGUMENT_LIST_COUNT];
@@ -2825,7 +2562,7 @@ static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,in
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"COMMAND:value:%s (%#x).",
 			DSP_Manual_Command_To_String(command),command);
 #endif
-	if(!CCD_Interface_Command_List(CCD_PCI_IOCTL_COMMAND,ioctl_argument_list,argument_count+2))
+	if(!CCD_Interface_Command_List(handle,CCD_PCI_IOCTL_COMMAND,ioctl_argument_list,argument_count+2))
 	{
 		DSP_Error_Number = 33;
 		sprintf(DSP_Error_String,"DSP_Send_Manual_Command:Sending command %s (%#x) failed.",
@@ -2843,15 +2580,15 @@ static int DSP_Send_Manual_Command(enum CCD_DSP_BOARD_ID board_id,int command,in
  * <ul>
  * <li>The command is sent using CCD_Interface_Command (CCD_PCI_IOCTL_SET_HCVR).
  * </ul>
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param hcvr_command The command number to put in the HCVR(Host Command Vector Register) register.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if no error occurs. If the command fails returns false.
  * @see ccd_interface.html#CCD_Interface_Command
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Send_Command(int hcvr_command,int *reply_value)
+static int DSP_Send_Command(CCD_Interface_Handle_T* handle,int hcvr_command,int *reply_value)
 {
-	int argument_index;
-
 	if(reply_value == NULL)
 	{
 		DSP_Error_Number = 24;
@@ -2864,7 +2601,7 @@ static int DSP_Send_Command(int hcvr_command,int *reply_value)
 #endif
 /* set reply_value to hcvr_command, this is the data value passed into CCD_Interface_Command */
 	(*reply_value) = hcvr_command;
-	if(!CCD_Interface_Command(CCD_PCI_IOCTL_SET_HCVR,reply_value))
+	if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_SET_HCVR,reply_value))
 	{
 		DSP_Error_Number = 36;
 		sprintf(DSP_Error_String,"DSP_Send_Command:Sending command %#x failed.",(*reply_value));
@@ -2895,12 +2632,6 @@ static int DSP_Check_Reply(int reply,int expected_reply)
 #if LOGGING > 9
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CHECK_REPLY:actual:%#x,expected:%#x.",reply,expected_reply);
 #endif
-/* If the expected reply was an actual value we can't test whether this is correct or not
-** so just return it. We do this first as a RDM may return the value for ERR correctly etc... */
-	if(expected_reply == DSP_ACTUAL_VALUE)
-	{
-		return reply;
-	}
 /* If the reply was ERR something went wrong with the last command */
 	if(reply == CCD_DSP_ERR)
 	{
@@ -2915,6 +2646,12 @@ static int DSP_Check_Reply(int reply,int expected_reply)
 		sprintf(DSP_Error_String,"DSP_Check_Reply:Reply was TOUT.");
 		return FALSE;
  	}
+/* If the expected reply was an actual value we can't test whether this is correct or not
+** so just return it. We do this first as a RDM may return the value for ERR correctly etc... */
+	if(expected_reply == DSP_ACTUAL_VALUE)
+	{
+		return reply;
+	}
 /* check reply vs. expected */
 	if(reply != expected_reply)
 	{
@@ -2990,6 +2727,9 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.49  2006/05/16 14:12:17  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 0.48  2004/05/16 14:28:18  cjm
 ** Re-wrote abort code.
 **

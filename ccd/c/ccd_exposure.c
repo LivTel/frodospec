@@ -1,32 +1,13 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.33 2006-05-17 18:06:20 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.34 2008-11-20 11:34:46 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.33 $
+ * @version $Revision: 0.34 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -50,8 +31,11 @@
 #include <sys/time.h>
 #endif
 #include <time.h>
-#include "ccd_exposure.h"
 #include "ccd_dsp.h"
+#include "ccd_exposure.h"
+#include "ccd_exposure_private.h"
+#include "ccd_interface.h"
+#include "ccd_interface_private.h"
 #include "ccd_setup.h"
 #ifdef CFITSIO
 #include "fitsio.h"
@@ -105,32 +89,6 @@
 #define EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME	(2)
 
 /* structure */
-/**
- * Structure used to hold local data to ccd_exposure.
- * <dl>
- * <dt>Exposure_Status</dt> <dd>Whether an operation is being performed to CLEAR, EXPOSE or READOUT the CCD.</dd>
- * <dt>Start_Exposure_Clear_Time</dt> <dd>The amount of time before we are due to start an exposure, 
- * 	that a CLEAR_ARRAY command should be sent to the controller. This time is in seconds, 
- * 	and must be greater than the time the CLEAR_ARRAY command takes to clock all accumulated charge off the CCD 
- * 	(approx 5 seconds for a 2kx2k EEV42-40).</dd>
- * <dt>Start_Exposure_Offset_Time</dt> <dd>The amount of time, in milliseconds, before the desired start of 
- * 	exposure that we should send the START_EXPOSURE command, to allow for transmission delay.</dd>
- * <dt>Readout_Remaining_Time</dt> <dd>Amount of time, in milleseconds,
- * 	remaining for an exposure when we change status to READOUT, to stop RDM/TDL/WRMs affecting the readout.</dd>
- * <dt>Exposure_Length</dt> <dd>The last exposure length to be set.</dd>
- * <dt>Exposure_Start_Time</dt> <dd>The time stamp when the START_EXPOSURE command was sent to the controller.</dd>
- * </dl>
- * @see ccd_dsp.html#CCD_EXPOSURE_STATUS
- */
-struct Exposure_Struct
-{
-	enum CCD_EXPOSURE_STATUS Exposure_Status;
-	int Start_Exposure_Clear_Time;
-	int Start_Exposure_Offset_Time;
-	int Readout_Remaining_Time;
-	int Exposure_Length;
-	struct timespec Exposure_Start_Time;
-};
 
 /* external variables */
 
@@ -138,7 +96,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.33 2006-05-17 18:06:20 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.34 2008-11-20 11:34:46 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -148,36 +106,12 @@ static int Exposure_Error_Number = 0;
  * Local variable holding description of the last error that occured.
  */
 static char Exposure_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
-/**
- * Data holding the current status of ccd_exposure. This is statically initialised to the following:
- * <dl>
- * <dt>Exposure_Status</dt> <dd>CCD_EXPOSURE_STATUS_NONE</dd>
- * <dt>Start_Exposure_Clear_Time</dt> <dd>EXPOSURE_DEFAULT_START_EXPOSURE_CLEAR_TIME</dd>
- * <dt>Start_Exposure_Offset_Time</dt> <dd>EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME</dd>
- * <dt>Readout_Remaining_Time</dt> <dd>EXPOSURE_DEFAULT_READOUT_REMAINING_TIME</dd>
- * <dt>Exposure_Length</dt> <dd>0</dd>
- * <dt>Exposure_Start_Time</dt> <dd>{0L,0L}</dd>
- * </dl>
- * @see #Exposure_Struct
- * @see #CCD_EXPOSURE_STATUS
- * @see #EXPOSURE_DEFAULT_START_EXPOSURE_CLEAR_TIME
- * @see #EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME
- * @see #EXPOSURE_DEFAULT_READOUT_REMAINING_TIME
- */
-static struct Exposure_Struct Exposure_Data = 
-{
-	CCD_EXPOSURE_STATUS_NONE,
-	EXPOSURE_DEFAULT_START_EXPOSURE_CLEAR_TIME,
-	EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME,
-	EXPOSURE_DEFAULT_READOUT_REMAINING_TIME,
-	0,
-	{0L,0L},
-};
 
 /* internal functions */
-static int Exposure_Shutter_Control(int value);
-static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data,char *filename);
-static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
+static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int value);
+static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
+						   char *filename);
+static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
 					       char **filename_list,int filename_count);
 /* we should provide an alternative for these two routines if the library is not using short ints. */
 #if CCD_GLOBAL_BYTES_PER_PIXEL == 2
@@ -187,7 +121,7 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 #else
 #error CCD_GLOBAL_BYTES_PER_PIXEL uses illegal value.
 #endif
-static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows);
+static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows,struct timespec start_time);
 static void Exposure_TimeSpec_To_Date_String(struct timespec time,char *time_string);
 static void Exposure_TimeSpec_To_Date_Obs_String(struct timespec time,char *time_string);
 static void Exposure_TimeSpec_To_UtStart_String(struct timespec time,char *time_string);
@@ -199,18 +133,10 @@ static int fexist(char *filename);
 /**
  * This routine sets up ccd_exposure internal variables.
  * It should be called at startup.
- * @see #Exposure_Data
  */
 void CCD_Exposure_Initialise(void)
 {
 	Exposure_Error_Number = 0;
-	Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
-	Exposure_Data.Start_Exposure_Clear_Time = EXPOSURE_DEFAULT_START_EXPOSURE_CLEAR_TIME;
-	Exposure_Data.Start_Exposure_Offset_Time = EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME;
-	Exposure_Data.Readout_Remaining_Time = EXPOSURE_DEFAULT_READOUT_REMAINING_TIME;
-	Exposure_Data.Exposure_Length = 0;
-	Exposure_Data.Exposure_Start_Time.tv_sec = 0;
-	Exposure_Data.Exposure_Start_Time.tv_nsec = 0;
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_Exposure_Initialise:%s.\n",rcsid);
 #ifdef CCD_EXPOSURE_BYTE_SWAP
@@ -223,6 +149,32 @@ void CCD_Exposure_Initialise(void)
 #else
 	fprintf(stdout,"CCD_Exposure_Initialise:NOT Using CFITSIO.\n");
 #endif
+}
+
+/**
+ * Routine to initialise the exposure data in the interface handle. The data is initialsied as follows:
+ * <dl>
+ * <dt>Exposure_Status</dt> <dd>CCD_EXPOSURE_STATUS_NONE</dd>
+ * <dt>Start_Exposure_Clear_Time</dt> <dd>EXPOSURE_DEFAULT_START_EXPOSURE_CLEAR_TIME</dd>
+ * <dt>Start_Exposure_Offset_Time</dt> <dd>EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME</dd>
+ * <dt>Readout_Remaining_Time</dt> <dd>EXPOSURE_DEFAULT_READOUT_REMAINING_TIME</dd>
+ * <dt>Exposure_Length</dt> <dd>0</dd>
+ * <dt>Exposure_Start_Time</dt> <dd>{0L,0L}</dd>
+ * </dl>
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
+ */
+void CCD_Exposure_Data_Initialise(CCD_Interface_Handle_T* handle)
+{
+	/* diddly new routine */
+	handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+	handle->Exposure_Data.Start_Exposure_Clear_Time = EXPOSURE_DEFAULT_START_EXPOSURE_CLEAR_TIME;
+	handle->Exposure_Data.Start_Exposure_Offset_Time = EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME;
+	handle->Exposure_Data.Readout_Remaining_Time = EXPOSURE_DEFAULT_READOUT_REMAINING_TIME;
+	handle->Exposure_Data.Exposure_Length = 0;
+	handle->Exposure_Data.Exposure_Start_Time.tv_sec = 0;
+	handle->Exposure_Data.Exposure_Start_Time.tv_nsec = 0;
 }
 
 /**
@@ -255,6 +207,7 @@ void CCD_Exposure_Initialise(void)
  * The Exposure_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
  * If the exposure is aborted at any stage the routine returns. Exposure_Expose_Delete_Fits_Images is
  * called to attempt to delete the blank FITS files, if the routine fails or is aborted.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param clear_array An integer representing a boolean. This should be set to TRUE if we wish to
  * 	manually clear the array before the exposure starts, FALSE if we do not. This is usually TRUE.
  * @param open_shutter TRUE if the shutter is to be opened over the duration of the exposure, FALSE if the
@@ -273,7 +226,7 @@ void CCD_Exposure_Initialise(void)
  * @see #CCD_EXPOSURE_HSTR_READOUT
  * @see #CCD_EXPOSURE_HSTR_BIT_SHIFT
  * @see #EXPOSURE_READ_TIMEOUT
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
  * @see #Exposure_Shutter_Control
  * @see #Exposure_Byte_Swap
  * @see #Exposure_Expose_Post_Readout_Full_Frame
@@ -291,8 +244,10 @@ void CCD_Exposure_Initialise(void)
  * @see ccd_dsp.html#CCD_DSP_Command_Get_Readout_Progress
  * @see ccd_dsp.html#CCD_DSP_EXPOSURE_MAX_LENGTH
  * @see ccd_interface.html#CCD_Interface_Get_Reply_Data
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_time,int exposure_time,
+int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_shutter,
+			struct timespec start_time,int exposure_time,
 			char **filename_list,int filename_count)
 {
 	struct timespec sleep_time,current_time;
@@ -313,7 +268,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
 /* we shouldn't be able to expose until setup has been successfully completed - check this */
-	if(!CCD_Setup_Get_Setup_Complete())
+	if(!CCD_Setup_Get_Setup_Complete(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 1;
@@ -351,7 +306,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:filename_count = %d",filename_count);
 		return FALSE;
 	}
-	window_flags = CCD_Setup_Get_Window_Flags();
+	window_flags = CCD_Setup_Get_Window_Flags(handle);
 	if((window_flags == 0)&&(filename_count > 1))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
@@ -361,7 +316,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		return FALSE;
 	}
 /* get information from setup that we need to do an exposure */
-	expected_pixel_count = CCD_Setup_Get_Readout_Pixel_Count();
+	expected_pixel_count = CCD_Setup_Get_Readout_Pixel_Count(handle);
 	if(expected_pixel_count <= 0)
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
@@ -384,7 +339,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Setting shutter control(%d).",
 			      open_shutter);
 #endif
-	if(!Exposure_Shutter_Control(open_shutter))
+	if(!Exposure_Shutter_Control(handle,open_shutter))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		return FALSE;
@@ -401,14 +356,14 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Setting exposure length(%d).",
 			      exposure_time);
 #endif
-	if(!CCD_DSP_Command_SET(exposure_time))
+	if(!CCD_DSP_Command_SET(handle,exposure_time))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 23;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Setting exposure time failed.");
 		return FALSE;
 	}
-	Exposure_Data.Exposure_Length = exposure_time;
+	handle->Exposure_Data.Exposure_Length = exposure_time;
 	if(CCD_DSP_Get_Abort())
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
@@ -422,7 +377,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* do the clear array a few seconds before the exposure is due to start */
 	if(start_time.tv_sec > 0)
 	{
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_WAIT_START;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_WAIT_START;
 		done = FALSE;
 		while(done == FALSE)
 		{
@@ -439,7 +394,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				       current_time.tv_sec,start_time.tv_sec);
 #endif
 		/* if we've time, sleep for a second */
-			if((start_time.tv_sec - current_time.tv_sec) > Exposure_Data.Start_Exposure_Clear_Time)
+			if((start_time.tv_sec - current_time.tv_sec) > handle->Exposure_Data.Start_Exposure_Clear_Time)
 			{
 				sleep_time.tv_sec = 1;
 				sleep_time.tv_nsec = 0;
@@ -451,7 +406,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			if(CCD_DSP_Get_Abort())
 			{
 				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 				Exposure_Error_Number = 37;
 				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 				return FALSE;
@@ -462,23 +417,27 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	if(clear_array)
 	{
 #if LOGGING > 4
-		CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Clearing CCD array.");
+		/*		CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Clearing CCD array.");*/
+		CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Clearing is commented out at the moment.");
 #endif
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_CLEAR;
-		if(!CCD_DSP_Command_CLR())
+		/* diddly
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_CLEAR;
+		if(!CCD_DSP_Command_CLR(handle))
 		{
 			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 38;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Clear Array failed.");
 			return FALSE;
 		}
+		*/
+
 	}
 /* check - have we been aborted? */
 	if(CCD_DSP_Get_Abort())
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 20;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 		return FALSE;
@@ -489,10 +448,10 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #endif
 	/* Exposure status is set in CCD_DSP_Command_SEX, as this routine sleeps before starting
 	** the exposure. */
-	if(!CCD_DSP_Command_SEX(start_time,exposure_time))
+	if(!CCD_DSP_Command_SEX(handle,start_time,exposure_time))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 39;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed(%ld,%ld,%d).",
 			start_time.tv_sec,start_time.tv_nsec,exposure_time);
@@ -509,10 +468,10 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 			       "CCD_Exposure_Expose():Getting Host Status Transfer Register.");
 #endif
-		if(!CCD_DSP_Command_Get_HSTR(&status))
+		if(!CCD_DSP_Command_Get_HSTR(handle,&status))
 		{
 			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 40;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Getting HSTR failed.");
 			return FALSE;
@@ -527,14 +486,14 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		if(status != CCD_EXPOSURE_HSTR_READOUT)
 		{
 			/* are we about to start reading out? */
-			if((exposure_time - elapsed_exposure_time) >= Exposure_Data.Readout_Remaining_Time)
+			if((exposure_time - elapsed_exposure_time) >= handle->Exposure_Data.Readout_Remaining_Time)
 			{
 #if LOGGING > 4
 				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 				       "CCD_Exposure_Expose():Getting Elapsed exposure time.");
 #endif
 				/* get elapsed time from controller */
-				elapsed_exposure_time = CCD_DSP_Command_RET();
+				elapsed_exposure_time = CCD_DSP_Command_RET(handle);
 #if LOGGING > 9
 				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 				       "CCD_Exposure_Expose():Elapsed exposure time is %#x.",elapsed_exposure_time);
@@ -546,34 +505,34 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 					if(CCD_DSP_Get_Error_Number() != 0)
 						CCD_DSP_Error();
 				}
-			}/* end if there is over Exposure_Data.Readout_Remaining_Time milliseconds of exposure left */
-			if((Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)&&
-			   ((exposure_time - elapsed_exposure_time) < Exposure_Data.Readout_Remaining_Time))
+			}/* end if there is over handle->Exposure_Data.Readout_Remaining_Time milliseconds of exposure left */
+			if((handle->Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)&&
+			   ((exposure_time - elapsed_exposure_time) < handle->Exposure_Data.Readout_Remaining_Time))
 			{
 				/* Here we change the Exposure status to PRE_READOUT, when there
-				** is less than Exposure_Data.Readout_Remaining_Time milliseconds of 
+				** is less than handle->Exposure_Data.Readout_Remaining_Time milliseconds of 
 				** exposure time left. 
 				** The exposure status is checked in WRM,RDM,TDL and RET commands, 
 				** so we can't send these commands when in readout mode. 
-				** We switch to exposure readout Exposure_Data.Readout_Remaining_Time milliseconds 
+				** We switch to exposure readout handle->Exposure_Data.Readout_Remaining_Time milliseconds 
 				** early as we sleep for a second at the bottom of the loop, and the HSTR status
 				** may change before we check it again. */
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_PRE_READOUT;
+				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_PRE_READOUT;
 #if LOGGING > 4
 				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 						      "CCD_Exposure_Expose():Exposure Status "
 						      "changed to PRE_READOUT %d milliseconds before readout starts.",
 						      (exposure_time - elapsed_exposure_time));
 #endif
-			}/* end if there  is less than Exposure_Data.Readout_Remaining_Time milliseconds 
+			}/* end if there  is less than handle->Exposure_Data.Readout_Remaining_Time milliseconds 
 			 ** of exposure time left */
 		}/* end if HSTR status is not readout */
 		/* Testing whether the status is CCD_EXPOSURE_HSTR_READOUT can fail to be detected, 
 		** if it is in this state for less than one second (i.e. dual amplifier readout with binning 4)
 		** We could try the following test to get round this:
-		**    if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_PRE_READOUT and
+		**    if(handle->Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_PRE_READOUT and
 		**       exposure_time - elapsed_exposure_time < 0)
-		**         Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT
+		**         handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT
 		** However this won't work as we go into PRE_READOUT (which stops updating elapsed_exposure_time)
 		** 1500 ms before the exposure fails.
 		** See below for solution.
@@ -585,9 +544,9 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				       "CCD_Exposure_Expose():HSTR Status is READOUT.");
 #endif
 			/* is this the first time through the loop we have detected readout mode? */
-			if(Exposure_Data.Exposure_Status != CCD_EXPOSURE_STATUS_READOUT)
+			if(handle->Exposure_Data.Exposure_Status != CCD_EXPOSURE_STATUS_READOUT)
 			{
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
+				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
 #if LOGGING > 4
 				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 					       "CCD_Exposure_Expose():Exposure Status changed to READOUT(HSTR).");
@@ -598,7 +557,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		** We want to continue getting readout progress after the HSTR status has come out of readout mode,
 		** to get the progress of the last few bytes read out whilst we were sleeping. 
 		** We used to only get readout progress when:
-		** (Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT), (i.e. during and after
+		** (handle->Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT), (i.e. during and after
 		** we had detected HSTR register status to be CCD_EXPOSURE_HSTR_READOUT)
 		** However we can miss detecting readout mode, if the whole readout takes less than 1 second.
 		*/
@@ -607,17 +566,18 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			       "CCD_Exposure_Expose():Getting Readout Progress.");
 #endif
 		last_pixel_count = current_pixel_count;
-		if(!CCD_DSP_Command_Get_Readout_Progress(&current_pixel_count))
+		if(!CCD_DSP_Command_Get_Readout_Progress(handle,&current_pixel_count))
 		{
 			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 41;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Get Readout Progress failed.");
 			return FALSE;
 		}
 #if LOGGING > 9
 		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,
-				      "CCD_Exposure_Expose():Readout progress is %#x.",current_pixel_count);
+				      "CCD_Exposure_Expose():Readout progress is %#x of %#x pixels.",
+				      current_pixel_count,expected_pixel_count);
 #endif
 		/* If the current pixel count is greater than zero, we must be reading out, right? 
 	        ** Correct, see IIA in START_EXPOSURE (timCCDmisc.asm), INITIALIZE_NUMBER_OF_PIXELS in pciboot.asm,
@@ -626,9 +586,9 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 		if(current_pixel_count > 0)
 		{
 			/* is this the first time through the loop we have detected readout mode? */
-			if(Exposure_Data.Exposure_Status != CCD_EXPOSURE_STATUS_READOUT)
+			if(handle->Exposure_Data.Exposure_Status != CCD_EXPOSURE_STATUS_READOUT)
 			{
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
+				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
 #if LOGGING > 4
 				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 				    "CCD_Exposure_Expose():Exposure Status changed to READOUT(current_pixel_count).");
@@ -636,7 +596,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 			}
 		}
 		/* We can only have a readout timeout, if we are in readout mode. */
-		if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT)
+		if(handle->Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_READOUT)
 		{
 			/* has the pixel count changed. If not, increment timeout */
 			if(current_pixel_count == last_pixel_count)
@@ -651,7 +611,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 				CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,
 				       "CCD_Exposure_Expose():Readout timeout has occured.");
 #endif
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 				Exposure_Error_Number = 43;
 				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Readout timed out.");
 				return FALSE;
@@ -663,22 +623,22 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 #if LOGGING > 4
 			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Abort detected.");
 #endif
-			if(Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)
+			if(handle->Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)
 			{
 #if LOGGING > 4
 				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Trying AEX.");
 #endif
-				if(CCD_DSP_Command_AEX() != CCD_DSP_DON)
+				if(CCD_DSP_Command_AEX(handle) != CCD_DSP_DON)
 				{
 					Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-					Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+					handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 					Exposure_Error_Number = 15;
 					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:AEX Abort command failed.");
 					return FALSE;
 				}
 				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 				/* we now only abort when exposure status is STATUS_EXPOSE. */
-				Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 				Exposure_Error_Number = 42;
 				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 				return FALSE;
@@ -707,7 +667,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	if(readout_timeout_count == EXPOSURE_READ_TIMEOUT)
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 30;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Readout timed out.");
 		return FALSE;
@@ -716,7 +676,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	if(CCD_DSP_Get_Abort())
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 24;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 		return FALSE;
@@ -725,20 +685,20 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose():Getting reply data.");
 #endif
 	/* get data */
-	if(!CCD_Interface_Get_Reply_Data(&exposure_data))
+	if(!CCD_Interface_Get_Reply_Data(handle,&exposure_data))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 44;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Failed to get reply data.");
 		return FALSE;
 	}
-	Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_POST_READOUT;
+	handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_POST_READOUT;
 /* did we abort? */
 	if(CCD_DSP_Get_Abort())
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 26;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 		return FALSE;
@@ -754,7 +714,7 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 	if(CCD_DSP_Get_Abort())
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
-		Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 29;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 		return FALSE;
@@ -762,24 +722,24 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /* post-readout processing depends on whether we are windowing or not. */
 	if(window_flags == 0)
 	{
-		if(Exposure_Expose_Post_Readout_Full_Frame(exposure_data,filename_list[0]) == FALSE)
+		if(Exposure_Expose_Post_Readout_Full_Frame(handle,exposure_data,filename_list[0]) == FALSE)
 		{
 			/* Do not call Exposure_Expose_Delete_Fits_Images here - we may have saved to disk */
-			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			return FALSE;
 		}
 	}
 	else
 	{
-		if(Exposure_Expose_Post_Readout_Window(exposure_data,filename_list,filename_count) == FALSE)
+		if(Exposure_Expose_Post_Readout_Window(handle,exposure_data,filename_list,filename_count) == FALSE)
 		{
 			/* Do not call Exposure_Expose_Delete_Fits_Images here - we may have saved to disk */
-			Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			return FALSE;
 		}
 	}
 /* reset exposure status */
-	Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
+	handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Expose() returned TRUE.");
 #endif
@@ -789,10 +749,12 @@ int CCD_Exposure_Expose(int clear_array,int open_shutter,struct timespec start_t
 /**
  * Routine to take a bias frame. Calls CCD_Exposure_Expose with clear_array TRUE, open_shutter FALSE and 
  * zero exposure length. Note assumes single readout filename, will not work if setup is windowed.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param filename The filename to save the resultant data (in FITS format) to.
  * @return The routine returns TRUE if the operation was completed successfully, FALSE if it failed.
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Bias(char *filename)
+int CCD_Exposure_Bias(CCD_Interface_Handle_T* handle,char *filename)
 {
 	struct timespec start_time;
 	char *filename_list[1];
@@ -800,20 +762,22 @@ int CCD_Exposure_Bias(char *filename)
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
 	filename_list[0] = filename;
-	return CCD_Exposure_Expose(TRUE,FALSE,start_time,0,filename_list,1);
+	return CCD_Exposure_Expose(handle,TRUE,FALSE,start_time,0,filename_list,1);
 }
 
 /**
  * This routine would not normally be called as part of an exposure sequence. It simply opens the shutter by 
  * executing an Open Shutter command.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see ccd_dsp.html#CCD_DSP_Command_OSH
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Open_Shutter(void)
+int CCD_Exposure_Open_Shutter(CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
-	if(!CCD_DSP_Command_OSH())
+	if(!CCD_DSP_Command_OSH(handle))
 	{
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 11;
@@ -826,14 +790,16 @@ int CCD_Exposure_Open_Shutter(void)
 /**
  * This routine would not normally be called as part of an exposure sequence. It simply closes the shutter by 
  * executing a close shutter command.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see ccd_dsp.html#CCD_DSP_Command_CSH
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Close_Shutter(void)
+int CCD_Exposure_Close_Shutter(CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
-	if(!CCD_DSP_Command_CSH())
+	if(!CCD_DSP_Command_CSH(handle))
 	{
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 12;
@@ -847,18 +813,20 @@ int CCD_Exposure_Close_Shutter(void)
  * This routine pauses an exposure currently underway by 
  * executing a pause exposure command.
  * The timer is paused until the exposure is resumed.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see #CCD_Exposure_Resume
  * @see ccd_dsp.html#CCD_DSP_Command_PEX
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Pause(void)
+int CCD_Exposure_Pause(CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Pause() started.");
 #endif
-	if(!CCD_DSP_Command_PEX())
+	if(!CCD_DSP_Command_PEX(handle))
 	{
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 13;
@@ -874,18 +842,20 @@ int CCD_Exposure_Pause(void)
 /**
  * This routine resumes a paused exposure by 
  * executing a resume exposure command.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see #CCD_Exposure_Pause
  * @see ccd_dsp.html#CCD_DSP_Command_REX
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Resume(void)
+int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
 	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Resume() started.");
 #endif
-	if(!CCD_DSP_Command_REX())
+	if(!CCD_DSP_Command_REX(handle))
 	{
 		CCD_DSP_Set_Abort(FALSE);
 		Exposure_Error_Number = 14;
@@ -901,20 +871,22 @@ int CCD_Exposure_Resume(void)
 /**
  * This routine aborts an exposure currenly underway, whether it is reading out or not.
  * This routine sets the Abort flag to true by calling CCD_DSP_Set_Abort(TRUE).
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the abort succeeds  returns FALSE if an error occurs.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
  * @see #CCD_Exposure_Expose
  * @see #CCD_Exposure_Get_Exposure_Status
  * @see #CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_DSP_Set_Abort
  * @see ccd_dsp.html#CCD_EXPOSURE_STATUS
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Abort(void)
+int CCD_Exposure_Abort(CCD_Interface_Handle_T* handle)
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"CCD_Exposure_Abort() started with exposure status %d.",
-		       Exposure_Data.Exposure_Status);
+			      handle->Exposure_Data.Exposure_Status);
 #endif
 	CCD_DSP_Set_Abort(TRUE);
 #if LOGGING > 0
@@ -931,12 +903,14 @@ int CCD_Exposure_Abort(void)
  * Note assumes single readout filename, will not work if setup is windowed.
  * This routine just calls CCD_Exposure_Expose, with clear_array FALSE (to prevent destruction of the image),
  * open_shutter FALSE, and an exposure length of zero.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param filename The filename to save the exposure into.
  * @return Returns TRUE if the readout succeeds and the file is saved, returns FALSE if an error
  *	occurs or the readout is aborted.
  * @see #CCD_Exposure_Expose
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Read_Out_CCD(char *filename)
+int CCD_Exposure_Read_Out_CCD(CCD_Interface_Handle_T* handle,char *filename)
 {
 	struct timespec start_time;
 	char *filename_list[1];
@@ -944,17 +918,19 @@ int CCD_Exposure_Read_Out_CCD(char *filename)
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
 	filename_list[0] = filename;
-	return CCD_Exposure_Expose(FALSE,FALSE,start_time,0,filename_list,1);
+	return CCD_Exposure_Expose(handle,FALSE,FALSE,start_time,0,filename_list,1);
 }
 
 /**
  * Routine to set the current value of the exposure status.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param status The exposure status.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
  * @see #CCD_EXPOSURE_STATUS
  * @see #CCD_EXPOSURE_IS_STATUS
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Set_Exposure_Status(enum CCD_EXPOSURE_STATUS status)
+int CCD_Exposure_Set_Exposure_Status(CCD_Interface_Handle_T* handle,enum CCD_EXPOSURE_STATUS status)
 {
 	if(!CCD_EXPOSURE_IS_STATUS(status))
 	{
@@ -962,128 +938,147 @@ int CCD_Exposure_Set_Exposure_Status(enum CCD_EXPOSURE_STATUS status)
 		sprintf(Exposure_Error_String,"CCD_Exposure_Set_Exposure_Status:Status illegal value (%d).",status);
 		return FALSE;
 	}
-	Exposure_Data.Exposure_Status = status;
+	handle->Exposure_Data.Exposure_Status = status;
 	return TRUE;
 }
-
 
 /**
  * This routine gets the current value of Exposure Status.
  * Exposure_Status is defined in Exposure_Data.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The current status of exposure.
  * @see #CCD_EXPOSURE_STATUS
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-enum CCD_EXPOSURE_STATUS CCD_Exposure_Get_Exposure_Status(void)
+enum CCD_EXPOSURE_STATUS CCD_Exposure_Get_Exposure_Status(CCD_Interface_Handle_T* handle)
 {
-	return Exposure_Data.Exposure_Status;
+	return handle->Exposure_Data.Exposure_Status;
 }
 
 /**
  * This routine gets the current value of Exposure Length.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The last exposure length.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Get_Exposure_Length(void)
+int CCD_Exposure_Get_Exposure_Length(CCD_Interface_Handle_T* handle)
 {
-	return Exposure_Data.Exposure_Length;
+	return handle->Exposure_Data.Exposure_Length;
 }
 
 /**
  * This routine gets the time stamp for the start of the exposure.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The time stamp for the start of the exposure.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-struct timespec CCD_Exposure_Get_Exposure_Start_Time(void)
+struct timespec CCD_Exposure_Get_Exposure_Start_Time(CCD_Interface_Handle_T* handle)
 {
-	return Exposure_Data.Exposure_Start_Time;
+	return handle->Exposure_Data.Exposure_Start_Time;
 }
 
 /**
  * Routine to set how many seconds before an exposure is due to start we wish to send the CLEAR_ARRAY
  * command to the controller.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param time The time in seconds. This should be greater than the time the CLEAR_ARRAY command takes to
  * 	clock all accumulated charge off the CCD (approx 5 seconds for a 2kx2k EEV42-40).
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-void CCD_Exposure_Set_Start_Exposure_Clear_Time(int time)
+void CCD_Exposure_Set_Start_Exposure_Clear_Time(CCD_Interface_Handle_T* handle,int time)
 {
-	Exposure_Data.Start_Exposure_Clear_Time = time;
+	handle->Exposure_Data.Start_Exposure_Clear_Time = time;
 }
 
 /**
  * Routine to get the current setting for how many seconds before an exposure is due to start we wish 
  * to send the CLEAR_ARRAY command to the controller.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The time, in seconds.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Get_Start_Exposure_Clear_Time(void)
+int CCD_Exposure_Get_Start_Exposure_Clear_Time(CCD_Interface_Handle_T* handle)
 {
-	return Exposure_Data.Start_Exposure_Clear_Time;
+	return handle->Exposure_Data.Start_Exposure_Clear_Time;
 }
 
 /**
  * Routine to set the amount of time, in milliseconds, before the desired start of exposure that we should send the
  * START_EXPOSURE command, to allow for transmission delay.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param time The time, in milliseconds.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-void CCD_Exposure_Set_Start_Exposure_Offset_Time(int time)
+void CCD_Exposure_Set_Start_Exposure_Offset_Time(CCD_Interface_Handle_T* handle,int time)
 {
-	Exposure_Data.Start_Exposure_Offset_Time = time;
+	handle->Exposure_Data.Start_Exposure_Offset_Time = time;
 }
 
 /**
  * Routine to get the amount of time, in milliseconds, before the desired start of exposure that we should send the
  * START_EXPOSURE command, to allow for transmission delay.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The time, in milliseconds.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Get_Start_Exposure_Offset_Time(void)
+int CCD_Exposure_Get_Start_Exposure_Offset_Time(CCD_Interface_Handle_T* handle)
 {
-	return Exposure_Data.Start_Exposure_Offset_Time;
+	return handle->Exposure_Data.Start_Exposure_Offset_Time;
 }
 
 /**
  * Routine to set the amount of time, in milleseconds, remaining for an exposure when we change status to READOUT, 
  * to stop RDM/TDL/WRMs affecting the readout.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param time The time, in milliseconds. Note, because the exposure time is read every second, it is best
  * 	not have have this constant an exact multiple of 1000.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-void CCD_Exposure_Set_Readout_Remaining_Time(int time)
+void CCD_Exposure_Set_Readout_Remaining_Time(CCD_Interface_Handle_T* handle,int time)
 {
-	Exposure_Data.Readout_Remaining_Time = time;
+	handle->Exposure_Data.Readout_Remaining_Time = time;
 }
 
 /**
  * Routine to get the amount of time, in milliseconds, remaining for an exposure when we change status to READOUT, 
  * to stop RDM/TDL/WRMs affecting the readout.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The time, in milliseconds.
- * @see #Exposure_Data
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Get_Readout_Remaining_Time(void)
+int CCD_Exposure_Get_Readout_Remaining_Time(CCD_Interface_Handle_T* handle)
 {
-	return Exposure_Data.Readout_Remaining_Time;
+	return handle->Exposure_Data.Readout_Remaining_Time;
 }
 
 /**
  * Routine to set the Exposure_Start_Time of Exposure_Data, to the current time of the real time clock.
  * clock_gettime or gettimeofday is used, depending on whether _POSIX_TIMERS is defined.
- * @see #Exposure_Data
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
+ * @see ccd_exposure_private.html#CCD_Exposure_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-void CCD_Exposure_Set_Exposure_Start_Time(void)
+void CCD_Exposure_Set_Exposure_Start_Time(CCD_Interface_Handle_T* handle)
 {
 #ifndef _POSIX_TIMERS
 	struct timeval gtod_current_time;
 #endif
 
 #ifdef _POSIX_TIMERS
-	clock_gettime(CLOCK_REALTIME,&(Exposure_Data.Exposure_Start_Time));
+	clock_gettime(CLOCK_REALTIME,&(handle->Exposure_Data.Exposure_Start_Time));
 #else
 	gettimeofday(&gtod_current_time,NULL);
-	Exposure_Data.Exposure_Start_Time.tv_sec = gtod_current_time.tv_sec;
-	Exposure_Data.Exposure_Start_Time.tv_nsec = gtod_current_time.tv_usec*CCD_GLOBAL_ONE_MICROSECOND_NS;
+	handle->Exposure_Data.Exposure_Start_Time.tv_sec = gtod_current_time.tv_sec;
+	handle->Exposure_Data.Exposure_Start_Time.tv_nsec = gtod_current_time.tv_usec*CCD_GLOBAL_ONE_MICROSECOND_NS;
 #endif
 }
 
@@ -1158,6 +1153,7 @@ void CCD_Exposure_Warning(void)
 /**
  * Internal exposure routine that sets the shutter bit. The SDSU SEX command looks
  * at this bit to determine whether to open and close the shutter whilst performing an exposure.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param open_shutter If it is TRUE, the SDSU SEX command will open/close the 
  * 	shutter at the relevant places during an exposure. If it is FALSE, the shutter will remain in it's 
  * 	current state throughout the exposure.
@@ -1167,8 +1163,9 @@ void CCD_Exposure_Warning(void)
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_dsp.html#CCD_DSP_Command_WRM
  * @see ccd_dsp.html#CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Exposure_Shutter_Control(int open_shutter)
+static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int open_shutter)
 {
 	int current_status;
 
@@ -1184,7 +1181,7 @@ static int Exposure_Shutter_Control(int open_shutter)
 		return FALSE;
 	}
 /* get current controller status */
-	current_status = CCD_DSP_Command_RDM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
+	current_status = CCD_DSP_Command_RDM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
 					     EXPOSURE_ADDRESS_CONTROLLER_STATUS);
 	if((current_status == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
@@ -1198,7 +1195,7 @@ static int Exposure_Shutter_Control(int open_shutter)
 	else
 		current_status &= ~(CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT);
 /* write new controller status value */
-	if(CCD_DSP_Command_WRM(CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
+	if(CCD_DSP_Command_WRM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
 			       EXPOSURE_ADDRESS_CONTROLLER_STATUS,current_status) != CCD_DSP_DON)
 	{
 		Exposure_Error_Number = 22;
@@ -1260,6 +1257,7 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
  * </ul>
  * If an error occurs BEFORE saving the read out frame to disk, Exposure_Expose_Delete_Fits_Images is called
  * to delete any 'blank' FITS files.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param exposure_data The data read out from the CCD.
  * @param filename The FITS filename (which should already contain relevant headers), in which to write 
  *        the image data.
@@ -1269,17 +1267,19 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
  * @see #Exposure_Expose_Delete_Fits_Images
  * @see ccd_setup.html#CCD_Setup_Get_NCols
  * @see ccd_setup.html#CCD_Setup_Get_NRows
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data,char *filename)
+static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
+						   char *filename)
 {
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	char *filename_list[1];
 	int ncols,nrows;
 
 /* get setup details */
-	ncols = CCD_Setup_Get_NCols();
-	nrows = CCD_Setup_Get_NRows();
-	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
+	ncols = CCD_Setup_Get_NCols(handle);
+	nrows = CCD_Setup_Get_NRows(handle);
+	deinterlace_type = CCD_Setup_Get_DeInterlace_Type(handle);
 /* number of columns must be a positive number */
 	if(ncols <= 0)
 	{
@@ -1333,7 +1333,7 @@ static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Post_Readout_Full_Frame:"
 			      "Saving to filename %s.",filename);
 #endif
-	if(!Exposure_Save(filename,exposure_data,ncols,nrows))
+	if(!Exposure_Save(filename,exposure_data,ncols,nrows,handle->Exposure_Data.Exposure_Start_Time))
 	{
 		/* Exposure_Save can fail but still have saved the exposure_data to disk OK */
 		return FALSE;
@@ -1356,6 +1356,7 @@ static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data
  * <li>We increment the filename index.
  * <li>We free the sub-image data.
  * </ul>
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param exposure_data The data read out from the CCD.
  * @param filename_list The list of FITS filenames (which should already contain relevant headers), in which to write 
  *        the image data. Each window of data is saved in a separate file.
@@ -1371,8 +1372,9 @@ static int Exposure_Expose_Post_Readout_Full_Frame(unsigned short *exposure_data
  * @see ccd_global.html#CCD_GLOBAL_BYTES_PER_PIXEL
  * @see ccd_dsp.html#CCD_DSP_IS_DEINTERLACE_TYPE
  * @see ccd_dsp.html#CCD_DSP_Get_Abort
+ * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
+static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
 					       char **filename_list,int filename_count)
 {
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
@@ -1382,8 +1384,8 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 	int ncols,nrows,pixel_count;
 
 	/* get setup data */
-	window_flags = CCD_Setup_Get_Window_Flags();
-	deinterlace_type = CCD_Setup_Get_DeInterlace_Type();
+	window_flags = CCD_Setup_Get_Window_Flags(handle);
+	deinterlace_type = CCD_Setup_Get_DeInterlace_Type(handle);
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
@@ -1404,9 +1406,9 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 		** CCD_SETUP_WINDOW_FOUR == (1<<3) */
 		if(window_flags&(1<<window_number))
 		{
-			ncols = CCD_Setup_Get_Window_Width(window_number);
-			nrows = CCD_Setup_Get_Window_Height(window_number);
-			pixel_count = CCD_Setup_Get_Window_Pixel_Count(window_number);
+			ncols = CCD_Setup_Get_Window_Width(handle,window_number);
+			nrows = CCD_Setup_Get_Window_Height(handle,window_number);
+			pixel_count = CCD_Setup_Get_Window_Pixel_Count(handle,window_number);
 			if(filename_index >= filename_count)
 			{
 				Exposure_Error_Number = 16;
@@ -1456,7 +1458,8 @@ static int Exposure_Expose_Post_Readout_Window(unsigned short *exposure_data,
 			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_EXPOSURE,"Exposure_Expose_Post_Readout_Window:"
 			      "Saving to filename %s.",filename_list[filename_index]);
 #endif
-			if(!Exposure_Save(filename_list[filename_index],subimage_data,ncols,nrows))
+			if(!Exposure_Save(filename_list[filename_index],subimage_data,ncols,nrows,
+					  handle->Exposure_Data.Exposure_Start_Time))
 			{
 				free(subimage_data);
 				/* Exposure_Save can fail but still have saved the exposure_data to disk OK */
@@ -1680,13 +1683,14 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
  * @param exposure_data The data to save.
  * @param ncols The number of columns in the image data.
  * @param nrows The number of rows in the image data.
+ * @param start_time The start time of the exposure.
  * @return Returns TRUE if the image is saved successfully, FALSE if it fails.
  * @see #Exposure_TimeSpec_To_Date_String
  * @see #Exposure_TimeSpec_To_Date_Obs_String
  * @see #Exposure_TimeSpec_To_UtStart_String
  * @see #Exposure_TimeSpec_To_Mjd
  */
-static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows)
+static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows,struct timespec start_time)
 {
 	fitsfile *fp = NULL;
 	int retval=0,status=0;
@@ -1719,7 +1723,7 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 		return FALSE;
 	}
 /* update DATE keyword */
-	Exposure_TimeSpec_To_Date_String(Exposure_Data.Exposure_Start_Time,exposure_start_time_string);
+	Exposure_TimeSpec_To_Date_String(start_time,exposure_start_time_string);
 	retval = fits_update_key(fp,TSTRING,"DATE",exposure_start_time_string,NULL,&status);
 	if(retval)
 	{
@@ -1731,7 +1735,7 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 		return FALSE;
 	}
 /* update DATE-OBS keyword */
-	Exposure_TimeSpec_To_Date_Obs_String(Exposure_Data.Exposure_Start_Time,exposure_start_time_string);
+	Exposure_TimeSpec_To_Date_Obs_String(start_time,exposure_start_time_string);
 	retval = fits_update_key(fp,TSTRING,"DATE-OBS",exposure_start_time_string,NULL,&status);
 	if(retval)
 	{
@@ -1744,7 +1748,7 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 		return FALSE;
 	}
 /* update UTSTART keyword */
-	Exposure_TimeSpec_To_UtStart_String(Exposure_Data.Exposure_Start_Time,exposure_start_time_string);
+	Exposure_TimeSpec_To_UtStart_String(start_time,exposure_start_time_string);
 	retval = fits_update_key(fp,TSTRING,"UTSTART",exposure_start_time_string,NULL,&status);
 	if(retval)
 	{
@@ -1758,7 +1762,7 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	}
 /* update MJD keyword */
 /* note leap second correction not implemented yet (always FALSE). */
-	if(!Exposure_TimeSpec_To_Mjd(Exposure_Data.Exposure_Start_Time,FALSE,&mjd))
+	if(!Exposure_TimeSpec_To_Mjd(start_time,FALSE,&mjd))
 		return FALSE;
 	retval = fits_update_key_fixdbl(fp,"MJD",mjd,6,NULL,&status);
 	if(retval)
@@ -1794,9 +1798,10 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
  * @param exposure_data The data to save.
  * @param ncols The number of columns in the image data.
  * @param nrows The number of rows in the image data.
+ * @param start_time The start time of the exposure.
  * @return Returns TRUE if the image is saved successfully, FALSE if it fails.
  */
-static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows)
+static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows,struct timespec start_time)
 {
 	FILE *fp = NULL;
 	int retval,error_number,nitems;
@@ -2044,6 +2049,9 @@ static int fexist(char *filename)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.33  2006/05/17 18:06:20  cjm
+** Fixed unused variables and mismatches sprintfs.
+**
 ** Revision 0.32  2006/05/16 14:14:02  cjm
 ** gnuify: Added GNU General Public License.
 **

@@ -1,24 +1,5 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_setup.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.13 2006-05-16 14:15:32 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.14 2008-11-20 11:34:52 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -106,37 +87,37 @@ struct CCD_Setup_Window_Struct
 };
 
 extern void CCD_Setup_Initialise(void);
-extern int CCD_Setup_Startup(enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
+extern void CCD_Setup_Data_Initialise(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_application_number,char *timing_filename,
 	enum CCD_SETUP_LOAD_TYPE utility_load_type,int utility_application_number,char *utility_filename,
 	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle);
-extern int CCD_Setup_Shutdown(void);
-extern int CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
+extern int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int nsbin,int npbin,
 	enum CCD_DSP_AMPLIFIER amplifier,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,
 	int window_flags,struct CCD_Setup_Window_Struct window_list[]);
-extern int CCD_Setup_Hardware_Test(int test_count);
+extern int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count);
 extern void CCD_Setup_Abort(void);
-extern int CCD_Setup_Get_NCols(void);
-extern int CCD_Setup_Get_NRows(void);
-extern int CCD_Setup_Get_NSBin(void);
-extern int CCD_Setup_Get_NPBin(void);
-extern int CCD_Setup_Get_Readout_Pixel_Count(void);
-extern int CCD_Setup_Get_Window_Pixel_Count(int window_index);
-extern int CCD_Setup_Get_Window_Width(int window_index);
-extern int CCD_Setup_Get_Window_Height(int window_index);
-extern enum CCD_DSP_DEINTERLACE_TYPE CCD_Setup_Get_DeInterlace_Type(void);
-extern enum CCD_DSP_GAIN CCD_Setup_Get_Gain(void);
-extern enum CCD_DSP_AMPLIFIER CCD_Setup_Get_Amplifier(void);
-extern int CCD_Setup_Get_Idle(void);
-extern int CCD_Setup_Get_Window_Flags(void);
-extern int CCD_Setup_Get_Window(int window_index,struct CCD_Setup_Window_Struct *window);
-extern int CCD_Setup_Get_Setup_Complete(void);
-extern int CCD_Setup_Get_Setup_In_Progress(void);
-extern int CCD_Setup_Get_High_Voltage_Analogue_ADU(int *hv_adu);
-extern int CCD_Setup_Get_Low_Voltage_Analogue_ADU(int *lv_adu);
-extern int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(int *minus_lv_adu);
-extern int CCD_Setup_Get_Vacuum_Gauge_ADU(int *gauge_adu);
-extern int CCD_Setup_Get_Vacuum_Gauge_MBar(double *gauge_mbar);
+extern int CCD_Setup_Get_NCols(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_NRows(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_NSBin(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_NPBin(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_Readout_Pixel_Count(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_Window_Pixel_Count(CCD_Interface_Handle_T* handle,int window_index);
+extern int CCD_Setup_Get_Window_Width(CCD_Interface_Handle_T* handle,int window_index);
+extern int CCD_Setup_Get_Window_Height(CCD_Interface_Handle_T* handle,int window_index);
+extern enum CCD_DSP_DEINTERLACE_TYPE CCD_Setup_Get_DeInterlace_Type(CCD_Interface_Handle_T* handle);
+extern enum CCD_DSP_GAIN CCD_Setup_Get_Gain(CCD_Interface_Handle_T* handle);
+extern enum CCD_DSP_AMPLIFIER CCD_Setup_Get_Amplifier(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_Idle(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_Window_Flags(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_Window(CCD_Interface_Handle_T* handle,int window_index,
+				struct CCD_Setup_Window_Struct *window);
+extern int CCD_Setup_Get_Setup_Complete(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_Setup_In_Progress(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *hv_adu);
+extern int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *lv_adu);
+extern int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *minus_lv_adu);
 extern int CCD_Setup_Get_Error_Number(void);
 extern void CCD_Setup_Error(void);
 extern void CCD_Setup_Error_String(char *error_string);

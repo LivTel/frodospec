@@ -1,30 +1,11 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_global.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.11 2006-05-16 14:14:04 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.12 2008-11-20 11:34:46 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.11 $
+ * @version $Revision: 0.12 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -83,7 +64,6 @@
 #include "ccd_exposure.h"
 #include "ccd_temperature.h"
 #include "ccd_setup.h"
-#include "ccd_filter_wheel.h"
 
 /* hash definitions */
 /**
@@ -160,7 +140,7 @@ struct Global_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.11 2006-05-16 14:14:04 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.12 2008-11-20 11:34:46 cjm Exp $";
 /**
  * Variable holding error code of last operation performed by ccd_dsp.
  */
@@ -209,23 +189,15 @@ static char Global_Buff[CCD_GLOBAL_ERROR_STRING_LENGTH];
  * Note some of the initialisation can produce errors. Currently these are just printed out, this should
  * perhaps return an error code when this occurs.
  * </i>
- * @param interface_device The device the library will write DSP commands to. The routine calls
- * 	<a href="ccd_interface.html#CCD_Interface_Set_Device">CCD_Interface_Set_Device</a> to set the
- * 	device.
  * @see #Global_Data
- * @see ccd_interface.html#CCD_Interface_Set_Device
  * @see ccd_interface.html#CCD_Interface_Initialise
  * @see ccd_dsp.html#CCD_DSP_Initialise
  * @see ccd_dsp_download.html#CCD_DSP_Download_Initialise
  * @see ccd_exposure.html#CCD_Exposure_Initialise
  * @see ccd_setup.html#CCD_Setup_Initialise
- * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Initialise
  */
-void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
+void CCD_Global_Initialise(void)
 {
-	/* try to set which device the library is going to talk to */
-	if(!CCD_Interface_Set_Device(interface_device))
-		CCD_Interface_Error();
 	CCD_Interface_Initialise();
 	if(!CCD_DSP_Initialise())
 		CCD_DSP_Error();
@@ -233,8 +205,6 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
 		CCD_DSP_Download_Error();
 	CCD_Exposure_Initialise();
 	CCD_Setup_Initialise();
-	if(!CCD_Filter_Wheel_Initialise())
-		CCD_Filter_Wheel_Error();
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_Global_Initialise:%s.\n",rcsid);
 #if CCD_GLOBAL_READOUT_PRIORITY == 0
@@ -261,8 +231,6 @@ void CCD_Global_Initialise(enum CCD_INTERFACE_DEVICE_ID interface_device)
  * <b>Note</b> you cannot call both CCD_Global_Error and CCD_Global_Error_String to print the error string and 
  * get a string copy of it, only one of the error routines can be called after libccd has generated an error.
  * A second call to one of these routines will generate a 'Error not found' error!.
- * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Get_Error_Number
- * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Error
  * @see ccd_setup.html#CCD_Setup_Get_Error_Number
  * @see ccd_setup.html#CCD_Setup_Error
  * @see ccd_exposure.html#CCD_Exposure_Get_Error_Number
@@ -286,11 +254,6 @@ void CCD_Global_Error(void)
 	char time_string[32];
 	int found = FALSE;
 
-	if(CCD_Filter_Wheel_Get_Error_Number() != 0)
-	{
-		found = TRUE;
-		CCD_Filter_Wheel_Error();
-	}
 	if(CCD_Setup_Get_Error_Number() != 0)
 	{
 		found = TRUE;
@@ -359,8 +322,6 @@ void CCD_Global_Error(void)
  * A second call to one of these routines will generate a 'Error not found' error!.
  * @param error_string A character buffer big enough to store the longest possible error message. It is
  * recomended that it is at least 1024 bytes in size.
- * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Get_Error_Number
- * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Error_String
  * @see ccd_setup.html#CCD_Setup_Get_Error_Number
  * @see ccd_setup.html#CCD_Setup_Error_String
  * @see ccd_exposure.html#CCD_Exposure_Get_Error_Number
@@ -384,10 +345,6 @@ void CCD_Global_Error_String(char *error_string)
 	char time_string[32];
 
 	strcpy(error_string,"");
-	if(CCD_Filter_Wheel_Get_Error_Number() != 0)
-	{
-		CCD_Filter_Wheel_Error_String(error_string);
-	}
 	if(CCD_Setup_Get_Error_Number() != 0)
 	{
 		CCD_Setup_Error_String(error_string);
@@ -487,7 +444,7 @@ void CCD_Global_Log_Format(int level,char *format,...)
 /**
  * Routine to log a message to a defined logging mechanism. If the string or Global_Data.Global_Log_Handler are NULL
  * the routine does not log the message. If the Global_Data.Global_Log_Filter function pointer is non-NULL, the
- * message is passed to it to determoine whether to log the message.
+ * message is passed to it to determine whether to log the message.
  * @param level An integer, used to decide whether this particular message has been selected for
  * 	logging or not.
  * @param string The message to log.
@@ -597,7 +554,9 @@ int CCD_Global_Increase_Priority(void)
 #if CCD_GLOBAL_READOUT_PRIORITY == 1
 	struct sched_param scheduling_parameters;
 #endif
+#if CCD_GLOBAL_READOUT_PRIORITY > 0
 	int scheduling_errno,retval;
+#endif
 
 #if CCD_GLOBAL_READOUT_PRIORITY == 0
 #if LOGGING > 3
@@ -697,7 +656,9 @@ int CCD_Global_Increase_Priority(void)
  */
 int CCD_Global_Decrease_Priority(void)
 {
+#if CCD_GLOBAL_READOUT_PRIORITY > 0
 	int scheduling_errno,retval;
+#endif
 
 #if CCD_GLOBAL_READOUT_PRIORITY == 1
 #ifdef _POSIX_PRIORITY_SCHEDULING
@@ -753,7 +714,9 @@ int CCD_Global_Decrease_Priority(void)
  */
 int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size)
 {
+#ifdef CCD_GLOBAL_READOUT_MLOCK
 	int mlock_errno,retval;
+#endif
 
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK_RANGE
@@ -795,7 +758,9 @@ int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size)
  */
 int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size)
 {
+#ifdef CCD_GLOBAL_READOUT_MLOCK
 	int munlock_errno,retval;
+#endif
 
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK_RANGE
@@ -833,7 +798,9 @@ int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size)
  */
 int CCD_Global_Memory_Lock_All(void)
 {
+#ifdef CCD_GLOBAL_READOUT_MLOCK
 	int mlock_errno,retval;
+#endif
 
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK
@@ -869,7 +836,9 @@ int CCD_Global_Memory_Lock_All(void)
  */
 int CCD_Global_Memory_UnLock_All(void)
 {
+#ifdef CCD_GLOBAL_READOUT_MLOCK
 	int munlock_errno,retval;
+#endif
 
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK
@@ -897,6 +866,9 @@ int CCD_Global_Memory_UnLock_All(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.11  2006/05/16 14:14:04  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 0.10  2002/12/16 16:49:36  cjm
 ** Removed Error routines resetting error number to zero.
 **

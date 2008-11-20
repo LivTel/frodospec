@@ -1,33 +1,14 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* test.c
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.16 2006-11-06 16:52:49 eng Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.17 2008-11-20 11:34:58 cjm Exp $
 */
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include "ccd_setup.h"
 #include "ccd_exposure.h"
-#include "ccd_filter_wheel.h"
 #include "ccd_dsp.h"
 #include "ccd_interface.h"
+#include "ccd_pci.h"
 #include "ccd_text.h"
 #include "ccd_temperature.h"
 #include "ccd_setup.h"
@@ -41,8 +22,8 @@
  * It sets up the controller and performs a basic exposure.
  * Note the setup is performed by downloading two DSP .lod files, tim.lod and util.lod,
  * which must be present in the bin directory otherwise an error is returned.
- * @author $Author: eng $
- * @version $Revision: 1.16 $
+ * @author $Author: cjm $
+ * @version $Revision: 1.17 $
  */
 
 /* hash defines */
@@ -75,7 +56,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: test.c,v 1.16 2006-11-06 16:52:49 eng Exp $";
+static char rcsid[] = "$Id: test.c,v 1.17 2008-11-20 11:34:58 cjm Exp $";
 
 /* internal functions */
 static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *filename);
@@ -102,7 +83,6 @@ static void Test_Fits_Header_Error(int status);
  * @see ccd_temperature.html#CCD_Temperature_Get
  * @see ccd_setup.html#CCD_Setup_Startup
  * @see ccd_setup.html#CCD_Setup_Dimensions
- * @see ccd_filter_wheel.html#CCD_Filter_Wheel_Reset
  * @see #Test_Save_Fits_Headers
  * @see ccd_exposure.html#CCD_Exposure_Expose
  * @see ccd_setup.html#CCD_Setup_Shutdown
@@ -110,6 +90,7 @@ static void Test_Fits_Header_Error(int status);
  */
 int main(int argc, char *argv[])
 {
+	CCD_Interface_Handle_T *handle = NULL;
 	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
 	char *filename_list[1];
 	struct timespec start_time;
@@ -124,26 +105,33 @@ int main(int argc, char *argv[])
 	}
 
 	fprintf(stdout,"Test ...\n");
+	CCD_Global_Initialise();
+	CCD_Text_Set_Print_Level(CCD_TEXT_PRINT_LEVEL_COMMANDS);
 	if(strcmp(argv[1],"pci")==0)
-		CCD_Global_Initialise(CCD_INTERFACE_DEVICE_PCI);
+	{
+		fprintf(stdout,"Test:CCD_Interface_Open\n");
+		if(!CCD_Interface_Open(CCD_INTERFACE_DEVICE_PCI,CCD_PCI_DEFAULT_DEVICE_ZERO,&handle))
+		{
+			CCD_Global_Error();
+			exit(3);
+		}
+	}
 	else if(strcmp(argv[1],"text")==0)
-		CCD_Global_Initialise(CCD_INTERFACE_DEVICE_TEXT);
+	{
+		fprintf(stdout,"Test:CCD_Interface_Open\n");
+		if(!CCD_Interface_Open(CCD_INTERFACE_DEVICE_TEXT,"/home/dev/tmp/frodospec_ccd_test.txt",&handle))
+		{
+			CCD_Global_Error();
+			exit(3);
+		}
+	}
 	else
 	{
 		fprintf(stdout,"test <device>: device is either [pci|text].\n");
 		exit(2);
 	}
-
-	CCD_Text_Set_Print_Level(CCD_TEXT_PRINT_LEVEL_COMMANDS);
-
-	fprintf(stdout,"Test:CCD_Interface_Open\n");
-	if(!CCD_Interface_Open())
-	{
-		CCD_Global_Error();
-		exit(3);
-	}
 	fprintf(stdout,"Test:CCD_Setup_Startup\n");
-	if(!CCD_Setup_Startup(CCD_SETUP_LOAD_ROM,NULL,
+	if(!CCD_Setup_Startup(handle,CCD_SETUP_LOAD_ROM,NULL,
 		CCD_SETUP_LOAD_FILENAME,0,TIMING_FILENAME,
 		CCD_SETUP_LOAD_FILENAME,1,UTILITY_FILENAME,-107.0,
 		CCD_DSP_GAIN_FOUR,TRUE,TRUE))
@@ -154,7 +142,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Test:CCD_Setup_Startup completed\n");
 
 	fprintf(stdout,"Test:CCD_Temperature_Get\n");
-	if(!CCD_Temperature_Get(&temperature))
+	if(!CCD_Temperature_Get(handle,&temperature))
 	{
 		CCD_Global_Error();
 		exit(5);
@@ -162,26 +150,13 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Test:CCD_Temperature_Get returned %.2f\n",temperature);
 
 	fprintf(stdout,"Test:CCD_Setup_Dimensions\n");
-	if(!CCD_Setup_Dimensions(CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
+	if(!CCD_Setup_Dimensions(handle,CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
 		CCD_DSP_AMPLIFIER_LEFT,CCD_DSP_DEINTERLACE_SINGLE,0,window_list))
 	{
 		CCD_Global_Error();
 		exit(6);
 	}
 	fprintf(stdout,"Test:CCD_Setup_Dimensions completed\n");
-
-	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel\n");
-	if(!CCD_Filter_Wheel_Reset(0))
-	{
-		CCD_Global_Error();
-		exit(7);
-	}
-	if(!CCD_Filter_Wheel_Reset(1))
-	{
-		CCD_Global_Error();
-		exit(8);
-	}
-	fprintf(stdout,"Test:CCD_Setup_Filter_Wheel completed\n");
 
 	if(!Test_Save_Fits_Headers(10000,CCD_X_SIZE/CCD_XBIN_SIZE,CCD_Y_SIZE/CCD_YBIN_SIZE,"test.fits"))
 	{
@@ -193,21 +168,21 @@ int main(int argc, char *argv[])
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
 	filename_list[0] = "test.fits";
-	if(!CCD_Exposure_Expose(TRUE,TRUE,start_time,10000,filename_list,1))
+	if(!CCD_Exposure_Expose(handle,TRUE,TRUE,start_time,10000,filename_list,1))
 	{
 		CCD_Global_Error();
 		exit(10);
 	}
 	fprintf(stdout,"Test:CCD_Exposure_Expose finished\n");
 
-	if(!CCD_Setup_Shutdown())
+	if(!CCD_Setup_Shutdown(handle))
 	{
 		CCD_Global_Error();
 		exit(11);
 	}
 	fprintf(stdout,"Test:CCD_Setup_Shutdown completed\n");
 
-	if(!CCD_Interface_Close())
+	if(!CCD_Interface_Close(&handle))
 	{
 		CCD_Global_Error();
 		exit(12);
@@ -324,6 +299,9 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.16  2006/11/06 16:52:49  eng
+** Added includes to fix implicit function declarations.
+**
 ** Revision 1.15  2006/05/16 18:18:23  cjm
 ** gnuify: Added GNU General Public License.
 **

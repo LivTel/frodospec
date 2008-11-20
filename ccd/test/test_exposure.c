@@ -1,24 +1,5 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* test_exposure.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.4 2006-05-16 18:18:25 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.5 2008-11-20 11:34:58 cjm Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +7,7 @@
 #include "ccd_dsp.h"
 #include "ccd_dsp_download.h"
 #include "ccd_interface.h"
+#include "ccd_pci.h"
 #include "ccd_text.h"
 #include "ccd_temperature.h"
 #include "ccd_setup.h"
@@ -37,7 +19,8 @@
  * It configures the CCD using CCD_Setup_Dimensions.
  * It then calls CCD_Exposure_Expose or CCD_Exposure_Bias to do a bias,dark or exposure.
  * <pre>
- * test_exposure [-i[nterface_device] &lt;pci|text&gt;] [-pci_filename &lt;filename&gt;]
+ * test_exposure [-i[nterface_device] &lt;pci|text&gt;] [-device_pathname &lt;path&gt;] 
+ *      [-pci_filename &lt;filename&gt;]
  * 	[-timing_filename &lt;filename&gt;][-utility_filename &lt;filename&gt;][-temperature &lt;temperature&gt;]
  * 	[-xs[ize] &lt;no. of pixels&gt;][-ys[ize] &lt;no. of pixels&gt;]
  * 	[-xb[in] &lt;binning factor&gt;][-yb[in] &lt;binning factor&gt;]
@@ -48,7 +31,7 @@
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 /* hash definitions */
 /**
@@ -95,7 +78,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_exposure.c,v 1.4 2006-05-16 18:18:25 cjm Exp $";
+static char rcsid[] = "$Id: test_exposure.c,v 1.5 2008-11-20 11:34:58 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -104,6 +87,10 @@ static enum CCD_TEXT_PRINT_LEVEL Text_Print_Level = CCD_TEXT_PRINT_LEVEL_ALL;
  * Which interface to communicate with the SDSU controller with.
  */
 static enum CCD_INTERFACE_DEVICE_ID Interface_Device = CCD_INTERFACE_DEVICE_NONE;
+/**
+ * The pathname of the device to contact.
+ */
+static char Device_Pathname[256] = "";
 /**
  * What type of board initialisation to do for the PCI board.
  * Initialised to CCD_SETUP_LOAD_ROM, so will load PCI program from ROM by default.
@@ -186,7 +173,13 @@ static int Exposure_Length = 0;
  * Filename to store resultant fits image in. Unwindowed only - windowed get more complex.
  */
 static char *Filename = NULL;
-
+/**
+ * Log level to use.
+ * @see ../cdocs/ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
+ * @see ../cdocs/ccd_global.html#CCD_GLOBAL_LOG_BIT_EXPOSURE
+ * @see ../cdocs/ccd_global.html#CCD_GLOBAL_LOG_BIT_TEMPERATURE
+ */
+static int Log_Filter_Level = CCD_GLOBAL_LOG_BIT_SETUP|CCD_GLOBAL_LOG_BIT_EXPOSURE|CCD_GLOBAL_LOG_BIT_TEMPERATURE;
 /* internal routines */
 static int Parse_Arguments(int argc, char *argv[]);
 static void Help(void);
@@ -200,6 +193,7 @@ static void Test_Fits_Header_Error(int status);
  * @return This function returns 0 if the program succeeds, and a positive integer if it fails.
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #PCI_Load_Type
  * @see #PCI_Filename
  * @see #Timing_Load_Type
@@ -221,6 +215,7 @@ static void Test_Fits_Header_Error(int status);
  */
 int main(int argc, char *argv[])
 {
+	CCD_Interface_Handle_T *handle = NULL;
 	struct timespec start_time;
 	char buff[256];
 	char command_buffer[256];
@@ -236,11 +231,28 @@ int main(int argc, char *argv[])
 /* set text/interface options */
 	CCD_Text_Set_Print_Level(Text_Print_Level);
 	fprintf(stdout,"Initialise Controller:Using device %d.\n",Interface_Device);
-	CCD_Global_Initialise(Interface_Device);
+	CCD_Global_Initialise();
 	CCD_Global_Set_Log_Handler_Function(CCD_Global_Log_Handler_Stdout);
+	CCD_Global_Set_Log_Filter_Level(Log_Filter_Level);
 /* open SDSU connection */
 	fprintf(stdout,"Opening SDSU device.\n");
-	retval = CCD_Interface_Open();
+	if(strlen(Device_Pathname) == 0)
+	{
+		fprintf(stdout,"Selecting default device path.\n");
+		switch(Interface_Device)
+		{
+			case CCD_INTERFACE_DEVICE_PCI:
+				strcpy(Device_Pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
+				break;
+			case CCD_INTERFACE_DEVICE_TEXT:
+				strcpy(Device_Pathname,"frodospec_ccd_text_exposure.txt");
+				break;
+			default:
+				fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
+				break;
+		}
+	}
+	retval = CCD_Interface_Open(Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -262,7 +274,7 @@ int main(int argc, char *argv[])
 	else
 		fprintf(stdout,"Utility Type:%d:Filename:NULL\n",Utility_Load_Type);
 	fprintf(stdout,"Temperature:%.2f\n",Temperature);
-	if(!CCD_Setup_Startup(PCI_Load_Type,PCI_Filename,Timing_Load_Type,0,Timing_Filename,
+	if(!CCD_Setup_Startup(handle,PCI_Load_Type,PCI_Filename,Timing_Load_Type,0,Timing_Filename,
 		Utility_Load_Type,0,Utility_Filename,Temperature,CCD_DSP_GAIN_ONE,TRUE,TRUE))
 	{
 		CCD_Global_Error();
@@ -275,7 +287,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Binning:(%d,%d)\n",Bin_X,Bin_Y);
 	fprintf(stdout,"Amplifier:%d:De-Interlace:%d\n",Amplifier,DeInterlace_Type);
 	fprintf(stdout,"Window Flags:%d\n",Window_Flags);
-	if(!CCD_Setup_Dimensions(Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,DeInterlace_Type,Window_Flags,Window_List))
+	if(!CCD_Setup_Dimensions(handle,Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,DeInterlace_Type,Window_Flags,Window_List))
 	{
 		CCD_Global_Error();
 		return 3;
@@ -295,13 +307,13 @@ int main(int argc, char *argv[])
 				sprintf(buff,"%sw%d.fits",Filename,i);
 				filename_list[filename_count] = strdup(buff);
 				/* binning? */
-				if(!Test_Save_Fits_Headers(Exposure_Length,CCD_Setup_Get_Window_Width(i),
-							   CCD_Setup_Get_Window_Height(i),
+				if(!Test_Save_Fits_Headers(Exposure_Length,CCD_Setup_Get_Window_Width(handle,i),
+							   CCD_Setup_Get_Window_Height(handle,i),
 							   filename_list[filename_count]))
 				{
 					fprintf(stdout,"Saving FITS window headers (%s,%d,%d) failed.\n",
-						filename_list[filename_count],CCD_Setup_Get_Window_Width(i),
-						CCD_Setup_Get_Window_Height(i));
+						filename_list[filename_count],CCD_Setup_Get_Window_Width(handle,i),
+						CCD_Setup_Get_Window_Height(handle,i));
 					return 4;
 				}
 				filename_count++;
@@ -325,16 +337,16 @@ int main(int argc, char *argv[])
 	{
 		case COMMAND_ID_BIAS:
 			fprintf(stdout,"Calling CCD_Exposure_Bias.\n");
-			retval = CCD_Exposure_Bias(Filename);
+			retval = CCD_Exposure_Bias(handle,Filename);
 			break;
 		case COMMAND_ID_DARK:
 			fprintf(stdout,"Calling CCD_Exposure_Expose with open_shutter FALSE.\n");
-			retval = CCD_Exposure_Expose(TRUE,FALSE,start_time,Exposure_Length,
+			retval = CCD_Exposure_Expose(handle,TRUE,FALSE,start_time,Exposure_Length,
 						     filename_list,filename_count);
 			break;
 		case COMMAND_ID_EXPOSURE:
 			fprintf(stdout,"Calling CCD_Exposure_Expose with open_shutter TRUE.\n");
-			retval = CCD_Exposure_Expose(TRUE,TRUE,start_time,Exposure_Length,
+			retval = CCD_Exposure_Expose(handle,TRUE,TRUE,start_time,Exposure_Length,
 						     filename_list,filename_count);
 			break;
 		case COMMAND_ID_NONE:
@@ -352,7 +364,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Command Completed.\n");
 /* close interface to SDSU controller */
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close();
+	CCD_Interface_Close(&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return 0;
 }
@@ -364,6 +376,7 @@ int main(int argc, char *argv[])
  * @see #Help
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #PCI_Load_Type
  * @see #PCI_Filename
  * @see #Timing_Load_Type
@@ -382,6 +395,7 @@ int main(int argc, char *argv[])
  * @see #Command
  * @see #Exposure_Length
  * @see #Filename
+ * @see #Log_Filter_Level
  */
 static int Parse_Arguments(int argc, char *argv[])
 {
@@ -449,6 +463,19 @@ static int Parse_Arguments(int argc, char *argv[])
 			}
 
 		}
+		else if((strcmp(argv[i],"-device_pathname")==0))
+		{
+			if((i+1)<argc)
+			{
+				strncpy(Device_Pathname,argv[i+1],255);
+				i++;
+			}
+			else
+			{
+				fprintf(stderr,"Parse_Arguments:Device Pathname requires a device.\n");
+				return FALSE;
+			}
+		}
 		else if((strcmp(argv[i],"-expose")==0)||(strcmp(argv[i],"-e")==0))
 		{
 			Command = COMMAND_ID_EXPOSURE;
@@ -509,6 +536,26 @@ static int Parse_Arguments(int argc, char *argv[])
 		{
 			Help();
 			exit(0);
+		}
+		else if(strcmp(argv[i],"-log_level")==0)
+		{
+			if((i+1)<argc)
+			{
+				retval = sscanf(argv[i+1],"%d",&Log_Filter_Level);
+				if(retval != 1)
+				{
+					fprintf(stderr,
+						"Parse_Arguments:Parsing Log Level %s failed.\n",
+						argv[i+1]);
+					return FALSE;
+				}
+				i++;
+			}
+			else
+			{
+				fprintf(stderr,"Parse_Arguments:Log Level required.\n");
+				return FALSE;
+			}
 		}
 		else if(strcmp(argv[i],"-pci_filename")==0)
 		{
@@ -767,6 +814,7 @@ static void Help(void)
 	fprintf(stdout,"This program calls CCD_Setup_Dimensions to set up the SDSU controller dimensions.\n");
 	fprintf(stdout,"It then calls either CCD_Exposure_Bias or CCD_Exposure_Expose to perform an exposure.\n");
 	fprintf(stdout,"test_exposure [-i[nterface_device] <pci|text>]\n");
+	fprintf(stdout,"\t[-device_pathname <path>]\n");
 	fprintf(stdout,"\t[-pci_filename <filename>][-timing_filename <filename>][-utility_filename <filename>]\n");
 	fprintf(stdout,"\t[-temperature <temperature>]\n");
 	fprintf(stdout,"\t[-xs[ize] <no. of pixels>][-ys[ize] <no. of pixels>]\n");
@@ -775,14 +823,20 @@ static void Help(void)
 	fprintf(stdout,"\t[-f[ilename] <filename>]\n");
 	fprintf(stdout,"\t[-b[ias]][-d[ark] <exposure length>][-e[xpose] <exposure length>]\n");
 	fprintf(stdout,"\t[-t[ext_print_level] <commands|replies|values|all>][-h[elp]]\n");
+	fprintf(stdout,"\t[-log_level <bit number>]\n");
 	fprintf(stdout,"\n");
 	fprintf(stdout,"\t-interface_device selects the device to communicate with the SDSU controller.\n");
+	fprintf(stdout,"\t-device_pathname can select which controller (/dev/astropci[0|1]) or text output file.\n");
 	fprintf(stdout,"\t-help prints out this message and stops the program.\n");
 	fprintf(stdout,"\n");
 	fprintf(stdout,"\t<filename> should be a valid .lod file pathname.\n");
 	fprintf(stdout,"\t<temperature> should be a valid double, a temperature in degrees Celcius.\n");
 	fprintf(stdout,"\t<exposure length> is a positive integer in milliseconds.\n");
 	fprintf(stdout,"\t<no. of pixels> and <binning factor> is a positive integer.\n");
+	fprintf(stdout,"\t<log level> is a bit field ORed as follows: "
+		"setup = %d,exposure = %d, temperature = %d, dsp = %d, interface = %d.\n",
+		CCD_GLOBAL_LOG_BIT_SETUP,CCD_GLOBAL_LOG_BIT_EXPOSURE,CCD_GLOBAL_LOG_BIT_TEMPERATURE,
+		CCD_GLOBAL_LOG_BIT_DSP,CCD_GLOBAL_LOG_BIT_INTERFACE);
 }
 
 /**
@@ -892,6 +946,9 @@ static void Test_Fits_Header_Error(int status)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2006/05/16 18:18:25  cjm
+** gnuify: Added GNU General Public License.
+**
 ** Revision 1.3  2004/11/04 16:03:05  cjm
 ** Added DeInterlace_Type = CCD_DSP_DEINTERLACE_FLIP for right amplifier.
 **

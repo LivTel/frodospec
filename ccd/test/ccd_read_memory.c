@@ -1,31 +1,14 @@
-/*   
-    Copyright 2006, Astrophysics Research Institute, Liverpool John Moores University.
-
-    This file is part of Ccs.
-
-    Ccs is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    Ccs is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Ccs; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 /* ccd_read_memory.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.6 2006-11-06 16:52:49 eng Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.7 2008-11-20 11:34:58 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "ccd_dsp.h"
+#include "ccd_global.h"
 #include "ccd_interface.h"
+#include "ccd_pci.h"
 #include "ccd_text.h"
 #include "ccd_temperature.h"
 #include "ccd_setup.h"
@@ -33,11 +16,12 @@
 /**
  * This program reads a memory location from the CCD camera.
  * <pre>
- * ccd_read_memory -b[oard] &lt;interface|timing|utility&gt; -s[pace] &lt;p|r|x|y&gt; -a[ddress] &lt;address&gt;
+ * ccd_read_memory -b[oard] &lt;interface|timing|utility&gt; -d[evice_pathname] &lt;path&gt; 
+ *      -s[pace] &lt;p|r|x|y&gt; -a[ddress] &lt;address&gt;
  * 	-i[nterface_device] &lt;pci|text&gt; -t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
- * @author $Author: eng $
- * @version $Revision: 1.6 $
+ * @author $Author: cjm $
+ * @version $Revision: 1.7 $
  */
 /* hash definitions */
 /**
@@ -49,7 +33,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: ccd_read_memory.c,v 1.6 2006-11-06 16:52:49 eng Exp $";
+static char rcsid[] = "$Id: ccd_read_memory.c,v 1.7 2008-11-20 11:34:58 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -70,6 +54,10 @@ static enum CCD_DSP_MEM_SPACE Memory_Space = 0;
  * The address in memory to query.
  */
 static int Memory_Address = 0;
+/**
+ * The pathname of the device to contact.
+ */
+static char Device_Pathname[256] = "";
 
 /* internal routines */
 static int Parse_Arguments(int argc, char *argv[]);
@@ -82,12 +70,14 @@ static void Help(void);
  * @return This function returns 0 if the program succeeds, and a positive integer if it fails.
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #Board
  * @see #Memory_Sapce
  * @see #Memory_Address
  */
 int main(int argc, char *argv[])
 {
+	CCD_Interface_Handle_T *handle = NULL;
 	int retval;
 
 	fprintf(stdout,"Parsing Arguments.\n");
@@ -95,11 +85,27 @@ int main(int argc, char *argv[])
 		return 1;
 	CCD_Text_Set_Print_Level(Text_Print_Level);
 	fprintf(stdout,"Initialise Controller:Using device %d.\n",Interface_Device);
-	CCD_Global_Initialise(Interface_Device);
+	CCD_Global_Initialise();
 
 	fprintf(stdout,"Opening SDSU device.\n");
 	fflush(stdout);
-	retval = CCD_Interface_Open();
+	if(strlen(Device_Pathname) == 0)
+	{
+		fprintf(stdout,"Selecting default device path.\n");
+		switch(Interface_Device)
+		{
+			case CCD_INTERFACE_DEVICE_PCI:
+				strcpy(Device_Pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
+				break;
+			case CCD_INTERFACE_DEVICE_TEXT:
+				strcpy(Device_Pathname,"frodospec_ccd_read_memory.txt");
+				break;
+			default:
+				fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
+				break;
+		}
+	}
+	retval = CCD_Interface_Open(Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -109,7 +115,7 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 
 	fprintf(stdout,"Reading memory at address %#x.\n",Memory_Address);
-	retval = CCD_DSP_Command_RDM(Board,Memory_Space,Memory_Address);
+	retval = CCD_DSP_Command_RDM(handle,Board,Memory_Space,Memory_Address);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		CCD_Global_Error();
@@ -117,7 +123,7 @@ int main(int argc, char *argv[])
 	}
 	fprintf(stdout,"Result = %#x\n",retval);
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close();
+	CCD_Interface_Close(&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return retval;
 }
@@ -132,6 +138,7 @@ int main(int argc, char *argv[])
  * @see #Board
  * @see #Memory_Space
  * @see #Memory_Address
+ * @see #Device_Pathname
  */
 static int Parse_Arguments(int argc, char *argv[])
 {
@@ -173,6 +180,19 @@ static int Parse_Arguments(int argc, char *argv[])
 			else
 			{
 				fprintf(stderr,"Parse_Arguments:Board [interface|timing|utility].\n");
+				return FALSE;
+			}
+		}
+		else if((strcmp(argv[i],"-device_pathname")==0)||(strcmp(argv[i],"-d")==0))
+		{
+			if((i+1)<argc)
+			{
+				strncpy(Device_Pathname,argv[i+1],255);
+				i++;
+			}
+			else
+			{
+				fprintf(stderr,"Parse_Arguments:Device Pathname requires a device.\n");
 				return FALSE;
 			}
 		}
@@ -269,11 +289,13 @@ static void Help(void)
 	fprintf(stdout,"CCD Read Memory:Help.\n");
 	fprintf(stdout,"CCD Read Memory reads a controller memory location.\n");
 	fprintf(stdout,"ccd_read_memory [-i[nterface_device] <interface device>]\n");
+	fprintf(stdout,"\t[-d[evice_pathname] <path>]\n");
 	fprintf(stdout,"\t[-b[oard] <controller board>][-s[pace] <memory space>]\n");
 	fprintf(stdout,"\t[-a[ddress] <memory address>]\n");
 	fprintf(stdout,"\t[-t[ext_print_level] <commands|replies|values|all>][-h[elp]]\n");
 	fprintf(stdout,"\n");
 	fprintf(stdout,"\t-interface_device selects the device to communicate with the SDSU controller.\n");
+	fprintf(stdout,"\t-device_pathname can select which controller (/dev/astropci[0|1]) or text output file.\n");
 	fprintf(stdout,"\t-help prints out this message and stops the program.\n");
 	fprintf(stdout,"\n");
 	fprintf(stdout,"\t<interface device> can be either [pci|text].\n");
@@ -284,6 +306,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.6  2006/11/06 16:52:49  eng
+** Added includes to fix implicit function declarations.
+**
 ** Revision 1.5  2006/05/16 18:18:18  cjm
 ** gnuify: Added GNU General Public License.
 **
