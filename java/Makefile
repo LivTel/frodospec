@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/Makefile,v 1.1 2008-11-20 11:34:46 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/Makefile,v 1.2 2008-11-21 11:09:17 cjm Exp $
 include ../Makefile.common
 include ../../Makefile.common
 
@@ -28,7 +28,9 @@ dirs:
 		(echo making in $$i...; cd $$i; $(MAKE) ); \
 	done;
 
-jar: 
+jar: $(JARLIBDIR)/$(JAR_FILE)
+
+$(JARLIBDIR)/$(JAR_FILE): $(JAVASRCS)
 	( cd $(LIBDIR); $(JAR) $(JAR_OPTIONS) $(JARLIBDIR)/$(JAR_FILE) ngat )
 
 #
@@ -80,4 +82,7 @@ backup: checkin
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2008/11/20 11:34:46  cjm
+# Initial revision
+#
 #
