@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.2 2008-11-24 14:59:57 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.phase2.FrodoSpecConfig;
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.2 2008-11-24 14:59:57 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -82,6 +82,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#objectName
 	 * @see FrodoSpec#getLampUnit
 	 * @see FrodoSpec#getLampController
 	 * @see FrodoSpec#getPLC
@@ -97,6 +98,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		FRODOSPEC_ARC arcCommand = null;
 		FRODOSPEC_ARC_DONE arcDone = new FRODOSPEC_ARC_DONE(command.getId());
 		FILENAME_ACK arcAck = null;
+		FitsHeaderCardImage objectCardImage = null;
 		CCDLibrary ccd = null;
 		Plc plc = null;		
 		String lampsString = null;
@@ -215,7 +217,11 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 			turnLampsOff(arm,arcCommand,arcDone);
 			return arcDone;
 		}
-	// dont't do calibrate before
+	// Modify "OBJECT" FITS header value to distinguish between spectra of the OBJECT
+        // and calibration ARCs taken for that observation.
+		objectCardImage = frodospecFitsHeaderList[arm].get("OBJECT");
+		objectCardImage.setValue(new String("ARC: "+lampsString+" for "+objectName));
+	// don't do calibrate before
 	// setup filename object
 		frodospecFilenameList[arm].nextMultRunNumber();
 		try
@@ -305,4 +311,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
