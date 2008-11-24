@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.2 2008-11-20 17:30:58 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.3 2008-11-24 15:51:04 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.2 2008-11-20 17:30:58 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.3 2008-11-24 15:51:04 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -232,7 +232,7 @@ public class LampController
 							   this.getClass().getName()+
 							   ":setLampLock: Sending ACK:"+waitLength);
 						// send ACK to command client to stop timeout
-						ack = new ACK(this.getClass().getName()+":setNoLampLock:inUseLamps="+
+						ack = new ACK(this.getClass().getName()+":setLampLock:inUseLamps="+
 							      inUseLamps+":inUseCount="+inUseCount);
 						ack.setTimeToComplete((waitLength * 2));
 						serverConnectionThread.sendAcknowledge(ack);
@@ -260,7 +260,7 @@ public class LampController
 		}// end synchronized on inUseLock
 		// actually turn lamp on
 		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_MULTRUN,this.getClass().getName()+
-		    ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning lamps on:"+lampsString);
+		    ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning lamps on:"+lampsString);
 		// we should turn all lamps off before turning the ones we want back on
 		// this resets all the lamp demand bits
 		lampUnit.turnAllLampsOff();
@@ -321,6 +321,9 @@ public class LampController
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/11/20 17:30:58  cjm
+// Fixed setLampLock while loop error.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
