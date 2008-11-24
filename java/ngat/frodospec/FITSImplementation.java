@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.2 2008-11-24 14:57:23 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.lamp.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.2 2008-11-24 14:57:23 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -47,6 +47,14 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * These are used to supply default values, units and comments for FITS header card images.
 	 */
 	protected FitsHeaderDefaults frodospecFitsHeaderDefaultsList[] = {null,null,null};
+	/**
+	 * This is a copy of the "OBJECT" FITS Header value retrieved from the RCS by getFitsHeadersFromISS.
+	 * This is used to modify the "OBJECT" FITS Header value for ARCs etc....
+	 * There is only one saved value rather than one per arm, surely as there is only one fibre
+	 * FrodoSpec can only be pointing at one object at a time?
+	 * @see #getFitsHeadersFromISS
+	 */
+	protected String objectName = null;
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller/CCS
 	 * configuration file) to Kelvin (used in FITS file). Used in setFitsHeaders.
@@ -712,6 +720,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * If an error occurs the done objects field's can be set to record the error.
 	 * The order numbers returned from the ISS are incremented by the order number offset
 	 * defined in the FrodoSpec 'frodospec.get_fits.order_number_offset' property.
+	 * The objectName field is updated with the value of the "OBJECT" FITS header. This is used for
+	 * changing the "OBJECT" keyword for ARCs etc...
 	 * @param command The command being implemented that made this call to the ISS. This is used
 	 * 	for error logging.
 	 * @param done A COMMAND_DONE subclass specific to the command being implemented. If an
@@ -726,11 +736,13 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see #frodospecFitsHeaderList
 	 * @see #DEFAULT_ORDER_NUMBER_OFFSET
 	 * @see #frodospec
+	 * @see #objectName
 	 */
 	public boolean getFitsHeadersFromISS(COMMAND command,COMMAND_DONE done,int arm)  throws IllegalArgumentException
 	{
 		INST_TO_ISS_DONE instToISSDone = null;
 		GET_FITS_DONE getFitsDone = null;
+		FitsHeaderCardImage objectCardImage = null;
 		int orderNumberOffset;
 
 		if((arm != FrodoSpecConfig.RED_ARM)&&(arm != FrodoSpecConfig.BLUE_ARM))
@@ -762,6 +774,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				":getFitsHeadersFromISS:Getting order number offset failed.",e);
 		}
 		frodospecFitsHeaderList[arm].addKeywordValueList(getFitsDone.getFitsHeader(),orderNumberOffset);
+		// retrieve the OBJECT FITS header card image
+		// we will need to modify this in odd ways for ARC obs/calBefore/calAfter
+		objectCardImage = frodospecFitsHeaderList[arm].get("OBJECT");
+		objectName = (String)(objectCardImage.getValue());
 		return true;
 	}
 
@@ -1284,4 +1300,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
