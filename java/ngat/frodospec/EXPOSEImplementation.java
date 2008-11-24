@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.2 2008-11-24 14:59:20 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -21,14 +21,14 @@ import ngat.phase2.FrodoSpecConfig;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.2 2008-11-24 14:59:20 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -150,12 +150,14 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 *        my this method should be added. Used to send frame filenames to the data pipeline.
 	 * @return The method returns true on success and false on failure.
 	 * @see #status
-	 * @see #frodospecFilename
+	 * @see #frodospecFilenameList
+	 * @see #frodospecFitsHeaderList
 	 * @see FITSImplementation#clearFitsHeaders
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FitsHeaderDefaults#OBSTYPE_VALUE_DARK
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#testAbort
+	 * @see FITSImplementation#objectName
 	 * @see #serverConnectionThread
 	 * @see ngat.spec.SpecLibrary#cameraExpose
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
@@ -167,6 +169,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	{
 		FILENAME_ACK filenameAck = null;
 		CCDLibrary ccd = null;
+		FitsHeaderCardImage objectCardImage = null;
 		String filename = null;
 		boolean ccdEnable;
 
@@ -214,6 +217,10 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 			return false;
 		if(testAbort(exposeCommand,exposeDone) == true)
 			return false;
+	// Modify "OBJECT" FITS header value to distinguish between spectra of the OBJECT
+        // and calibration DARKs taken for that observation.
+		objectCardImage = frodospecFitsHeaderList[arm].get("OBJECT");
+		objectCardImage.setValue(new String("DARK for "+objectName));
 		// save FITS headers
 		if(saveFitsHeaders(exposeCommand,exposeDone,arm,filename) == false)
 			return false;
@@ -275,7 +282,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 *        my this method should be added. Used to send frame filenames to the data pipeline.
 	 * @return The method returns true on success and false on failure.
 	 * @see #status
-	 * @see #frodospecFilename
+	 * @see #frodospecFilenameList
+	 * @see #frodospecFitsHeaderList
 	 * @see #getArcExposureLength
 	 * @see #stowFold
 	 * @see #testAbort
@@ -286,6 +294,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see FitsHeaderDefaults#OBSTYPE_VALUE_ARC
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#testAbort
+	 * @see FITSImplementation#objectName
 	 * @see #serverConnectionThread
 	 * @see ngat.spec.SpecLibrary#cameraExpose
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
@@ -299,6 +308,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		FILENAME_ACK filenameAck = null;
 		CCDLibrary ccd = null;
 		Plc plc = null;		
+		FitsHeaderCardImage objectCardImage = null;
 		String filename = null;
 		int exposureLength,resolution;
 		boolean ccdEnable;
@@ -410,6 +420,10 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 			turnLampsOff(arm,exposeCommand,exposeDone);
 			return false;
 		}
+	// Modify "OBJECT" FITS header value to distinguish between spectra of the OBJECT
+        // and calibration ARCs taken for that observation.
+		objectCardImage = frodospecFitsHeaderList[arm].get("OBJECT");
+		objectCardImage.setValue(new String("ARC: "+lampsString+" for "+objectName));
 		// save FITS headers
 		if(saveFitsHeaders(exposeCommand,exposeDone,arm,filename) == false)
 		{
@@ -525,4 +539,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
