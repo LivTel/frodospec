@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.2 2008-11-25 17:16:48 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.3 2008-11-25 20:13:38 cjm Exp $
 include ../../../Makefile.common
 include ../../../../Makefile.common
 
@@ -49,14 +49,14 @@ $(CONFIG_BINDIR)/%.properties: %.properties
 	$(CP) $< $@
 
 checkin:
-	-$(CI) $(CI_OPTIONS) $(SRCS)
+	-$(CI) $(CI_OPTIONS) $(SRCS) $(CONFIG_SRCS)
 	-@for i in $(DIRS); \
 	do \
 		(echo checkin in $$i...; cd $$i; $(MAKE) checkin; $(CI) $(CI_OPTIONS) Makefile); \
 	done;
 
 checkout:
-	$(CO) $(CO_OPTIONS) $(SRCS)
+	$(CO) $(CO_OPTIONS) $(SRCS) $(CONFIG_SRCS)
 	@for i in $(DIRS); \
 	do \
 		(echo checkout in $$i...; cd $$i; $(CO) $(CO_OPTIONS) Makefile; $(MAKE) checkout); \
@@ -87,6 +87,9 @@ backup: tidy checkin
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.2  2008/11/25 17:16:48  cjm
+# Added LAMPFLATImplementation.java.
+#
 # Revision 1.1  2008/11/20 11:34:45  cjm
 # Initial revision
 #
