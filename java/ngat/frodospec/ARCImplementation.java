@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.2 2008-11-24 14:59:57 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.3 2008-11-25 18:28:06 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.phase2.FrodoSpecConfig;
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.2 2008-11-24 14:59:57 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.3 2008-11-25 18:28:06 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -106,15 +106,15 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		int exposureLength,arm,resolution;
 		boolean ccdEnable;
 
-		if(testAbort(arcCommand,arcDone) == true)
+		if(testAbort(command,arcDone) == true)
 			return arcDone;
 		if((command instanceof FRODOSPEC_ARC) == false)
 		{
 			frodospec.error(this.getClass().getName()+
-					":processCommand:"+command+":Multrun command has wrong class:"+
+					":processCommand:"+command+":Arc command has wrong class:"+
 					command.getClass().getName());
 			arcDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1500);
-			arcDone.setErrorString("Multrun command has wrong class:"+
+			arcDone.setErrorString("Arc command has wrong class:"+
 							    command.getClass().getName());
 			arcDone.setSuccessful(false);
 			return arcDone;
@@ -311,6 +311,10 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/11/24 14:59:57  cjm
+// Added code to modify OBJECT FITS header keyword for calibration ARCs using
+// previously extracted objectName.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
