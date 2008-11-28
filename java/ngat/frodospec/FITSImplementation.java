@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.2 2008-11-24 14:57:23 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.3 2008-11-28 11:15:56 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.lamp.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.2 2008-11-24 14:57:23 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.3 2008-11-28 11:15:56 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -491,7 +491,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 					   FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString));
 		// CONFIGID
 			cardImage = frodospecFitsHeaderList[arm].get("CONFIGID");
-			cardImage.setValue(new Integer(status.getConfigId()));
+			cardImage.setValue(new Integer(status.getConfigId(arm)));
 		// CONFNAME
 			cardImage = frodospecFitsHeaderList[arm].get("CONFNAME");
 			cardImage.setValue(status.getConfigName(arm));
@@ -1300,6 +1300,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/11/24 14:57:23  cjm
+// Added objectName field and associated code to extraxt from returned ISS headers.
+// The OBJECT FITS header is then modified before saving for ARCs and Darks.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
