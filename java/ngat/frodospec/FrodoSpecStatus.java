@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.2 2008-11-28 11:16:43 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.2 2008-11-28 11:16:43 cjm Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -88,7 +88,7 @@ public class FrodoSpecStatus
 	 * Incremented each time a new configuration is attained,
 	 * and stored in the FITS header.
 	 */
-	private PersistentUniqueInteger configId = null;
+	private PersistentUniqueInteger configId[] = {null,null,null};
 	/**
 	 * The name of the ngat.phase2.FrodoSpecConfig object instance that was last used	
 	 * to configure the FrodoSpec Camera (via an ngat.message.ISS_INST.CONFIG message).
@@ -470,34 +470,40 @@ public class FrodoSpecStatus
 	/**
 	 * Method to change (increment) the unique ID number of the last
 	 * ngat.phase2.FrodoSpecConfig instance to successfully configure the FrodoSpec camera.
-	 * This is done by calling <i>configId.increment()</i>.
+	 * This is done by calling <i>configId[arm].increment()</i>.
+	 * @param arm Which arm to increment the config Id for, one of RED_ARM or BLUE_ARM.
 	 * @see #configId
 	 * @see ngat.util.PersistentUniqueInteger#increment
 	 * @exception FileUtilitiesNativeException Thrown if <i>PersistentUniqueInteger.increment()</i> fails.
 	 * @exception NumberFormatException Thrown if <i>PersistentUniqueInteger.increment()</i> fails.
 	 * @exception Exception Thrown if <i>PersistentUniqueInteger.increment()</i> fails.
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	public synchronized void incConfigId() throws FileUtilitiesNativeException,
+	public synchronized void incConfigId(int arm) throws FileUtilitiesNativeException,
 		NumberFormatException, Exception
 	{
-		configId.increment();
+		configId[arm].increment();
 	}
 
 	/**
 	 * Method to get the unique config ID number of the last
 	 * ngat.phase2.FrodoSpecConfig instance to successfully configure the FrodoSpec camera.
+	 * @param arm Which arm to get the config Id for, one of NO_ARM,RED_ARM, BLUE_ARM.
 	 * @return The unique config ID number.
-	 * This is done by calling <i>configId.get()</i>.
+	 * This is done by calling <i>configId[arm].get()</i>.
 	 * @see #configId
 	 * @see ngat.util.PersistentUniqueInteger#get
 	 * @exception FileUtilitiesNativeException Thrown if <i>PersistentUniqueInteger.get()</i> fails.
 	 * @exception NumberFormatException Thrown if <i>PersistentUniqueInteger.get()</i> fails.
 	 * @exception Exception Thrown if <i>PersistentUniqueInteger.get()</i> fails.
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	public synchronized int getConfigId() throws FileUtilitiesNativeException,
+	public synchronized int getConfigId(int arm) throws FileUtilitiesNativeException,
 		NumberFormatException, Exception
 	{
-		return configId.get();
+		return configId[arm].get();
 	}
 
 	/**
@@ -1016,20 +1022,30 @@ public class FrodoSpecStatus
 	}
 
 	/**
-	 * Internal method to initialise the configId field. This is not done during construction
+	 * Internal method to initialise the configId array field. This is not done during construction
 	 * as the property files need to be loaded to determine the filename to use.
 	 * This is got from the <i>frodospec.config.unique_id_filename</i> property.
 	 * The configId field is then constructed.
 	 * @see #configId
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 * @see ngat.frodospec.FrodoSpecConstants#ARM_STRING_LIST
 	 */
 	private void initialiseConfigId()
 	{
 		String fileName = null;
 
-		fileName = getProperty("frodospec.config.unique_id_filename");
-		configId = new PersistentUniqueInteger(fileName);
+		for(int arm=FrodoSpecConfig.RED_ARM; arm<=FrodoSpecConfig.BLUE_ARM; arm++)
+		{
+			fileName = getProperty("frodospec.config.unique_id_filename."+
+					       FrodoSpecConstants.ARM_STRING_LIST[arm]);
+			configId[arm] = new PersistentUniqueInteger(fileName);
+		}
 	}
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
