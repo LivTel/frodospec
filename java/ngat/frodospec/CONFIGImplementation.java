@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.2 2008-11-28 11:16:14 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -17,14 +17,14 @@ import ngat.phase2.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.2 2008-11-28 11:16:14 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -287,7 +287,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	// This is queried when saving FITS headers to get the CONFIGID value.
 		try
 		{
-			status.incConfigId();
+			status.incConfigId(arm);
 		}
 		catch(Exception e)
 		{
@@ -358,4 +358,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
