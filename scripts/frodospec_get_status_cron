@@ -1,0 +1,154 @@
+#!/bin/csh
+# stuff used when called from a cron job
+# LogsFrodospec temperatures, heater ADUs and voltages
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_get_status_cron,v 1.1 2008-12-01 10:38:39 cjm Exp $
+#echo 1
+if ( ${?LT_HOME} == 0 ) then
+    setenv LT_HOME /icc
+endif
+#echo 2
+if ( ${?LT_BIN_HOME} == 0 ) then
+    setenv LT_BIN_HOME ${LT_HOME}/bin
+endif
+#echo 3
+if ( ${?LT_LIB_HOME} == 0 ) then
+    setenv HOSTTYPE sun4
+    setenv LT_LIB_HOME ${LT_BIN_HOME}/lib/${HOSTTYPE}
+endif
+#echo 4
+if ( ${?LD_LIBRARY_PATH} ) then
+   setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}":"$LT_LIB_HOME
+else
+   setenv LD_LIBRARY_PATH $LT_LIB_HOME
+endif
+#echo 5
+if ( ${?JAVA_HOME} == 0 ) then
+    setenv JAVA_HOME /usr/java1.2
+endif
+#echo 6
+if ( ${?CLASSPATH} == 0 ) then
+   setenv CLASSPATH ".:/icc/bin/javalib/ngat_ccd.jar:/icc/bin/javalib/ngat_fits.jar:/icc/bin/javalib/ngat_math.jar:/icc/bin/javalib/ngat_message_base.jar:/icc/bin/javalib/ngat_message_inst_dp.jar:/icc/bin/javalib/ngat_message_iss_inst.jar:/icc/bin/javalib/ngat_net.jar:/icc/bin/javalib/ngat_phase2.jar:/icc/bin/javalib/ngat_swing.jar:/icc/bin/javalib/ngat_util.jar:/icc/bin/javalib/ngat_util_logging.jar"
+endif
+#echo 7
+set interface = pci
+#echo 8
+set date_doy_string = `date +"%j"`
+set log_filename = "${LT_HOME}/log/frodospec_get_status_log_${date_doy_string}.txt"
+#echo 9
+set ccd_machine = "frodospec1"
+set port = 7083
+#echo 10
+set status_level = 1
+#echo 11
+set output_filename = "${LT_HOME}/log/frodospec_get_status_command_output.txt"
+#echo 12
+set csv_filename = "${LT_HOME}/log/frodospec_get_status_totals_${date_doy_string}.csv"
+if ( ! -e ${csv_filename} ) then
+    echo "date,date,red temperature,blue temperature,red heater adus,blue heater adus,red utility board temp adus,blue utility board temp adus,env temp 0,env temp 1,env temp 2,env temp 3,env temp 4,humidity,air flow, air pressure"  >> ${csv_filename}
+endif
+echo "----------------------------------------------------------------------" >> ${log_filename}
+#
+# Send command to Frodospec
+#
+#echo 19
+cd ${LT_BIN_HOME}/frodospec/test/
+java SendISSCommandFile -ip ${ccd_machine} -c ${port} -f "TestGetStatus${status_level}.obj" > ${output_filename}
+set getstatus_status = $status
+#echo 20
+if( ${getstatus_status} == 0) then
+#echo 21
+    echo -n "java SendISSCommandFile returned:"${getstatus_status} >> ${log_filename}
+    cat ${output_filename} >> ${log_filename}
+    date
+    date >> ${log_filename}
+    set date_string = `date +"%G-%m-%dT%H:%M:%S"`
+    set date_string_s = `date +"%s"`
+# temperature
+    set red_temperature = `cat ${output_filename} | grep '^red.Temperature = ' | sed "s/red.Temperature = \(.*\)/\1/g"`
+    echo "red temperature = ${red_temperature}"
+    echo "red temperature = ${red_temperature}"  >> ${log_filename}
+    set blue_temperature = `cat ${output_filename} | grep '^blue.Temperature = ' | sed "s/blue.Temperature = \(.*\)/\1/g"`
+    echo "blue temperature = ${blue_temperature}"
+    echo "blue temperature = ${blue_temperature}"  >> ${log_filename}
+    echo "${date_string},${date_string_s},${red_temperature},${blue_temperature}">> ${LT_HOME}/log/frodospec_get_status_temperature_${date_doy_string}.csv
+# heater adus
+   set red_heater_adu = `cat ${output_filename} | grep 'red.Heater ADU = ' | sed "s/red.Heater ADU = \(.*\)/\1/g"`
+   echo "red_heater_adu = ${red_heater_adu}"
+   echo "red_heater_adu = ${red_heater_adu}"  >> ${log_filename}
+   set blue_heater_adu = `cat ${output_filename} | grep 'blue.Heater ADU = ' | sed "s/blue.Heater ADU = \(.*\)/\1/g"`
+   echo "blue_heater_adu = ${blue_heater_adu}"
+   echo "blue_heater_adu = ${blue_heater_adu}"  >> ${log_filename}
+   echo "${date_string},${date_string_s},${red_heater_adu},${blue_heater_adu}">> ${LT_HOME}/log/frodospec_get_status_heater_adu_${date_doy_string}.csv
+# SDSU utility board adus
+   set red_utility_board_adu = `cat ${output_filename} | grep 'red.Utility Board Temperature ADU = ' | sed "s/red.Utility Board Temperature ADU = \(.*\)/\1/g"`
+   echo "red_utility_board_adu = ${red_utility_board_adu}"
+   echo "red_utility_board_adu = ${red_utility_board_adu}"  >> ${log_filename}
+   set blue_utility_board_adu = `cat ${output_filename} | grep 'blue.Utility Board Temperature ADU = ' | sed "s/blue.Utility Board Temperature ADU = \(.*\)/\1/g"`
+   echo "blue_utility_board_adu = ${blue_utility_board_adu}"
+   echo "blue_utility_board_adu = ${blue_utility_board_adu}"  >> ${log_filename}
+   echo "${date_string},${date_string_s},${red_utility_board_adu},${blue_utility_board_adu}">> ${LT_HOME}/log/frodospec_get_status_utility_board_temperature_adu_${date_doy_string}.csv
+# SDSU power supply high adus
+   set red_psu_high_adu = `cat ${output_filename} | grep 'red.High Voltage Supply ADU = ' | sed "s/red.High Voltage Supply ADU = \(.*\)/\1/g"`
+   echo "red_psu_high_adu = ${red_psu_high_adu}"
+   echo "red_psu_high_adu = ${red_psu_high_adu}"  >> ${log_filename}
+   set blue_psu_high_adu = `cat ${output_filename} | grep 'blue.High Voltage Supply ADU = ' | sed "s/blue.High Voltage Supply ADU = \(.*\)/\1/g"`
+   echo "blue_psu_high_adu = ${blue_psu_high_adu}"
+   echo "blue_psu_high_adu = ${blue_psu_high_adu}"  >> ${log_filename}
+   echo "${date_string},${date_string_s},${red_psu_high_adu},${blue_psu_high_adu}" >> ${LT_HOME}/log/frodospec_get_status_power_supply_high_adu_${date_doy_string}.csv
+# SDSU power supply low adus
+   set red_psu_low_adu = `cat ${output_filename} | grep '^red.Low Voltage Supply ADU = ' | sed "s/red.Low Voltage Supply ADU = \(.*\)/\1/g"`
+   echo "red_psu_low_adu = ${red_psu_low_adu}"
+   echo "red_psu_low_adu = ${red_psu_low_adu}"  >> ${log_filename}
+   set blue_psu_low_adu = `cat ${output_filename} | grep '^blue.Low Voltage Supply ADU = ' | sed "s/blue.Low Voltage Supply ADU = \(.*\)/\1/g"`
+   echo "blue_psu_low_adu = ${blue_psu_low_adu}"
+   echo "blue_psu_low_adu = ${blue_psu_low_adu}"  >> ${log_filename}
+   echo "${date_string},${date_string_s},${red_psu_low_adu},${blue_psu_low_adu}" >> ${LT_HOME}/log/frodospec_get_status_power_supply_low_adu_${date_doy_string}.csv
+# SDSU power supply minus low adus
+   set red_psu_minus_low_adu = `cat ${output_filename} | grep 'red.Minus Low Voltage Supply ADU = ' | sed "s/red.Minus Low Voltage Supply ADU = \(.*\)/\1/g"`
+   echo "red_psu_minus_low_adu = ${red_psu_minus_low_adu}"
+   echo "red_psu_minus_low_adu = ${red_psu_minus_low_adu}"  >> ${log_filename}
+   set blue_psu_minus_low_adu = `cat ${output_filename} | grep 'blue.Minus Low Voltage Supply ADU = ' | sed "s/blue.Minus Low Voltage Supply ADU = \(.*\)/\1/g"`
+   echo "blue_psu_minus_low_adu = ${blue_psu_minus_low_adu}"
+   echo "blue_psu_minus_low_adu = ${blue_psu_minus_low_adu}"  >> ${log_filename}
+   echo "${date_string},${date_string_s},${red_psu_minus_low_adu},${blue_psu_minus_low_adu}" >> ${LT_HOME}/log/frodospec_get_status_power_supply_minus_low_adu_${date_doy_string}.csv
+# All SDSU power supply adus
+   echo "${date_string},${date_string_s},${red_psu_high_adu},${blue_psu_high_adu},${red_psu_low_adu},${blue_psu_low_adu},${red_psu_minus_low_adu},${blue_psu_minus_low_adu}" >> ${LT_HOME}/log/frodospec_get_status_sdsu_power_supply_adu_${date_doy_string}.csv
+
+# enviromental temps
+# NB GET_STATUS keyword indexs are 0..4
+# csh indexs are 1..5
+    set index = 0
+    set env_temp = ( "0.0" "0.0" "0.0" "0.0" "0.0" ) 
+    while ( ${index} < 5 )
+	set csh_index = `echo "(${index} +1)"| /usr/bin/bc`
+	set env_temp[${csh_index}] = `cat ${output_filename} | grep "Environment.Temperature.${index} = " | sed "s/Environment.Temperature.${index} = \(.*\)/\1/g"`
+	echo "env_temp[${index}] = ${env_temp[${csh_index}]}"
+	echo "env_temp[${index}] = ${env_temp[${csh_index}]}"  >> ${log_filename}
+	@ index ++
+    end
+   echo "${date_string},${date_string_s},${env_temp[1]},${env_temp[2]},${env_temp[3]},${env_temp[4]},${env_temp[5]}">> ${LT_HOME}/log/frodospec_get_status_environment_temperature_${date_doy_string}.csv
+# enviroment humidity
+   set humidity = `cat ${output_filename} | grep 'Environment.Humidity = ' | sed "s/Environment.Humidity = \(.*\)/\1/g"`
+   echo "humidity = ${humidity}"
+   echo "humidity = ${humidity}"  >> ${log_filename}
+   echo "${date_string},${date_string_s},${humidity}">> ${LT_HOME}/log/frodospec_get_status_humidity_${date_doy_string}.csv
+# air flow
+   set air_flow = `cat ${output_filename} | grep 'Air.Flow = ' | sed "s/Air.Flow = \(.*\)/\1/g"`
+   echo "air_flow = ${air_flow}"
+   echo "air_flow = ${air_flow}"  >> ${log_filename}
+# air pressure
+   set air_pressure = `cat ${output_filename} | grep 'Air.Pressure = ' | sed "s/Air.Pressure = \(.*\)/\1/g"`
+   echo "air_pressure = ${air_pressure}"
+   echo "air_pressure = ${air_pressure}"  >> ${log_filename}
+# air data
+   echo "${date_string},${air_flow},${air_pressure}">> ${LT_HOME}/log/frodospec_get_status_air_${date_doy_string}.csv
+# totals csv
+   echo "${date_string},${date_string_s},${red_temperature},${blue_temperature},${red_heater_adu},${blue_heater_adu},${red_utility_board_adu},${blue_utility_board_adu},${env_temp[1]},${env_temp[2]},${env_temp[3]},${env_temp[4]},${env_temp[5]},${humidity},${air_flow},${air_pressure}" >> ${csv_filename}
+else
+    echo -n "java SendISSCommandFile returned:"${getstatus_status} >> ${log_filename}
+    cat ${output_filename} >> ${log_filename}
+endif
+echo "----------------------------------------------------------------------" >> ${log_filename}
+#
+# $Log: not supported by cvs2svn $
+#

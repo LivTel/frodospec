@@ -1,0 +1,147 @@
+#!/bin/csh
+# Run an arm through many config/multrun cycles
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_exercise_arm,v 1.1 2008-12-01 10:38:27 cjm Exp $
+if ( ${?LT_HOME} == 0 ) then
+    setenv LT_HOME /icc
+endif
+if ( ${?LT_BIN_HOME} == 0 ) then
+    setenv LT_BIN_HOME ${LT_HOME}/bin
+endif
+if ( ${?LT_LIB_HOME} == 0 ) then
+    setenv HOSTTYPE sun4
+    setenv LT_LIB_HOME ${LT_BIN_HOME}/lib/${HOSTTYPE}
+endif
+if ( ${?LD_LIBRARY_PATH} ) then
+   setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}":"$LT_LIB_HOME
+else
+   setenv LD_LIBRARY_PATH $LT_LIB_HOME
+endif
+if ( ${?CLASSPATH} == 0 ) then
+   setenv CLASSPATH ".:/icc/bin/javalib/ngat_ccd.jar:/icc/bin/javalib/ngat_fits.jar:/icc/bin/javalib/ngat_math.jar:/icc/bin/javalib/ngat_message_base.jar:/icc/bin/javalib/ngat_message_inst_dp.jar:/icc/bin/javalib/ngat_message_iss_inst.jar:/icc/bin/javalib/ngat_net.jar:/icc/bin/javalib/ngat_phase2.jar:/icc/bin/javalib/ngat_swing.jar:/icc/bin/javalib/ngat_util.jar:/icc/bin/javalib/ngat_util_logging.jar:/icc/bin/javalib/ngat_frodospec.jar"
+endif
+#
+# Script location
+#
+if ( -x /icc/bin/frodospec/scripts/frodospec_single_config_multrun ) then
+	set frodospec_single_config_multrun = '/icc/bin/frodospec/scripts/frodospec_single_config_multrun'
+else if ( -x /home/dev/bin/frodospec/scripts/frodospec_single_config_multrun ) then
+	set frodospec_single_config_multrun = '/home/dev/bin/frodospec/scripts/frodospec_single_config_multrun'
+else
+	echo "Failed to find frodospec_single_config_multrun."
+	exit 1
+endif
+#
+# Connection information
+#
+set hostname = "frodospec1"
+set port = 7083
+#
+# Default config attributes
+#
+set arm = "red"
+set resolution = "low"
+set exposure_length = "10000"
+set exposure_count = 1
+set continuous_loop = 0
+set multrun_count = 2
+#
+# Parse argumerts
+#
+set next_arg = ""
+foreach arg ( ${argv} )
+	if( "$arg" == "-a" ) then
+		set next_arg = "arm"
+	else if( "$arg" == "-arm" ) then
+		set next_arg = "arm"
+	else if( "$arg" == "-c" ) then
+		set next_arg = "exposure_count"
+	else if( "$arg" == "-continuous_loop" ) then
+		set continuous_loop = 1
+	else if( "$arg" == "-exposure_count" ) then
+		set next_arg = "exposure_count"
+	else if( "$arg" == "-l" ) then
+		set next_arg = "exposure_length"
+	else if( "$arg" == "-exposure_length" ) then
+		set next_arg = "exposure_length"
+	else if( "$arg" == "-help" ) then
+		echo "frodospec_exercise_arm -arm <red|blue> -l|exposure_length <millis> -c|exposure_count <number> <-m|multrun_count <number>|-continuous_loop> [-help]"
+		exit 1
+	else if( "$arg" == "-m" ) then
+		set next_arg = "multrun_count"
+	else if( "$arg" == "-multrun_count" ) then
+		set next_arg = "multrun_count"
+	else 
+		if( "${next_arg}" == "arm" ) then
+		    set arm = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "exposure_count" ) then
+		    set exposure_count = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "exposure_length" ) then
+		    set exposure_length = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "multrun_count" ) then
+		    set multrun_count = "${arg}"
+		    set next_arg = ""
+		else
+			echo "Unknown argument ${arg}."
+			exit 1
+		endif
+        endif
+end
+if ( ( "${arm}" != "red" ) && ( "${arm}" != "blue" ) ) then
+	echo "Please specify a legal arm (red|blue): see -help for details."
+	exit 1
+endif
+# initialise resolution to low
+set resolution = "low"
+if ( "${continuous_loop}" == 1 ) then
+	set done = 0
+	set index = 0
+	while ( "${done}" == "0" )
+		# Call the script
+		echo "Invocation: ${index}"
+		set command_string = "${frodospec_single_config_multrun} -arm ${arm} -resolution ${resolution} -exposure_length ${exposure_length} -exposure_count ${exposure_count}"
+		echo "Executing: ${command_string}"
+		${command_string}
+		set command_status = $status
+		if( "${command_status}" != 0 ) then
+			echo "Invocation failed on arm ${arm}, resolution ${resolution}, index ${index} command : ${command_string}"
+			exit 1
+		endif
+		# swap resolution
+		if( "${resolution}" == "low" ) then
+			set resolution = "high"
+		else
+			set resolution = "low"
+		endif
+		# increment index
+		@ index ++
+	end
+else
+	# do multrun count
+	set index = 0
+	while ( "${index}" < "${multrun_count}" )
+		# Call the script
+		echo "Invocation: ${index}"
+		set command_string = "${frodospec_single_config_multrun} -arm ${arm} -resolution ${resolution} -exposure_length ${exposure_length} -exposure_count ${exposure_count}"
+		echo "Executing: ${command_string}"
+		${command_string}
+		set command_status = $status
+		if( "${command_status}" != 0 ) then
+			echo "Invocation failed on arm ${arm}, resolution ${resolution}, index ${index} command : ${command_string}"
+			# don't fail - try again
+		endif
+		# swap resolution
+		if( "${resolution}" == "low" ) then
+			set resolution = "high"
+		else
+			set resolution = "low"
+		endif
+		# increment index
+		@ index ++
+	end
+endif
+#
+# $Log: not supported by cvs2svn $
+#

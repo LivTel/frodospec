@@ -1,0 +1,107 @@
+#!/bin/csh
+# Test two arms in parallel
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_arm_flexer,v 1.1 2008-12-01 10:38:09 cjm Exp $
+if ( ${?LT_HOME} == 0 ) then
+    setenv LT_HOME /icc
+endif
+if ( ${?LT_BIN_HOME} == 0 ) then
+    setenv LT_BIN_HOME ${LT_HOME}/bin
+endif
+if ( ${?LT_LIB_HOME} == 0 ) then
+    setenv HOSTTYPE sun4
+    setenv LT_LIB_HOME ${LT_BIN_HOME}/lib/${HOSTTYPE}
+endif
+if ( ${?LD_LIBRARY_PATH} ) then
+   setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}":"$LT_LIB_HOME
+else
+   setenv LD_LIBRARY_PATH $LT_LIB_HOME
+endif
+if ( ${?CLASSPATH} == 0 ) then
+   setenv CLASSPATH ".:/icc/bin/javalib/ngat_ccd.jar:/icc/bin/javalib/ngat_fits.jar:/icc/bin/javalib/ngat_math.jar:/icc/bin/javalib/ngat_message_base.jar:/icc/bin/javalib/ngat_message_inst_dp.jar:/icc/bin/javalib/ngat_message_iss_inst.jar:/icc/bin/javalib/ngat_net.jar:/icc/bin/javalib/ngat_phase2.jar:/icc/bin/javalib/ngat_swing.jar:/icc/bin/javalib/ngat_util.jar:/icc/bin/javalib/ngat_util_logging.jar:/icc/bin/javalib/ngat_frodospec.jar"
+endif
+#
+# Script location
+#
+if ( -x /icc/bin/frodospec/scripts/frodospec_exercise_arm ) then
+	set frodospec_exercise_arm = '/icc/bin/frodospec/scripts/frodospec_exercise_arm'
+else if ( -x /home/dev/bin/frodospec/scripts/frodospec_exercise_arm ) then
+	set frodospec_exercise_arm = '/home/dev/bin/frodospec/scripts/frodospec_exercise_arm'
+else
+	echo "Failed to find frodospec_exercise_arm."
+	exit 1
+endif
+#
+# Default config attributes
+#
+set exposure_length = "10000"
+set exposure_count = 1
+set multrun_count = 2
+set continuous_loop = 0
+#
+# Parse argumerts
+#
+set next_arg = ""
+foreach arg ( ${argv} )
+	if( "$arg" == "-c" ) then
+		set next_arg = "exposure_count"
+	else if( "$arg" == "-continuous_loop" ) then
+		set continuous_loop = 1
+	else if( "$arg" == "-exposure_count" ) then
+		set next_arg = "exposure_count"
+	else if( "$arg" == "-l" ) then
+		set next_arg = "exposure_length"
+	else if( "$arg" == "-exposure_length" ) then
+		set next_arg = "exposure_length"
+	else if( "$arg" == "-help" ) then
+		echo "frodospec_arm_flexer -l|exposure_length <millis> -c|exposure_count <number> <-m|multrun_count <number>|-continuous_loop> [-help]"
+		exit 1
+	else if( "$arg" == "-m" ) then
+		set next_arg = "multrun_count"
+	else if( "$arg" == "-multrun_count" ) then
+		set next_arg = "multrun_count"
+	else 
+		if( "${next_arg}" == "exposure_count" ) then
+		    set exposure_count = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "exposure_length" ) then
+		    set exposure_length = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "multrun_count" ) then
+		    set multrun_count = "${arg}"
+		    set next_arg = ""
+		else
+			echo "Unknown argument ${arg}."
+			exit 1
+		endif
+        endif
+end
+if( "${continuous_loop}" == "1" ) then
+    #
+    # Red Arm
+    #
+    set command_string = "${frodospec_exercise_arm} -arm red -exposure_length ${exposure_length} -exposure_count ${exposure_count} -continuous_loop"
+    echo "About to start: ${command_string}"
+    ${command_string} &
+    #
+    # Blue Arm
+    #
+    set command_string = "${frodospec_exercise_arm} -arm blue -exposure_length ${exposure_length} -exposure_count ${exposure_count} -continuous_loop"
+    echo "About to start: ${command_string}"
+    ${command_string} &
+else
+    #
+    # Red Arm
+    #
+    set command_string = "${frodospec_exercise_arm} -arm red -exposure_length ${exposure_length} -exposure_count ${exposure_count} -multrun_count ${multrun_count}"
+    echo "About to start: ${command_string}"
+    ${command_string} &
+    #
+    # Blue Arm
+    #
+    set command_string = "${frodospec_exercise_arm} -arm blue -exposure_length ${exposure_length} -exposure_count ${exposure_count} -multrun_count ${multrun_count}"
+    echo "About to start: ${command_string}"
+    ${command_string} &
+endif
+#
+# $Log: not supported by cvs2svn $
+#

@@ -1,0 +1,118 @@
+#!/bin/csh
+# Send a single config and multrun for one arm of FrodoSpec
+# frodospec_single_config_multrun -arm <red|blue> -r[esolution] <low|high> -l|exposure_length <millis> 
+# -c|exposure_count <number> [-help]
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_single_config_multrun,v 1.1 2008-12-01 10:39:18 cjm Exp $
+if ( ${?LT_HOME} == 0 ) then
+    setenv LT_HOME /icc
+endif
+if ( ${?LT_BIN_HOME} == 0 ) then
+    setenv LT_BIN_HOME ${LT_HOME}/bin
+endif
+if ( ${?LT_LIB_HOME} == 0 ) then
+    setenv HOSTTYPE sun4
+    setenv LT_LIB_HOME ${LT_BIN_HOME}/lib/${HOSTTYPE}
+endif
+if ( ${?LD_LIBRARY_PATH} ) then
+   setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}":"$LT_LIB_HOME
+else
+   setenv LD_LIBRARY_PATH $LT_LIB_HOME
+endif
+if ( ${?CLASSPATH} == 0 ) then
+   setenv CLASSPATH ".:/icc/bin/javalib/ngat_ccd.jar:/icc/bin/javalib/ngat_fits.jar:/icc/bin/javalib/ngat_math.jar:/icc/bin/javalib/ngat_message_base.jar:/icc/bin/javalib/ngat_message_inst_dp.jar:/icc/bin/javalib/ngat_message_iss_inst.jar:/icc/bin/javalib/ngat_net.jar:/icc/bin/javalib/ngat_phase2.jar:/icc/bin/javalib/ngat_swing.jar:/icc/bin/javalib/ngat_util.jar:/icc/bin/javalib/ngat_util_logging.jar:/icc/bin/javalib/ngat_frodospec.jar"
+endif
+#
+# Connection information
+#
+set hostname = "frodospec1"
+set port = 7083
+#
+# Default config attributes
+#
+set arm = "red"
+set resolution = "low"
+set exposure_length = "10000"
+set exposure_count = 1
+# Can be set -ca | -cb to set calibrate before/after
+set config_extra_args = ""
+set x_bin = 1
+set y_bin = 1
+# SendMultrunCommand extra args
+set multrun_extra_args = "-pipelineProcess"
+#
+# Parse argumerts
+#
+set next_arg = ""
+foreach arg ( ${argv} )
+	if( "$arg" == "-a" ) then
+		set next_arg = "arm"
+	else if( "$arg" == "-arm" ) then
+		set next_arg = "arm"
+	else if( "$arg" == "-c" ) then
+		set next_arg = "exposure_count"
+	else if( "$arg" == "-exposure_count" ) then
+		set next_arg = "exposure_count"
+	else if( "$arg" == "-l" ) then
+		set next_arg = "exposure_length"
+	else if( "$arg" == "-exposure_length" ) then
+		set next_arg = "exposure_length"
+	else if( "$arg" == "-help" ) then
+		echo "frodospec_single_config_multrun -arm <red|blue> -r[esolution] <low|high> -l|exposure_length <millis> -c|exposure_count <number> [-help]"
+		exit 1
+	else if( "$arg" == "-r" ) then
+		set next_arg = "resolution"
+	else if( "$arg" == "-resolution" ) then
+		set next_arg = "resolution"
+	else 
+		if( "${next_arg}" == "arm" ) then
+		    set arm = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "exposure_count" ) then
+		    set exposure_count = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "exposure_length" ) then
+		    set exposure_length = "${arg}"
+		    set next_arg = ""
+		else if( "${next_arg}" == "resolution" ) then
+		    set resolution = "${arg}"
+		    set next_arg = ""
+		else
+			echo "Unknown argument ${arg}."
+			exit 1
+		endif
+        endif
+end
+if ( ( "${arm}" != "red" ) && ( "${arm}" != "blue" ) ) then
+	echo "Please specify a legal arm (red|blue): see -help for details."
+	exit 1
+endif
+if( ( "${resolution}" != "low" ) && ( "${resolution}" != "high" ) ) then
+	echo "Please specify a legal resolution (low|high) : see -help for details."
+	exit 1
+endif
+#
+# Send config command to Frodospec
+#
+set command_string = "java ngat.frodospec.test.SendConfigCommand -ip ${hostname} -serverport ${port} -arm ${arm} -resolution ${resolution} -xBin ${x_bin} -yBin ${y_bin} ${config_extra_args}"
+echo "About to call: ${command_string}"
+${command_string}
+set java_status = $status
+if( "${java_status}" != 0 ) then
+	echo "Config command failed."
+	exit 1
+endif
+#
+# Send multrun command to Frodospec
+#
+set command_string = "java ngat.frodospec.test.SendMultrunCommand -ip ${hostname} -serverport ${port} -arm ${arm} -exposureLength ${exposure_length} -exposureCount ${exposure_count} ${multrun_extra_args}"
+echo "About to call: ${command_string}"
+${command_string}
+set java_status = $status
+if( "${java_status}" != 0 ) then
+	echo "MULTRUN command failed."
+	exit 1
+endif
+
+#
+# $Log: not supported by cvs2svn $
+#

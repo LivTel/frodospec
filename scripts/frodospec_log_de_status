@@ -1,0 +1,8 @@
+#!/bin/csh
+# Print out ccs log without some GET_STATUS data
+if ( $#argv != 1) then
+	echo "ccs_log_de_status <ccs log filename>
+	exit 1
+endif
+set filename = $1
+cat $filename | grep -v 'CCD_Exposure_Expose():' | grep -v GET_STATUS |  grep -v CCD_Setup_Get_ | grep -v CCD_Temperature_Get

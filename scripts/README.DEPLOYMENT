@@ -1,0 +1,32 @@
+DEPLOYMENT README
+$Header: /home/cjm/cvs/frodospec/scripts/README.DEPLOYMENT,v 1.1 2008-12-01 10:40:37 cjm Exp $
+Version: $Revision: 1.1 $
+By $Author: cjm $
+
+FrodoSpec Installation
+----------------------
+Note, all logs are deleted during installation. Any configuration changes from the default will
+also be lost as all properties file in the /icc/bin tree are overwritten with the original version.
+To preserve changes, copy the properties files (*.properties) somewhere safe before installation.
+Better yet, update the originals on the ARI development account.
+
+Note the FITS images are no longer deleted. To remove all the data frames: 'rm -rf /icc/tmp'
+before installation.
+
+===================================================================================
+= ENSURE the deployment is for the same machine architecture as the deployment OS =
+===================================================================================
+
+To install FrodoSpec:
+---------------------
+1. Download from http://ltccd1.livjm.ac.uk/~dev/frodospec/deployment/:
+	icc_cshrc
+	icc_cshrc_edit.awk
+	README.DEPLOYMENT
+	frodospec_tar_install
+	frodospec_deployment_<machine name>.tar.gz
+	Put the files in ~eng/download/<todays date>
+2. Login as root.
+3. ./frodospec_tar_install <machine name>
+4. cd /
+5. reboot
