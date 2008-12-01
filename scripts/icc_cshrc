@@ -26,6 +26,7 @@ end
 alias delete_log_files 		'/icc/bin/scripts/delete_log_files.csh'
 alias frodospec_reboot       	'/icc/bin/scripts/frodospec_reboot'
 alias frodospec_engineering_mode '/icc/bin/scripts/frodospec_engineering_mode'
+alias arc_lamp 			'/icc/bin/frodospec/scripts/arc_lamp'
 alias icsgui           		'/icc/bin/ccs_gui/java/icsgui'
 alias myps             		'ps -e -o pid,pcpu,vsz,ruser,args'
 # Do not delete the next comment, it delimits the cshrc updated by the frodospec_install script.
