@@ -1,5 +1,5 @@
 // FrodoSpecTCPServerConnectionThread.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.2 2008-12-04 11:30:17 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.phase2.*;
 /**
  * This class extends the TCPServerConnectionThread class for the FrodoSpec application.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.2 2008-12-04 11:30:17 cjm Exp $");
 	/**
 	 * Default time taken to respond to a command. This is a class-wide field.
 	 */
@@ -245,17 +245,8 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 		{
 			// frodospec.getStatus().getCurrentCommand() may have been set to null between
 			// the commandCanBeRun test above and the getCurrentCommand routine below.
-			// We must allow for this when generating the error string.
-			ISS_TO_INST currentCommand = frodospec.getStatus().getCurrentCommand((ISS_TO_INST)command);
-			String currentCommandString = null;
-
-			if(currentCommand != null)
-				currentCommandString = new String(currentCommand.getClass().getName());
-			else
-				currentCommandString = new String("Unknown Command");
 			String s = new String("processCommand:command `"+command.getClass().getName()+
-				"'could not be run:Command `"+
-				currentCommandString+"' already running.");
+				"'could not be run because a conflicting command is already running.");
 			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+101);
 			done.setErrorString(s);
 			done.setSuccessful(false);
@@ -327,4 +318,7 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
