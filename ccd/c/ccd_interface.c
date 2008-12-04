@@ -1,13 +1,13 @@
 /* ccd_interface.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.7 2008-11-20 11:34:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.8 2008-12-04 15:05:50 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.7 $
+ * @version $Revision: 0.8 $
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -30,7 +30,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.7 2008-11-20 11:34:46 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.8 2008-12-04 15:05:50 cjm Exp $";
 
 /* external variables */
 
@@ -349,9 +349,11 @@ int CCD_Interface_Close(CCD_Interface_Handle_T **handle)
 		case CCD_INTERFACE_DEVICE_TEXT:
 			if(!CCD_Text_Close((*handle)))
 				return FALSE;
+			break;
 		case CCD_INTERFACE_DEVICE_PCI:
 			if(!CCD_PCI_Close((*handle)))
 				return FALSE;
+			break;
 		default:
 			Interface_Error_Number = 7;
 			sprintf(Interface_Error_String,"CCD_Interface_Close failed:No device selected(%p,%d).",
@@ -418,6 +420,9 @@ void CCD_Interface_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.7  2008/11/20 11:34:46  cjm
+** *** empty log message ***
+**
 ** Revision 0.6  2006/05/16 14:14:05  cjm
 ** gnuify: Added GNU General Public License.
 **
