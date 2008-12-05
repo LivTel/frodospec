@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.2 2008-12-05 11:50:08 cjm Exp $
 package ngat.frodospec;
 
 
@@ -27,14 +27,18 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.2 2008-12-05 11:50:08 cjm Exp $");
+	/**
+	 * Logger channel id.
+	 */
+	public final static String LOGGER_CHANNEL_ID = new String("FRODOSPEC");
 	/**
 	 * The minimum port number to listen for connections on.
 	 */
@@ -361,6 +365,7 @@ public class FrodoSpec
 
 	/**
 	 * Initialise log handlers. Called from init only, not re-configured on a REDATUM level reboot.
+	 * @see #LOGGER_CHANNEL_ID
 	 * @see #init
 	 * @see #initLogHandlers
 	 * @see #copyLogHandlers
@@ -372,6 +377,7 @@ public class FrodoSpec
 	{
 	// errorLogger setup
 		errorLogger = LogManager.getLogger("error");
+		errorLogger.setChannelID(LOGGER_CHANNEL_ID);
 		initLogHandlers(errorLogger);
 		errorLogger.setLogLevel(Logging.ALL);
 	// ngat.net error loggers
@@ -380,6 +386,7 @@ public class FrodoSpec
 		copyLogHandlers(errorLogger,LogManager.getLogger("ngat.net.TCPClientConnectionThreadMA"),null);
 	// logLogger setup
 		logLogger = LogManager.getLogger("log");
+		logLogger.setChannelID(LOGGER_CHANNEL_ID);
 		initLogHandlers(logLogger);
 		logLogger.setLogLevel(Logging.ALL);
 		logFilter = new BitFieldLogFilter(status.getLogLevel());
@@ -651,6 +658,7 @@ public class FrodoSpec
 	 * @param inputLogger The logger to copy handlers from.
 	 * @param outputLogger The logger to copy handlers to.
 	 * @param lf The log filter to apply to the output logger. If this is null, the filter is not set.
+	 * @see #LOGGER_CHANNEL_ID
 	 */
 	protected void copyLogHandlers(Logger inputLogger,Logger outputLogger,LogFilter lf)
 	{
@@ -666,6 +674,8 @@ public class FrodoSpec
 		outputLogger.setLogLevel(inputLogger.getLogLevel());
 		if(lf != null)
 			outputLogger.setFilter(lf);
+		// set all loggers to have the same channel ID
+		outputLogger.setChannelID(LOGGER_CHANNEL_ID);
 	}
 
 	/**
@@ -1914,4 +1924,7 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
