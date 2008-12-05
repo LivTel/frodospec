@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.2 2008-12-05 11:50:08 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.3 2008-12-05 12:16:38 cjm Exp $
 package ngat.frodospec;
 
 
@@ -27,14 +27,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.2 2008-12-05 11:50:08 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.3 2008-12-05 12:16:38 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -407,6 +407,9 @@ public class FrodoSpec
 	 * @param l The logger.
 	 * @see #initFileLogHandler
 	 * @see #initConsoleLogHandler
+	 * @see #initDatagramLogHandler
+	 * @see #initMulticastLogHandler
+	 * @see #initMulticastLogRelay
 	 */
 	protected void initLogHandlers(Logger l)
 	{
@@ -437,6 +440,10 @@ public class FrodoSpec
 					else if(handlerName.equals("ngat.util.logging.MulticastLogRelay"))
 					{
 						handler = initMulticastLogRelay(l,index);
+					}
+					else if(handlerName.equals("ngat.util.logging.DatagramLogHandler"))
+					{
+						handler = initDatagramLogHandler(l,index);
 					}
 					else
 					{
@@ -572,6 +579,30 @@ public class FrodoSpec
 		groupName = status.getProperty("frodospec.log."+l.getName()+".handler."+index+".param.0");
 		portNumber = status.getPropertyInteger("frodospec.log."+l.getName()+".handler."+index+".param.1");
 		handler = new MulticastLogRelay(groupName,portNumber);
+		return handler;
+	}
+
+	/**
+	 * Routine to add a DatagramLogHandler to the specified logger.
+	 * The parameters to the constructor are stored in the status properties:
+	 * <ul>
+	 * <li>param.0 is the hostname i.e. "ltproxy".
+	 * <li>param.1 is the port number i.e. 2371.
+	 * </ul>
+	 * @param l The logger to add the handler to.
+	 * @param index The index in the property file of the handler we are adding.
+	 * @return A LogHandler of the relevant class is returned, if no exception occurs.
+	 * @exception IOException Thrown if the multicast socket cannot be created for some reason.
+	 */
+	protected LogHandler initDatagramLogHandler(Logger l,int index) throws IOException
+	{
+		LogHandler handler = null;
+		String hostname = null;
+		int portNumber;
+
+		hostname = status.getProperty("frodospec.log."+l.getName()+".handler."+index+".param.0");
+		portNumber = status.getPropertyInteger("frodospec.log."+l.getName()+".handler."+index+".param.1");
+		handler = new DatagramLogHandler(hostname,portNumber);
 		return handler;
 	}
 
@@ -1924,6 +1955,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/12/05 11:50:08  cjm
+// Added logger channel IDs.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
