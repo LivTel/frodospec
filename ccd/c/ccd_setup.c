@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.29 2008-11-20 11:34:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.30 2008-12-11 16:50:26 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.29 $
+ * @version $Revision: 0.30 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -39,7 +39,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.29 2008-11-20 11:34:46 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.30 2008-12-11 16:50:26 cjm Exp $";
 
 /* #defines */
 /**
@@ -273,9 +273,9 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 {
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Startup(pci_load_type=%d,"
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Startup(handle=%p,pci_load_type=%d,"
 		"timing_load_type=%d,timing_application=%d,utility_load_type=%d,utility_application=%d,"
-		"temperature=%.2f,gain=%d,gain_speed=%d,idle=%d) started.",pci_load_type,
+		"temperature=%.2f,gain=%d,gain_speed=%d,idle=%d) started.",handle,pci_load_type,
 		timing_load_type,timing_application_number,utility_load_type,utility_application_number,
 		target_temperature,gain,gain_speed,idle);
 	if(pci_filename != NULL)
@@ -456,7 +456,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 /* tidy up flags and return */
 	handle->Setup_Data.Setup_In_Progress = FALSE;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Startup() returned TRUE.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Startup(handle=%p) returned TRUE.",handle);
 #endif
 	return TRUE;
 }
@@ -478,7 +478,7 @@ int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle)
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Stutdown() started.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Stutdown(handle=%p) started.",handle);
 #endif
 /* reset abort flag */
 	CCD_DSP_Set_Abort(FALSE);
@@ -509,7 +509,7 @@ int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle)
 	handle->Setup_Data.Utility_Complete = FALSE;
 	handle->Setup_Data.Dimension_Complete = FALSE;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Stutdown() returned TRUE.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Stutdown(handle=%p) returned TRUE.",handle);
 #endif
 	return TRUE;
 }
@@ -558,9 +558,9 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 {
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Dimensions(ncols=%d,nrows=%d,nsbin=%d,npbin=%d,"
-		"amplifier=%d,deinterlace_type=%d,window_flags=%d) started.",ncols,nrows,nsbin,npbin,
-		amplifier,deinterlace_type,window_flags);
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Dimensions(handle=%p,ncols=%d,nrows=%d,"
+			      "nsbin=%d,npbin=%d,amplifier=%d,deinterlace_type=%d,window_flags=%d) started.",
+			      handle,ncols,nrows,nsbin,npbin,amplifier,deinterlace_type,window_flags);
 #endif
 /* we are in a setup routine */
 	handle->Setup_Data.Setup_In_Progress = TRUE;
@@ -645,7 +645,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 /* reset in progress information */
 	handle->Setup_Data.Setup_In_Progress = FALSE;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Dimensions() returned TRUE.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Dimensions(handle=%p) returned TRUE.",handle);
 #endif
 	return TRUE;
 }
@@ -1163,7 +1163,8 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_High_Voltage_Analogue_ADU() started.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_High_Voltage_Analogue_ADU(handle=%p) started.",
+			      handle);
 #endif
 	if(hv_adu == NULL)
 	{
@@ -1180,8 +1181,9 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *
 	}
 	(*hv_adu) = retval;
 #if LOGGING > 0
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_High_Voltage_Analogue_ADU() returned %#x.",
-		(*hv_adu));
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,
+			      "CCD_Setup_Get_High_Voltage_Analogue_ADU(handle=%p) returned %#x.",
+			      handle,(*hv_adu));
 #endif
 	return TRUE;
 }
@@ -1207,7 +1209,8 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *l
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Low_Voltage_Analogue_ADU() started.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Low_Voltage_Analogue_ADU(handle=%p) started.",
+			      handle);
 #endif
 	if(lv_adu == NULL)
 	{
@@ -1224,8 +1227,9 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *l
 	}
 	(*lv_adu) = retval;
 #if LOGGING > 0
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Low_Voltage_Analogue_ADU() returned %#x.",
-		(*lv_adu));
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,
+			      "CCD_Setup_Get_Low_Voltage_Analogue_ADU(handle=%p) returned %#x.",
+			      handle,(*lv_adu));
 #endif
 	return TRUE;
 }
@@ -1251,7 +1255,8 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU() started.");
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,
+			      "CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(handle=%p) started.",handle);
 #endif
 	if(minus_lv_adu == NULL)
 	{
@@ -1268,8 +1273,9 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,
 	}
 	(*minus_lv_adu) = retval;
 #if LOGGING > 0
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,"CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU() returned %#x.",
-		(*minus_lv_adu));
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_SETUP,
+			      "CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(handle=%p) returned %#x.",
+			      handle,(*minus_lv_adu));
 #endif
 	return TRUE;
 }
@@ -2071,6 +2077,9 @@ static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.29  2008/11/20 11:34:46  cjm
+** *** empty log message ***
+**
 ** Revision 0.28  2006/05/17 18:01:59  cjm
 ** Fixed unused variables.
 **
