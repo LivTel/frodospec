@@ -1,11 +1,11 @@
 /* ccd_global.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.12 2008-11-20 11:34:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.13 2008-12-11 16:42:50 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.12 $
+ * @version $Revision: 0.13 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -140,7 +140,7 @@ struct Global_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.12 2008-11-20 11:34:46 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.13 2008-12-11 16:42:50 cjm Exp $";
 /**
  * Variable holding error code of last operation performed by ccd_dsp.
  */
@@ -418,7 +418,7 @@ void CCD_Global_Get_Current_Time_String(char *time_string,int string_length)
 
 /**
  * Routine to log a message to a defined logging mechanism. This routine has an arbitary number of arguments,
- * and uses vsprintf to format them i.e. like fprintf. The Global_Buff is used to hold the created string,
+ * and uses vsprintf to format them i.e. like fprintf. A buffer is used to hold the created string,
  * therefore the total length of the generated string should not be longer than CCD_GLOBAL_ERROR_STRING_LENGTH.
  * CCD_Global_Log is then called to handle the log message.
  * @param level An integer, used to decide whether this particular message has been selected for
@@ -426,19 +426,19 @@ void CCD_Global_Get_Current_Time_String(char *time_string,int string_length)
  * @param format A string, with formatting statements the same as fprintf would use to determine the type
  * 	of the following arguments.
  * @see #CCD_Global_Log
- * @see #Global_Buff
  * @see #CCD_GLOBAL_ERROR_STRING_LENGTH
  */
 void CCD_Global_Log_Format(int level,char *format,...)
 {
+	char buff[512];
 	va_list ap;
 
 /* format the arguments */
 	va_start(ap,format);
-	vsprintf(Global_Buff,format,ap);
+	vsprintf(buff,format,ap);
 	va_end(ap);
 /* call the log routine to log the results */
-	CCD_Global_Log(level,Global_Buff);
+	CCD_Global_Log(level,buff);
 }
 
 /**
@@ -866,6 +866,9 @@ int CCD_Global_Memory_UnLock_All(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.12  2008/11/20 11:34:46  cjm
+** *** empty log message ***
+**
 ** Revision 0.11  2006/05/16 14:14:04  cjm
 ** gnuify: Added GNU General Public License.
 **
