@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.51 2008-12-11 18:13:24 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.52 2008-12-11 18:14:38 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.51 $
+ * @version $Revision: 0.52 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -42,7 +42,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.51 2008-12-11 18:13:24 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.52 2008-12-11 18:14:38 cjm Exp $";
 
 /* defines */
 /**
@@ -1260,7 +1260,7 @@ int CCD_DSP_Command_PON(CCD_Interface_Handle_T* handle)
 		return FALSE;
 #if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PON(handle=%p) returned %s(%#x).",handle,
-			      DSP_Manual_Command_To_String(retval)retval);
+			      DSP_Manual_Command_To_String(retval),retval);
 #endif
 	return retval;
 }
@@ -1304,7 +1304,7 @@ int CCD_DSP_Command_POF(CCD_Interface_Handle_T* handle)
 		return FALSE;
 #if LOGGING > 4
 	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_POF(handle=%p) returned %s(%#x).",handle,
-			      DSP_Manual_Command_To_String(retval)retval);
+			      DSP_Manual_Command_To_String(retval),retval);
 #endif
 	return retval;
 }
@@ -1592,7 +1592,7 @@ int CCD_DSP_Command_PCI_Download(CCD_Interface_Handle_T* handle)
 {
 	DSP_Error_Number = 0;
 #if LOGGING > 4
-	CCD_Global_Log(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_Download(handle=%p) started.",handle);
+	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Command_PCI_Download(handle=%p) started.",handle);
 #endif
 	if(!DSP_Send_PCI_Download(handle))
 		return FALSE;
@@ -2742,6 +2742,9 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.51  2008/12/11 18:13:24  cjm
+** Logging changes.
+**
 ** Revision 0.50  2008/11/20 11:34:46  cjm
 ** *** empty log message ***
 **
