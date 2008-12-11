@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.20 2008-07-22 13:37:34 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.21 2008-12-11 14:40:59 cjm Exp $
 
 include			../../../Makefile.common
 include			../../Makefile.common
@@ -91,7 +91,7 @@ LINTFLAGS = -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS = -static
 SRCS 		= 	ccd_interface.c ccd_pci.c ccd_text.c ccd_global.c ccd_dsp.c ccd_dsp_download.c \
 			ccd_temperature.c ccd_setup.c ccd_exposure.c
-HEADERS		=	$(SRCS:%.c=%.h)
+HEADERS		=	$(SRCS:%.c=%.h) ccd_interface_private.h ccd_exposure_private.h ccd_setup_private.h
 OBJS		=	$(SRCS:%.c=%.o)
 DOCS 		= 	$(SRCS:%.c=$(DOCSDIR)/%.html)
 JAVASRCS 	= 	$(SRCS) ngat_frodospec_ccd_CCDLibrary.c
@@ -155,6 +155,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.20  2008/07/22 13:37:34  cjm
+# Added MAKEDEPENDFLAGS.
+#
 #
 
 # DO NOT DELETE
