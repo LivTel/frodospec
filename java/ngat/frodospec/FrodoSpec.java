@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.3 2008-12-05 12:16:38 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.4 2008-12-15 18:04:29 cjm Exp $
 package ngat.frodospec;
 
 
@@ -27,14 +27,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.3 2008-12-05 12:16:38 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.4 2008-12-15 18:04:29 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -397,6 +397,9 @@ public class FrodoSpec
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.newmark.Newmark"),logFilter);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.net.TitServer"),logFilter);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.serial.arcomess.ArcomESS"),logFilter);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTAGLampUnit"),logFilter);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTLamp"),logFilter);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.PLCConnection"),logFilter);
 	}
 
 	/**
@@ -1955,6 +1958,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2008/12/05 12:16:38  cjm
+// Added DatagramLogHandler support.
+//
 // Revision 1.2  2008/12/05 11:50:08  cjm
 // Added logger channel IDs.
 //
