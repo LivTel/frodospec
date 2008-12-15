@@ -1,5 +1,5 @@
 // REBOOTImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/REBOOTImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/REBOOTImplementation.java,v 1.2 2008-12-15 11:49:18 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -14,14 +14,14 @@ import ngat.util.ICSDShutdownCommand;
  * This class provides the implementation for the REBOOT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class REBOOTImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: REBOOTImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: REBOOTImplementation.java,v 1.2 2008-12-15 11:49:18 cjm Exp $");
 	/**
 	 * Class constant used in calculating acknowledge times, when the acknowledge time connot be found in the
 	 * configuration file.
@@ -160,6 +160,8 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 
 		try
 		{
+			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+				      rebootCommand.getClass().getName()+":level = "+rebootCommand.getLevel()+".");
 			// is reboot enabled at this level
 			enable = frodospec.getStatus().getPropertyBoolean(ENABLE_PROPERTY_KEY_ROOT+
 							   REBOOT_LEVEL_LIST[rebootCommand.getLevel()]);
@@ -178,11 +180,17 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 			switch(rebootCommand.getLevel())
 			{
 				case REBOOT.LEVEL_REDATUM:
+					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+						      rebootCommand.getClass().getName()+":Redatum starting.");
 					frodospec.shutdownHardware();
 					frodospec.reInit();
 					frodospec.startupHardware();
+					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+						      rebootCommand.getClass().getName()+":Redatum finished.");
 					break;
 				case REBOOT.LEVEL_SOFTWARE:
+					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+						      rebootCommand.getClass().getName()+":Software reboot starting.");
 				// send REBOOT to the data pipeline
 					dprtReboot.setLevel(rebootCommand.getLevel());
 					frodospec.sendDpRtCommand(dprtReboot,serverConnectionThread);
@@ -194,6 +202,8 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 					quitThread.start();
 					break;
 				case REBOOT.LEVEL_HARDWARE:
+					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+						      rebootCommand.getClass().getName()+":Hardware reboot starting.");
 				// send REBOOT to the data pipeline
 					dprtReboot.setLevel(rebootCommand.getLevel());
 					frodospec.sendDpRtCommand(dprtReboot,serverConnectionThread);
@@ -204,6 +214,8 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 					icsdRebootCommand.send();
 					break;
 				case REBOOT.LEVEL_POWER_OFF:
+					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+						   rebootCommand.getClass().getName()+":Power off reboot starting.");
 				// send REBOOT to the data pipeline
 					dprtReboot.setLevel(rebootCommand.getLevel());
 					frodospec.sendDpRtCommand(dprtReboot,serverConnectionThread);
@@ -268,4 +280,7 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //
