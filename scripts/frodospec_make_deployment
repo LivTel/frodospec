@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.1 2008-12-01 10:37:20 cjm Exp $
-# Version: $Revision: 1.1 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.2 2008-12-15 14:44:05 cjm Exp $
+# Version: $Revision: 1.2 $
 # By $Author: cjm $
 # Make a deployment tar file.
 # This contains:
@@ -363,9 +363,12 @@ gzip ${deployment_tar}
 echo "Deployment tar : ${deployment_tar_dir}/${deployment_tar}.gz"
 echo "Installation script : ${current_dir}/${install_script}"
 rm -rf ${deployment_dir}
-echo "Download from http://ltccd1.livjm.ac.uk/~dev/frodospec/deployment/index.html."
+echo "Download from http://ltdevsrv.livjm.ac.uk/~dev/frodospec/deployment/index.html."
 echo "Download ${deployment_tar}.gz frodospec_tar_install icc_cshrc icc_cshrc_edit.awk README.DEPLOYMENT"
 echo "Deployment ready."
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2008/12/01 10:37:20  cjm
+# Initial revision
+#
 #
