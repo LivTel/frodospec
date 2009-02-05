@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/test/Makefile,v 1.1 2008-11-20 11:35:59 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/test/Makefile,v 1.2 2009-02-05 11:42:33 cjm Exp $
 
 include ../../../Makefile.common
 include ../../Makefile.common
@@ -9,7 +9,7 @@ TESTDIR 	= test
 BINDIR 		= $(NEWMARK_BIN_HOME)/$(TESTDIR)/$(HOSTTYPE)
 DOCSDIR 	= $(NEWMARK_DOC_HOME)/$(TESTDIR)
 
-CFLAGS 		= -g -I$(INCDIR) -I$(ARCOM_ESS_INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
+CFLAGS 		= -g -I$(INCDIR) -I$(ARCOM_ESS_INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) $(LOG_UDP_CFLAGS)
 DOCFLAGS 	= -static
 
 SRCS 		= newmark_test_home.c newmark_test_move_absolute.c newmark_test_move_relative.c \
