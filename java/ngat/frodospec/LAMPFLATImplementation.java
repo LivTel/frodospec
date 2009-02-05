@@ -1,5 +1,5 @@
 // LAMPFLATImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.1 2008-11-25 17:16:39 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -17,19 +17,20 @@ import ngat.message.ISS_INST.FRODOSPEC_LAMPFLAT;
 import ngat.message.ISS_INST.FRODOSPEC_LAMPFLAT_DONE;
 import ngat.message.ISS_INST.FILENAME_ACK;
 import ngat.phase2.FrodoSpecConfig;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation for the LAMPFLAT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class LAMPFLATImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.1 2008-11-25 17:16:39 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -275,7 +276,7 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		}// end if ccdEnable
 		else
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+
 				      ":processCommand:Did not do lamp flat exposure, ccd enable was false.");
 		}
@@ -314,4 +315,7 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/25 17:16:39  cjm
+// Initial revision
+//
 //

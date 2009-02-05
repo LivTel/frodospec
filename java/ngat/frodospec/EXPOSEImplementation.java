@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.2 2008-11-24 14:59:20 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -14,6 +14,7 @@ import ngat.message.ISS_INST.EXPOSE_DONE;
 import ngat.message.ISS_INST.FILENAME_ACK;
 import ngat.message.INST_DP.*;
 import ngat.phase2.FrodoSpecConfig;
+import ngat.util.logging.*;
 
 /**
  * This class provides the generic implementation for EXPOSE commands sent to a server using the
@@ -21,14 +22,14 @@ import ngat.phase2.FrodoSpecConfig;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.2 2008-11-24 14:59:20 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -244,7 +245,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		}// end if ccdEnable
 		else
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				      ":doCalibrationDark:Did not do dark, ccd enable was false.");
 		}
 		// send acknowledge to say frame is completed.
@@ -451,7 +452,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		}// end if ccdEnable
 		else
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+
 				      ":doCalibrationArc:Did not do arc exposure, ccd enable was false.");
 		}
@@ -539,6 +540,10 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/11/24 14:59:20  cjm
+// Added code to modify OBJECT FITS header keyword for calibration ARCs and DARKs using
+// previously extracted objectName.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //

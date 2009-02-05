@@ -1,11 +1,11 @@
 /* newmark_command.c
 ** Newmark Motion Controller library.
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.1 2008-11-20 11:35:45 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.2 2009-02-05 11:41:03 cjm Exp $
 */
 /**
  * Command routines for the Newmark Motion Controller.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -27,6 +27,7 @@
 #ifdef NEWMARK_MUTEXED
 #include <pthread.h>
 #endif
+#include "log_udp.h"
 #include "newmark_general.h"
 #include "newmark_command.h"
 
@@ -69,7 +70,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: newmark_command.c,v 1.1 2008-11-20 11:35:45 cjm Exp $";
+static char rcsid[] = "$Id: newmark_command.c,v 1.2 2009-02-05 11:41:03 cjm Exp $";
 /**
  * How close the reported position has to be to the requested position before the stage
  * is deemed to be at the requested position. In millimetres.
@@ -106,7 +107,7 @@ int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
 	double current_position,last_position;
 
 #if LOGGING > 1
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move(%.6f):Start.",position);
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move(%.6f):Start.",position);
 #endif
 	/* reset error code */
 	if(!Newmark_Command_Error_Reset(handle))
@@ -169,7 +170,7 @@ int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
 		done = (fabs(current_position - position) < Position_Tolerance);
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move:Finished.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move:Finished.");
 #endif
 	return TRUE;
 }
@@ -193,7 +194,7 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 	char command_buff[COMMAND_BUFF_LENGTH];
 
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Home:Start.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -211,7 +212,7 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 	/* send HOME */
 	sprintf(command_buff,"HOME\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Home:Writing '%s' to handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
@@ -228,7 +229,7 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Home:Read '%s' from handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -251,7 +252,7 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Home:Finished.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Finished.");
 #endif
 	return TRUE;
 }
@@ -283,7 +284,7 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Position_Get:Start.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -301,7 +302,7 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 	/* send PRINT POS */
 	sprintf(command_buff,"PRINT POS\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Position_Get:Writing '%s' to handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
@@ -318,7 +319,7 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Position_Get:Read '%s' from handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -342,7 +343,7 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Position_Get:Finished with position %.6f.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Finished with position %.6f.",
 			   (*position));
 #endif
 	return TRUE;
@@ -373,7 +374,7 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 	char *reply_string = NULL;
 
 #if LOGGING > 1
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Absolute(%.6f):Start.",position);
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute(%.6f):Start.",position);
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -391,7 +392,7 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 	/* send MOVA <position> */
 	sprintf(command_buff,"MOVA %.6f\r\n",position);
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Absolute:Writing '%s' to handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
@@ -408,7 +409,7 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Absolute:Read '%s' from handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -431,7 +432,7 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Absolute:Finished.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute:Finished.");
 #endif
 	return TRUE;
 }
@@ -461,7 +462,7 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 	char *reply_string = NULL;
 
 #if LOGGING > 1
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Relative(%.6f):Start.",position_offset);
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative(%.6f):Start.",position_offset);
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -479,7 +480,7 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 	/* send MOVR <position> */
 	sprintf(command_buff,"MOVR %.6f\r\n",position_offset);
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Relative:Writing '%s' to handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
@@ -497,7 +498,7 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 	}
 	/* parse reply string */
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Relative:Read '%s' from handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	if(strstr(reply_string,">") == NULL)
@@ -519,7 +520,7 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Relative:Finished.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Relative:Finished.");
 #endif
 	return TRUE;
 }
@@ -541,7 +542,7 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
 	char command_buff[COMMAND_BUFF_LENGTH];
 
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Abort_Move:Start.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Abort_Move:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -559,7 +560,7 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
 	/* send <esc>  - escape is ASCII character 0x1B*/
 	strcpy(command_buff,"\x1B");
 #if LOGGING > 5
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Move_Relative:Writing '<esc>' to handle.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative:Writing '<esc>' to handle.");
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
 	{
@@ -582,7 +583,7 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Abort_Move:Finished.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Abort_Move:Finished.");
 #endif
 	return TRUE;
 }
@@ -615,7 +616,7 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Err_Get:Start.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -633,7 +634,7 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 	/* send PRINT POS */
 	sprintf(command_buff,"PRINT ERR\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Err_Get:Writing '%s' to handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
@@ -650,7 +651,7 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Err_Get:Read '%s' from handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -688,7 +689,7 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Err_Get:Finished : error exists = %d.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Finished : error exists = %d.",
 			   (*error_exists));
 #endif
 	return TRUE;
@@ -721,7 +722,7 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Get:Start.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -739,7 +740,7 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 	/* send PRINT POS */
 	sprintf(command_buff,"PRINT ERROR\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Get:Writing '%s' to handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
@@ -756,7 +757,7 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Get:Read '%s' from handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -780,7 +781,7 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Get:Finished with error code %d.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Finished with error code %d.",
 			   (*error_code));
 #endif
 	return TRUE;
@@ -806,7 +807,7 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 	int retval,error_code;
 
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Reset:Start.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -824,7 +825,7 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 	/* send PRINT POS */
 	sprintf(command_buff,"ERROR = 0\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Reset:Writing '%s' to handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
 	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
@@ -841,7 +842,7 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Reset:Read '%s' from handle.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -873,7 +874,7 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Error_Reset:Finished.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Finished.");
 #endif
 	return TRUE;
 }
@@ -887,7 +888,7 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 int Newmark_Command_Position_Tolerance_Set(double mm)
 {
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Position_Tolerance_Set:Started.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Started.");
 #endif
 	if((mm < 0.0) || (mm > 1.0))
 	{
@@ -898,11 +899,11 @@ int Newmark_Command_Position_Tolerance_Set(double mm)
 	}
 	Position_Tolerance = mm;
 #if LOGGING > 1
-	Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Position_Tolerance_Set:Set to %.6f.",
+	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Set to %.6f.",
 			   Position_Tolerance);
 #endif
 #if LOGGING > 1
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Newmark_Command_Position_Tolerance_Set:Finished.");
+	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Finished.");
 #endif
 	return TRUE;
 }
@@ -926,7 +927,7 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 	int done,retval,bytes_read,sleep_errno;
 
 #if LOGGING > 5
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Flush:Start.");
+	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Start.");
 #endif
 	done = FALSE;
 	while(done == FALSE)
@@ -944,7 +945,7 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 			Newmark_Error();
 		}
 #if LOGGING > 10
-		Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Flush:Arcom_ESS_Interface_Read.");
+		Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Arcom_ESS_Interface_Read.");
 #endif
 		/* read from interface */
 		if(!Arcom_ESS_Interface_Read(handle,command_buff,COMMAND_BUFF_LENGTH,&bytes_read))
@@ -954,7 +955,7 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 			return FALSE;
 		}
 #if LOGGING > 10
-		Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Flush:"
+		Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:"
 				   "Arcom_ESS_Interface_Read read %d bytes.",bytes_read);
 #endif
 		/* have we read anything? */
@@ -963,7 +964,7 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 			/* terminate buffer */
 			command_buff[bytes_read] = '\0';
 #if LOGGING > 9
-			Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Flush:Last Read '%s'.",
+			Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Last Read '%s'.",
 					   Newmark_Command_Fix_String(command_buff));
 #endif
 		}/* if we read something */
@@ -971,7 +972,7 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 			done = TRUE;
 	}/* end while */
 #if LOGGING > 5
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Flush:Finished.");
+	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Finished.");
 #endif
 	return TRUE;
 }
@@ -1001,14 +1002,14 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 	int done,retval,bytes_read,sleep_errno,timeout_index;
 
 #if LOGGING > 5
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:Start.");
+	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Start.");
 #endif
 	timeout_index = 0;
 	done = FALSE;
 	while(done == FALSE)
 	{
 #if LOGGING > 10
-		Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:Arcom_ESS_Interface_Read.");
+		Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Arcom_ESS_Interface_Read.");
 #endif
 		/* read from interface */
 		if(!Arcom_ESS_Interface_Read(handle,command_buff,COMMAND_BUFF_LENGTH,&bytes_read))
@@ -1018,7 +1019,7 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 			return FALSE;
 		}
 #if LOGGING > 10
-		Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:"
+		Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:"
 				   "Arcom_ESS_Interface_Read read %d bytes.",bytes_read);
 #endif
 		/* have we read anything? */
@@ -1027,7 +1028,7 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 			/* terminate buffer */
 			command_buff[bytes_read] = '\0';
 #if LOGGING > 9
-			Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:Last Read '%s'.",
+			Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Last Read '%s'.",
 					   Newmark_Command_Fix_String(command_buff));
 #endif
 			/* have we read a command prompt. If so, we are ready to stop */
@@ -1035,7 +1036,7 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 			{
 				done = TRUE;
 #if LOGGING > 9
-				Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:Found Prompt.");
+				Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Found Prompt.");
 #endif
 			}
 			/* If the read_string is not null, add the command_buff to it */
@@ -1044,7 +1045,7 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 				if(!Newmark_Add_To_String(read_string,command_buff))
 					return FALSE;
 #if LOGGING > 9
-				Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:"
+				Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:"
 						   "Total Read '%s'.",Newmark_Command_Fix_String((*read_string)));
 #endif
 			}
@@ -1078,9 +1079,9 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 		}
 	}/* end while */
 #if LOGGING > 5
-	Newmark_Log(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:Finished.");
+	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Finished.");
 	if((read_string != NULL)&&((*read_string) != NULL))
-		Newmark_Log_Format(NEWMARK_LOG_BIT_COMMAND,"Command_Read_Until_Prompt:Read '%s'.",
+		Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Read '%s'.",
 				   Newmark_Command_Fix_String((*read_string)));
 #endif
 	return TRUE;
@@ -1161,5 +1162,8 @@ static char *Newmark_Command_Fix_String(char *string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2008/11/20 11:35:45  cjm
+** Initial revision
+**
 */
 

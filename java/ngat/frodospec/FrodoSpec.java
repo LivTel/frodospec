@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.4 2008-12-15 18:04:29 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.5 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 
@@ -16,6 +16,7 @@ import ngat.lamp.*;
 import ngat.net.*;
 import ngat.util.*;
 import ngat.util.logging.*;
+
 import ngat.frodospec.ccd.*;
 import ngat.frodospec.newmark.NewmarkNativeException;
 import ngat.serial.arcomess.ArcomESSNativeException;
@@ -27,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.4 2008-12-15 18:04:29 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.5 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -144,11 +145,6 @@ public class FrodoSpec
 	 * The error logger.
 	 */
 	protected Logger errorLogger = null;
-	/**
-	 * The filter used to filter messages sent to the logging logger.
-	 * @see #logLogger
-	 */
-	protected BitFieldLogFilter logFilter = null;
 	/**
 	 * The thread monitor window.
 	 */
@@ -371,35 +367,37 @@ public class FrodoSpec
 	 * @see #copyLogHandlers
 	 * @see #errorLogger
 	 * @see #logLogger
-	 * @see #logFilter
 	 */
 	protected void initLoggers()
 	{
 	// errorLogger setup
 		errorLogger = LogManager.getLogger("error");
-		errorLogger.setChannelID(LOGGER_CHANNEL_ID);
+		errorLogger.setChannelID(LOGGER_CHANNEL_ID+"-ERROR");
 		initLogHandlers(errorLogger);
 		errorLogger.setLogLevel(Logging.ALL);
 	// ngat.net error loggers
-		copyLogHandlers(errorLogger,LogManager.getLogger("ngat.net.TCPServer"),null);
-		copyLogHandlers(errorLogger,LogManager.getLogger("ngat.net.TCPServerConnectionThread"),null);
-		copyLogHandlers(errorLogger,LogManager.getLogger("ngat.net.TCPClientConnectionThreadMA"),null);
+		copyLogHandlers(errorLogger,LogManager.getLogger("ngat.net.TCPServer"),null,Logging.ALL);
+		copyLogHandlers(errorLogger,LogManager.getLogger("ngat.net.TCPServerConnectionThread"),null,
+				Logging.ALL);
+		copyLogHandlers(errorLogger,LogManager.getLogger("ngat.net.TCPClientConnectionThreadMA"),null,
+				Logging.ALL);
 	// logLogger setup
 		logLogger = LogManager.getLogger("log");
 		logLogger.setChannelID(LOGGER_CHANNEL_ID);
 		initLogHandlers(logLogger);
-		logLogger.setLogLevel(Logging.ALL);
-		logFilter = new BitFieldLogFilter(status.getLogLevel());
-		logLogger.setFilter(logFilter);
+		logLogger.setLogLevel(status.getLogLevel());
 	// library logging loggers
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.ccd.CCDLibrary"),logFilter);
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.eip.EIPPLC"),logFilter);
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.newmark.Newmark"),logFilter);
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.net.TitServer"),logFilter);
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.serial.arcomess.ArcomESS"),logFilter);
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTAGLampUnit"),logFilter);
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTLamp"),logFilter);
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.PLCConnection"),logFilter);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.ccd.CCDLibrary"),null,
+				status.getLogLevel());
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.eip.EIPPLC"),null,status.getLogLevel());
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.newmark.Newmark"),null,
+				status.getLogLevel());
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.net.TitServer"),null,status.getLogLevel());
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.serial.arcomess.ArcomESS"),null,
+				status.getLogLevel());
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTAGLampUnit"),null,status.getLogLevel());
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTLamp"),null,status.getLogLevel());
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.PLCConnection"),null,status.getLogLevel());
 	}
 
 	/**
@@ -688,13 +686,14 @@ public class FrodoSpec
 	}
 
 	/**
-	 * Method to copy handlers from one logger to another.
+	 * Method to copy handlers from one logger to another. The outputLogger's channel ID is also
+	 * copied from the input logger.
 	 * @param inputLogger The logger to copy handlers from.
 	 * @param outputLogger The logger to copy handlers to.
 	 * @param lf The log filter to apply to the output logger. If this is null, the filter is not set.
-	 * @see #LOGGER_CHANNEL_ID
+	 * @param logLevel The log level to set the logger to filter against.
 	 */
-	protected void copyLogHandlers(Logger inputLogger,Logger outputLogger,LogFilter lf)
+	protected void copyLogHandlers(Logger inputLogger,Logger outputLogger,LogFilter lf,int logLevel)
 	{
 		LogHandler handlerList[] = null;
 		LogHandler handler = null;
@@ -708,8 +707,8 @@ public class FrodoSpec
 		outputLogger.setLogLevel(inputLogger.getLogLevel());
 		if(lf != null)
 			outputLogger.setFilter(lf);
-		// set all loggers to have the same channel ID
-		outputLogger.setChannelID(LOGGER_CHANNEL_ID);
+		outputLogger.setChannelID(inputLogger.getChannelID());
+		outputLogger.setLogLevel(logLevel);
 	}
 
 	/**
@@ -983,13 +982,13 @@ public class FrodoSpec
 			// but by the calling method catch(Exception e)
 			try
 			{
-				log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+				log(Logger.VERBOSITY_VERY_TERSE,
 				    ":startupCCDController:Getting frodospec.ccd."+
 				    FrodoSpecConstants.ARM_STRING_LIST[arm]+".enable");
 				// ccd controller
 				enable = status.getPropertyBoolean("frodospec.ccd."+
 								   FrodoSpecConstants.ARM_STRING_LIST[arm]+".enable");
-				log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+				log(Logger.VERBOSITY_VERY_TERSE,
 				    ":startupCCDController:Getting frodospec.ccd."+
 				    FrodoSpecConstants.ARM_STRING_LIST[arm]+".device");
 				deviceString = status.getProperty("frodospec.ccd."+
@@ -1085,7 +1084,7 @@ public class FrodoSpec
 	public void startupPLC() throws EIPNativeException
 	{
 		plc.init(status);
-		log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,":startupPLC:Finished.");
+		log(Logger.VERBOSITY_VERY_TERSE,":startupPLC:Finished.");
 	}
 
 	/**
@@ -1176,9 +1175,9 @@ public class FrodoSpec
 		titServer = new TitServer("TitServer on port "+titPortNumber,titPortNumber);
 		titServer.setPriority(status.getThreadPriorityTIT());
 		nowDate = new Date();
-		log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ALL,
+		log(Logger.VERBOSITY_VERY_TERSE,
 			this.getClass().getName()+":run:server started at:"+nowDate.toString());
-		log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ALL,
+		log(Logger.VERBOSITY_VERY_TERSE,
 			this.getClass().getName()+":run:server started on port:"+frodospecPortNumber);
 		error(this.getClass().getName()+":run:server started at:"+nowDate.toString());
 		error(this.getClass().getName()+":run:server started on port:"+frodospecPortNumber);
@@ -1430,7 +1429,8 @@ public class FrodoSpec
 	 * any messages with that level bit set to be logged. e.g. 0 logs no messages,
 	 * 127 logs any messages with one of the first 8 bits set.
 	 * @see #status
-	 * @see #logFilter
+	 * @see #logLogger
+	 * @see #errorLogger
 	 * @see #redCCD
 	 * @see #blueCCD
 	 * @see #plc
@@ -1445,7 +1445,8 @@ public class FrodoSpec
 	public void setLogLevel(int level)
 	{
 		status.setLogLevel(logLevel);
-		logFilter.setLevel(level);
+		logLogger.setLogLevel(logLevel);
+		errorLogger.setLogLevel(logLevel);
 		redCCD.setLogFilterLevel(level);
 		blueCCD.setLogFilterLevel(level);
 		plc.setLogLevel(level);
@@ -1500,7 +1501,7 @@ public class FrodoSpec
 		INST_TO_ISS_DONE done = null;
 		boolean finished = false;
 
-		log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		log(Logger.VERBOSITY_VERY_TERSE,
 			this.getClass().getName()+":sendISSCommand:"+command.getClass().getName());
 		thread = new FrodoSpecTCPClientConnectionThread(issAddress,issPortNumber,command,commandThread);
 		thread.setFrodoSpec(this);
@@ -1552,7 +1553,7 @@ public class FrodoSpec
 				done.setSuccessful(false);
 			}
 		}
-		log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_REPLIES,
+		log(Logger.VERBOSITY_VERY_TERSE,
 			"Done:"+done.getClass().getName()+":successful:"+done.getSuccessful()+
 			":error number:"+done.getErrorNum()+":error string:"+done.getErrorString());
 		return done;
@@ -1577,7 +1578,7 @@ public class FrodoSpec
 		INST_TO_DP_DONE done = null;
 		boolean finished = false;
 
-		log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		log(Logger.VERBOSITY_VERY_TERSE,
 			this.getClass().getName()+":sendDpRtCommand:"+command.getClass().getName());
 		thread = new FrodoSpecTCPClientConnectionThread(dprtAddress,dprtPortNumber,command,commandThread);
 		thread.setFrodoSpec(this);
@@ -1625,7 +1626,7 @@ public class FrodoSpec
 				done.setSuccessful(false);
 			}
 		}
-		log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_REPLIES,
+		log(Logger.VERBOSITY_VERY_TERSE,
 			"Done:"+done.getClass().getName()+":successful:"+done.getSuccessful()+
 			":error number:"+done.getErrorNum()+":error string:"+done.getErrorString());
 		return done;
@@ -1658,7 +1659,7 @@ public class FrodoSpec
 	public void error(String s)
 	{
 		if(errorLogger != null)
-			errorLogger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ERROR,s);
+			errorLogger.log(Logger.VERBOSITY_VERY_TERSE,s);
 		else
 			System.err.println(s);
 	}
@@ -1674,8 +1675,8 @@ public class FrodoSpec
 	{
 		if(errorLogger != null)
 		{
-			errorLogger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ERROR,s,e);
-			errorLogger.dumpStack(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ERROR,e);
+			errorLogger.log(Logger.VERBOSITY_VERY_TERSE,s,e);
+			errorLogger.dumpStack(Logger.VERBOSITY_VERY_TERSE,e);
 		}
 		else
 		{
@@ -1958,6 +1959,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2008/12/15 18:04:29  cjm
+// Added ngat.lamp to list of handlers to copy.
+//
 // Revision 1.3  2008/12/05 12:16:38  cjm
 // Added DatagramLogHandler support.
 //

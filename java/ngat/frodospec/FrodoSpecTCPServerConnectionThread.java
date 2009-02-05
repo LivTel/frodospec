@@ -1,5 +1,5 @@
 // FrodoSpecTCPServerConnectionThread.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.2 2008-12-04 11:30:17 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -16,18 +16,19 @@ import ngat.message.INST_DP.EXPOSE_REDUCE;
 import ngat.message.INST_DP.EXPOSE_REDUCE_DONE;
 import ngat.message.INST_DP.INST_TO_DP_DONE;
 import ngat.phase2.*;
+import ngat.util.logging.*;
 
 /**
  * This class extends the TCPServerConnectionThread class for the FrodoSpec application.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.2 2008-12-04 11:30:17 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Default time taken to respond to a command. This is a class-wide field.
 	 */
@@ -239,7 +240,7 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 			done.setSuccessful(false);
 			return;
 		}
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+command.getClass().getName()+
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+command.getClass().getName()+
 			" Started.");
 		if(!frodospec.getStatus().commandCanBeRun((ISS_TO_INST)command))
 		{
@@ -280,9 +281,9 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 			frodospec.getStatus().clearCurrentCommand((ISS_TO_INST)command);
 		}
 	// log command/done
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+command.getClass().getName()+
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+command.getClass().getName()+
 			" Completed.");
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_REPLIES,"Done:"+done.getClass().getName()+
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Done:"+done.getClass().getName()+
 			":successful:"+done.getSuccessful()+
 			":error number:"+done.getErrorNum()+":error string:"+done.getErrorString());
 	}
@@ -318,6 +319,9 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/12/04 11:30:17  cjm
+// Rewrote confusing commandCanBeRun failure message.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //

@@ -1,5 +1,5 @@
 // Home.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/newmark/test/Home.java,v 1.1 2008-11-20 11:34:37 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/newmark/test/Home.java,v 1.2 2009-02-05 11:40:12 cjm Exp $
 package ngat.frodospec.newmark.test;
 
 import java.lang.*;
@@ -9,27 +9,24 @@ import java.util.*;
 
 import ngat.serial.arcomess.*;
 import ngat.frodospec.newmark.*;
+import ngat.util.logging.*;
 
 /**
  * This class tests the Frodospec Newmark library, by homing the filter slide using a Newmark controller
  * via an ArcomESS connection.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class Home
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: Home.java,v 1.1 2008-11-20 11:34:37 cjm Exp $");
+	public final static String RCSID = new String("$Id: Home.java,v 1.2 2009-02-05 11:40:12 cjm Exp $");
 	/**
 	 * The default log level.
-	 * @see ngat.serial.arcomess.ArcomESS#LOG_BIT_SERIAL
-	 * @see ngat.serial.arcomess.ArcomESS#LOG_BIT_SOCKET
-	 * @see ngat.frodospec.newmark.Newmark#LOG_BIT_COMMAND
 	 */
-	public final static int DEFAULT_LOG_LEVEL = (ArcomESS.LOG_BIT_SERIAL|ArcomESS.LOG_BIT_SOCKET|
-						     Newmark.LOG_BIT_COMMAND);
+	public final static int DEFAULT_LOG_LEVEL = (Logging.VERBOSITY_VERY_VERBOSE);
 	/**
 	 * Which type of device to try to connect to.
 	 * @see ngat.serial.arcomess.ArcomESS#INTERFACE_DEVICE_NONE
@@ -210,4 +207,7 @@ public class Home
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:34:37  cjm
+// Initial revision
+//
 //

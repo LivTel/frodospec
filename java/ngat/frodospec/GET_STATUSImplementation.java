@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -14,19 +14,20 @@ import ngat.message.ISS_INST.GET_STATUS;
 import ngat.message.ISS_INST.GET_STATUS_DONE;
 import ngat.phase2.FrodoSpecConfig;
 import ngat.util.ExecuteCommand;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -202,10 +203,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		String lampControllerStatus = null;
 		int currentMode;
 
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			      this.getClass().getName()+":processCommand:Setting index 0 to redCCD "+redCCD+".");
 		ccdList[FrodoSpecConfig.RED_ARM] = redCCD;
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			      this.getClass().getName()+":processCommand:Setting index 1 to blueCCD "+blueCCD+".");
 		ccdList[FrodoSpecConfig.BLUE_ARM] = blueCCD;
 	 // Create new hashtable to be returned
@@ -238,7 +239,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+".currentCommand",
 					      currentCommand.getClass().getName());
 			// Currently, we query libccd setup stored settings, not hardware.
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+":processCommand:Getting dimension settings for "+
 				      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
 			hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+".Current Mode",
@@ -268,20 +269,20 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		}// end for
 		// Lamp Controller status
 		lampControllerStatus = frodospec.getLampController().getLampControllerStatus();
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			 this.getClass().getName()+":processCommand:Lamp Controller Status:"+lampControllerStatus);
 		hashTable.put("Lamp.Controller.Status",lampControllerStatus);
 	// intermediate level information - basic plus controller calls.
 		if(getStatusCommand.getLevel() >= GET_STATUS.LEVEL_INTERMEDIATE)
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+":processCommand:Getting intermediate status.");
 			getIntermediateStatus();
 		}// end if intermediate level status
 	// Get full status information.
 		if(getStatusCommand.getLevel() >= GET_STATUS.LEVEL_FULL)
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+":processCommand:Getting full status.");
 			getFullStatus();
 		}
@@ -320,7 +321,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		// Of course, we really need 2 currentModes
 		while((arm <= FrodoSpecConfig.BLUE_ARM)&&(currentMode == GET_STATUS_DONE.MODE_IDLE))
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+":getCurrentMode:Trying arm "+arm+".");
 			currentMode = getCurrentMode(arm);
 			arm++;
@@ -355,7 +356,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 							   ":getCurrentMode: Illegal arm:"+arm);
 		}
 		currentMode = GET_STATUS_DONE.MODE_IDLE;
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			      this.getClass().getName()+":getCurrentMode:Trying to get exposure status with arm "+arm+
 			      ", library reference "+ccdList[arm]+".");
 		switch(ccdList[arm].getExposureStatus())
@@ -486,7 +487,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			// Now that we have compiled mutex support in CCDLibrary 
 			// around controller commands this should work.
 			// elapsed exposure time - this seems to work when an exposure is in progress.
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+
 				      ":processCommand:Getting elapsed exposure time for arm "+
 				      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
@@ -512,7 +513,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 					// Return temperature in degrees kelvin.
 					try
 					{
-						frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+						frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 							      this.getClass().getName()+
 							      ":processCommand:Getting temperature for arm "+
 							      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
@@ -548,7 +549,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 					// how hot the temperature sensor is on the utility board.
 					try
 					{
-						frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+						frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 							      this.getClass().getName()+
 							      ":processCommand:Getting temperature ADUs for arm "+
 							      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
@@ -570,7 +571,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				{
 					try
 					{
-						frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+						frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 							      this.getClass().getName()+
 							      ":processCommand:Getting voltage ADUs for arm "+
 							      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
@@ -629,7 +630,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		// PLC
 		plc = frodospec.getPLC();
 		//  plc fault status
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			      this.getClass().getName()+":getIntermediateStatus:Getting PLC fault status.");
 		try
 		{
@@ -666,14 +667,14 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				{
 					String gratingPositionString = null;
 					
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 						      this.getClass().getName()+
 						":getIntermediateStatus:Getting grating position from PLC for arm "+
 						FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
 					gratingPositionString = plc.getGratingPositionString(arm);
 					hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+
 						      ".Grating Position String",gratingPositionString);
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 						      this.getClass().getName()+
 						":getIntermediateStatus:Grating position statusfrom PLC for arm "+
 					      FrodoSpecConstants.ARM_STRING_LIST[arm]+" = "+gratingPositionString+".");
@@ -692,12 +693,12 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			{
 				for(int i = 0; i< Plc.TEMPERATURE_PROBE_COUNT; i++)
 				{
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 						      this.getClass().getName()+
 						      ":processCommand:Getting enviromental temperature "+i+".");
 					fvalue = plc.getTemperature(i);
 					hashTable.put("Environment.Temperature."+i,new Float(fvalue));
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 						      this.getClass().getName()+
 						      ":processCommand:Enviromental temperature "+i+
 						      " has value "+fvalue+".");
@@ -1138,4 +1139,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //

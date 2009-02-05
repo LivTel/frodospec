@@ -1,11 +1,11 @@
 /* ccd_dsp_download.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.5 2008-11-20 11:34:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.6 2009-02-05 11:40:27 cjm Exp $
 */
 /**
  * ccd_dsp_download.c contains the code to download DSP code to the SDSU controller.
  * @author SDSU, Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -26,6 +26,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include "log_udp.h"
 #include "ccd_interface.h"
 #include "ccd_pci.h"
 #include "ccd_dsp.h"
@@ -34,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.5 2008-11-20 11:34:46 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.6 2009-02-05 11:40:27 cjm Exp $";
 
 /* defines */
 /**
@@ -146,7 +147,7 @@ int CCD_DSP_Download(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_
 		return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download(%#x,%s) started.",
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download(%#x,%s) started.",
 		board_id,filename);
 #endif
 /* depending on the board type, call a sub-routine */
@@ -170,7 +171,7 @@ int CCD_DSP_Download(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_
 			return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download(%#x,%s) returned %#x.",
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download(%#x,%s) returned %#x.",
 		board_id,filename,retval);
 #endif
 	return retval;
@@ -398,7 +399,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 		return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download:First Line:%s.",buff);
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:First Line:%s.",buff);
 #endif
 	if(strstr(buff,DSP_DOWNLOAD_PCI_BOOT_STRING) == NULL)
 	{
@@ -423,7 +424,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 			return FALSE;
 		}
 #if LOGGING > 4
-		CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download:Read Line:%s.",buff);
+		CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Read Line:%s.",buff);
 #endif
 		if(strstr(buff,DSP_DOWNLOAD_PCI_DATA_PROGRAM_STRING) != NULL)
 		{
@@ -438,7 +439,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 				return FALSE;
 			}
 #if LOGGING > 4
-			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download:Read _DATA P Line:%s.",buff);
+			CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Read _DATA P Line:%s.",buff);
 #endif
 			retval = sscanf(buff,"%x %x",(unsigned int *)&word_count,(unsigned int *)&address);
 			if(retval != 2)
@@ -451,7 +452,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 				return FALSE;
 			}
 #if LOGGING > 4
-			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download:Word Count %d:Address:%#x.",
+			CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Word Count %d:Address:%#x.",
 				word_count,address);
 #endif
 		/* send word count */
@@ -488,7 +489,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 				return FALSE;
 			}
 #if LOGGING > 4
-			CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download:Throw away Line:%s.",buff);
+			CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Throw away Line:%s.",buff);
 #endif
 			while(word_number < word_count)
 			{
@@ -502,7 +503,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 					return FALSE;
 				}
 #if LOGGING > 4
-				CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,"CCD_DSP_Download:Read data Line:%s.",
+				CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Read data Line:%s.",
 					buff);
 #endif
 			/* if line does not contain "_DATA P", it must contain program data */
@@ -515,7 +516,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 						if (word_number >= word_count)
 							break;
 #if LOGGING > 4
-						CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,
+						CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,
 							"CCD_DSP_Download:Memory Value:%s.",value_string);
 #endif
 						retval = sscanf(value_string,"%x",(unsigned int *)&argument);
@@ -530,7 +531,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 							return FALSE;
 						}
 #if LOGGING > 4
-						CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_DSP,
+						CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,
 							"CCD_DSP_Download:Memory Value:%#x Word (%d of %d).",
 							argument,word_number,word_count);
 #endif
@@ -752,6 +753,9 @@ static int DSP_Download_Process_Data(CCD_Interface_Handle_T* handle,FILE *downlo
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2008/11/20 11:34:46  cjm
+** *** empty log message ***
+**
 ** Revision 1.4  2006/05/17 17:58:56  cjm
 ** Fixed %x requires (unsigned int *) warnings.
 ** Fixed mismatched number of parameters in fprintf.

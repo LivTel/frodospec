@@ -1,5 +1,5 @@
 // REBOOTImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/REBOOTImplementation.java,v 1.2 2008-12-15 11:49:18 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/REBOOTImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -9,19 +9,20 @@ import ngat.message.base.*;
 import ngat.message.ISS_INST.REBOOT;
 import ngat.util.ICSDRebootCommand;
 import ngat.util.ICSDShutdownCommand;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation for the REBOOT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class REBOOTImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: REBOOTImplementation.java,v 1.2 2008-12-15 11:49:18 cjm Exp $");
+	public final static String RCSID = new String("$Id: REBOOTImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Class constant used in calculating acknowledge times, when the acknowledge time connot be found in the
 	 * configuration file.
@@ -160,7 +161,7 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 
 		try
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+
 				      rebootCommand.getClass().getName()+":level = "+rebootCommand.getLevel()+".");
 			// is reboot enabled at this level
 			enable = frodospec.getStatus().getPropertyBoolean(ENABLE_PROPERTY_KEY_ROOT+
@@ -168,7 +169,7 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 			// if not enabled return OK
 			if(enable == false)
 			{
-				frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+				frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+
 					   rebootCommand.getClass().getName()+":Level:"+rebootCommand.getLevel()+
 					   " is not enabled.");
 				rebootDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_NO_ERROR);
@@ -180,16 +181,16 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 			switch(rebootCommand.getLevel())
 			{
 				case REBOOT.LEVEL_REDATUM:
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+
 						      rebootCommand.getClass().getName()+":Redatum starting.");
 					frodospec.shutdownHardware();
 					frodospec.reInit();
 					frodospec.startupHardware();
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+
 						      rebootCommand.getClass().getName()+":Redatum finished.");
 					break;
 				case REBOOT.LEVEL_SOFTWARE:
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+
 						      rebootCommand.getClass().getName()+":Software reboot starting.");
 				// send REBOOT to the data pipeline
 					dprtReboot.setLevel(rebootCommand.getLevel());
@@ -202,7 +203,7 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 					quitThread.start();
 					break;
 				case REBOOT.LEVEL_HARDWARE:
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+
 						      rebootCommand.getClass().getName()+":Hardware reboot starting.");
 				// send REBOOT to the data pipeline
 					dprtReboot.setLevel(rebootCommand.getLevel());
@@ -214,7 +215,7 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 					icsdRebootCommand.send();
 					break;
 				case REBOOT.LEVEL_POWER_OFF:
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,"Command:"+
+					frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+
 						   rebootCommand.getClass().getName()+":Power off reboot starting.");
 				// send REBOOT to the data pipeline
 					dprtReboot.setLevel(rebootCommand.getLevel());
@@ -280,6 +281,9 @@ public class REBOOTImplementation extends INTERRUPTImplementation implements JMS
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/12/15 11:49:18  cjm
+// Added logging.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //

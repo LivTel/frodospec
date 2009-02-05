@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.2 2008-11-28 11:16:43 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.2 2008-11-28 11:16:43 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -33,26 +33,13 @@ public class FrodoSpecStatus
 	private final static String DEFAULT_PROPERTY_FILE_NAME = "./frodospec.properties";
 
 	/**
-	 * The logging level. A bit-wise filter is used by the loggers, the bits allocated as follows:
+	 * The logging level. An absolute filter is used by the loggers:
 	 * <ul>
-	 * <li>Bits 0..7 allocated to Java layer logging.
-	 * <li>Bits 8..15 to CCD library logging.
+	 * <li>0 is very terse.
+	 * <li>5 is very verbose.
 	 * </ul>
-	 * CCD Library logging bits are originally derived from 
-	 * {@link <a href="../../../ccd/cdocs/ccd_global.html">here</a>}.
-	 * @see FrodoSpecConstants#FRODOSPEC_LOG_LEVEL_COMMANDS
-	 * @see FrodoSpecConstants#FRODOSPEC_LOG_LEVEL_REPLIES
-	 * @see FrodoSpecConstants#FRODOSPEC_LOG_LEVEL_TELFOCUS
-	 * @see FrodoSpecConstants#FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE
-	 * @see FrodoSpecConstants#FRODOSPEC_LOG_LEVEL_TWILIGHT_CALIBRATE
-	 * @see FrodoSpecConstants#FRODOSPEC_LOG_LEVEL_MULTRUN
-	 * @see ngat.frodospec.ccd.CCDLibrary#LOG_BIT_SETUP
-	 * @see ngat.frodospec.ccd.CCDLibrary#LOG_BIT_EXPOSURE
-	 * @see ngat.frodospec.ccd.CCDLibrary#LOG_BIT_DSP
-	 * @see ngat.frodospec.ccd.CCDLibrary#LOG_BIT_INTERFACE
-	 * @see ngat.frodospec.ccd.CCDLibrary#LOG_BIT_GLOBAL
 	 */
-	private int logLevel = FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_NONE;
+	private int logLevel = 0;
 	/**
 	 * The current thread that the FrodoSpec Control System is using to process the
 	 * <a href="#currentCommand">currentCommand</a>. This does not get set for
@@ -1045,6 +1032,9 @@ public class FrodoSpecStatus
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/11/28 11:16:43  cjm
+// configId now per-arm.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //

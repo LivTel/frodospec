@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.3 2008-11-25 18:28:06 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -17,19 +17,20 @@ import ngat.message.ISS_INST.FRODOSPEC_ARC;
 import ngat.message.ISS_INST.FRODOSPEC_ARC_DONE;
 import ngat.message.ISS_INST.FILENAME_ACK;
 import ngat.phase2.FrodoSpecConfig;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.3 2008-11-25 18:28:06 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -272,7 +273,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		}// end if ccdEnable
 		else
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 				      this.getClass().getName()+
 				      ":processCommand:Did not do arc exposure, ccd enable was false.");
 		}
@@ -311,6 +312,9 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2008/11/25 18:28:06  cjm
+// Fixed logging.
+//
 // Revision 1.2  2008/11/24 14:59:57  cjm
 // Added code to modify OBJECT FITS header keyword for calibration ARCs using
 // previously extracted objectName.

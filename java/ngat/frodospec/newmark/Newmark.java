@@ -1,5 +1,5 @@
 // Newmark.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/newmark/Newmark.java,v 1.1 2008-11-20 11:34:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/newmark/Newmark.java,v 1.2 2009-02-05 11:40:07 cjm Exp $
 package ngat.frodospec.newmark;
 
 import java.lang.*;
@@ -12,21 +12,14 @@ import ngat.serial.arcomess.*;
  * allows communication with the motion controller's serial interface either directly or via
  * a Arcom ESS (Ethernet Serial Server).
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class Newmark
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: Newmark.java,v 1.1 2008-11-20 11:34:35 cjm Exp $");
-// newmark_general.h
-	/* These constants should be the same as those in newmark_general.h */
-	/**
-	 * Logging filter bit.
-	 * @see #setLogFilterLevel
-	 */
-	public final static int LOG_BIT_COMMAND       = (1<<29);
+	public final static String RCSID = new String("$Id: Newmark.java,v 1.2 2009-02-05 11:40:07 cjm Exp $");
 //internal C layer initialisation
 	/**
 	 * Native method that allows the JNI layer to store a reference to this Class's logger.
@@ -129,7 +122,6 @@ public class Newmark
 	 * Routine that changes the libfrodospec_newmark logging filter level.
 	 * @param level The logging filter level.
 	 * @see #Newmark_Set_Log_Filter_Level
-	 * @see #LOG_BIT_COMMAND
 	 */
 	public void setLogFilterLevel(int level)
 	{
@@ -194,4 +186,7 @@ public class Newmark
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:34:35  cjm
+// Initial revision
+//
 //

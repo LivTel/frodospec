@@ -1,6 +1,6 @@
 /* ngat_frodospec_ccd_CCDLibrary.c
 ** implementation of Java Class ngat.frodospec.ccd.CCDLibrary native interfaces
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.1 2008-11-20 11:34:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.2 2009-02-05 11:40:27 cjm Exp $
 */
 /**
  * ngat_frodospec_ccd_CCDLibrary.c is the 'glue' between libfrodospec_ccd, 
@@ -8,7 +8,7 @@
  * a Java Class to drive the controller. CCDLibrary specifically
  * contains all the native C routines corresponding to native methods in Java.
  * @author Chris Mottram LJMU
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -134,7 +134,7 @@ struct Handle_Map_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.1 2008-11-20 11:34:46 cjm Exp $";
+static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.2 2009-02-05 11:40:27 cjm Exp $";
 
 /**
  * Copy of the java virtual machine pointer, used for logging back up to the Java layer from C.
@@ -207,12 +207,12 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
  * This takes the supplied logger object reference and stores it in the logger variable as a global reference.
  * The log method ID is also retrieved and stored.
  * The libfrodospec_ccd's log handler is set to the JNI routine CCDLibrary_Log_Handler.
- * The libfrodospec_ccd's log filter function is set bitwise.
+ * The libfrodospec_ccd's log filter function is set absolute.
  * @param l The CCDLibrary's "ngat.frodospec.ccd.CCDLibrary" logger.
  * @see #CCDLibrary_Log_Handler
  * @see #logger
  * @see #log_method_id
- * @see ccd_global.html#CCD_Global_Log_Filter_Level_Bitwise
+ * @see ccd_global.html#CCD_Global_Log_Filter_Level_Absolute
  * @see ccd_global.html#CCD_Global_Set_Log_Handler_Function
  * @see ccd_global.html#CCD_Global_Set_Log_Filter_Function
  */
@@ -240,8 +240,8 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_initialiseLoggerRefere
 	}
 	/* Make the C layer log back to the Java logger, using CCDLibrary_Log_Handler JNI routine. diddly */
 	CCD_Global_Set_Log_Handler_Function(CCDLibrary_Log_Handler);
-	/* Make the filtering bitwise, as expected by the C layer */
-	CCD_Global_Set_Log_Filter_Function(CCD_Global_Log_Filter_Level_Bitwise);
+	/* Make the filtering absolute, as expected by the C layer */
+	CCD_Global_Set_Log_Filter_Function(CCD_Global_Log_Filter_Level_Absolute);
 }
 
 /**
@@ -1684,4 +1684,7 @@ static int CCDLibrary_Handle_Map_Find(JNIEnv *env,jobject instance,CCD_Interface
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2008/11/20 11:34:46  cjm
+** Initial revision
+**
 */

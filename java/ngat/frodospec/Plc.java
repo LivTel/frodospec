@@ -11,14 +11,14 @@ import ngat.util.logging.*;
 /**
  * An instance of this class is used to control the FrodoSpec Plc.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class Plc
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: Plc.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: Plc.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * The number of temperature probes in FrodoSpec.
 	 */
@@ -408,10 +408,10 @@ public class Plc
 	{
 		// set logger
 		logger = LogManager.getLogger("log");
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":init:Started.");
 		// load config
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":init:Loading configuration.");
 		loadConfig(status);
 		if(enable)
@@ -424,10 +424,10 @@ public class Plc
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":init:enable was false:PLC not initialised.");
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+":init:Finished.");
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":init:Finished.");
 	}
 
 	/**
@@ -456,7 +456,7 @@ public class Plc
 	 */
 	public void configureTimersSetPoints() throws EIPNativeException
 	{
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":configureTimersSetPoints:Started.");
 		if(configurationEnable)
 		{
@@ -468,7 +468,7 @@ public class Plc
 			}
 			connectionIdleThread.setBusy();	
 			// grating/shutter movement timers
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":configureTimersSetPoints:Setting Grating/Shutter movement timers.");
 			for(int arm = FrodoSpecConfig.RED_ARM; arm <= FrodoSpecConfig.BLUE_ARM; arm++)
 			{
@@ -482,7 +482,7 @@ public class Plc
 					       timerMovementShutterCloseValue[arm]);
 			}
 			// cooling set-points
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":configureTimersSetPoints:Setting Cooling set-points.");
 			plc.setInteger(handle,setPointCoolingOnPLCAddress,coolingSetPointOnValue);
 			plc.setInteger(handle,setPointCoolingOffPLCAddress,coolingSetPointOffValue);
@@ -490,11 +490,11 @@ public class Plc
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":configureTimersSetPoints:Configuration not enabled:"+
 				   "Timers and set-points not configured.");
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":configureTimersSetPoints:Finished.");
 	}
 
@@ -511,7 +511,7 @@ public class Plc
 	 */
 	public void faultReset() throws EIPNativeException
 	{
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":faultReset:Started.");
 		if(enable)
 		{
@@ -522,17 +522,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":faultReset:Setting "+faultResetPLCAddress);
 			plc.setBoolean(handle,faultResetPLCAddress,true);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":faultReset:PLC not enabled:Not resetting fault.");
 			
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":faultReset:Finished.");
 	}
 
@@ -550,7 +550,7 @@ public class Plc
 	 */
 	public void setCooling(boolean onoff) throws EIPNativeException
 	{
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":setCooling:Started.");
 		if(enable)
 		{
@@ -561,17 +561,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":setCooling:Setting "+coolingDemandPLCAddress+" to "+onoff);
 			plc.setBoolean(handle,coolingDemandPLCAddress,onoff);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":setCooling:PLC not enabled:Not setting cooling to "+onoff+".");
 			
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":setCooling:Finished.");
 	}
 
@@ -601,7 +601,7 @@ public class Plc
 	{
 		int mechStatus;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getMechanismStatus:Started.");
 		if(enable)
 		{
@@ -612,17 +612,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getMechanismStatus:Retrieving from: "+mechStatusPLCAddress);
 			mechStatus = plc.getInteger(handle,mechStatusPLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getMechanismStatus:PLC not enabled:Not resetting fault.");
 			mechStatus = 0;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getMechanismStatus:Finished with status:"+printBits(mechStatus));
 		return mechStatus;
 	}
@@ -663,7 +663,7 @@ public class Plc
 	{
 		int faultStatus;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getFaultStatus:Started.");
 		if(enable)
 		{
@@ -674,17 +674,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getFaultStatus:Retrieving from: "+faultStatusPLCAddress);
 			faultStatus = plc.getInteger(handle,faultStatusPLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getFaultStatus:PLC not enabled:Not resetting fault.");
 			faultStatus = 0;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getFaultStatus:Finished with status:"+printBits(faultStatus));
 		return faultStatus;
 	}
@@ -764,7 +764,7 @@ public class Plc
 		boolean demandValue,done;
 		int mechStatus,transitBit=0,inPositionBit=0,faultStatus,faultBit=0;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":setGrating:Started.");
 		if(enable)
 		{
@@ -834,7 +834,7 @@ public class Plc
 					}
 				}
 				// set demand
-				logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+				logger.log(Logger.VERBOSITY_VERBOSE,
 					   this.getClass().getName()+
 					   ":setGrating:Moving Arm "+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 					   " to resolution "+FrodoSpecConstants.RESOLUTION_STRING_LIST[resolution]+
@@ -851,7 +851,7 @@ public class Plc
 					}
 					catch(InterruptedException e)
 					{
-						logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+						logger.log(Logger.VERBOSITY_VERBOSE,
 							   this.getClass().getName()+
 							   ":setGrating:Sleep interrupted.");
 					}
@@ -860,7 +860,7 @@ public class Plc
 					// are we in the correct position?
 					if((mechStatus & transitBit) == transitBit)
 					{
-						logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+						logger.log(Logger.VERBOSITY_VERBOSE,
 							   this.getClass().getName()+
 							   ":setGrating:Grating is in transit.");
 					}
@@ -868,7 +868,7 @@ public class Plc
 					{
 						// exit loop
 						done = true;
-						logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+						logger.log(Logger.VERBOSITY_VERBOSE,
 							   this.getClass().getName()+
 							   ":setGrating:Grating is in position.");
 					}
@@ -876,7 +876,7 @@ public class Plc
 					if((mechStatus & MECH_STATUS_PANEL_IN_LOCAL) == 
 					   MECH_STATUS_PANEL_IN_LOCAL)
 					{
-						logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+						logger.log(Logger.VERBOSITY_VERBOSE,
 							   this.getClass().getName()+
 							   ":setGrating:Plc is in local.");
 						throw new Exception(this.getClass().getName()+
@@ -886,7 +886,7 @@ public class Plc
 					faultStatus = getFaultStatus();
 					if((faultStatus & faultBit) == faultBit)
 					{
-						logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+						logger.log(Logger.VERBOSITY_VERBOSE,
 							   this.getClass().getName()+
 							   ":setGrating:Grating Position Fault bit set:"+
 							   printBits(faultStatus));
@@ -898,17 +898,17 @@ public class Plc
 			}
 			else
 			{
-				logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+				logger.log(Logger.VERBOSITY_VERBOSE,
 					   this.getClass().getName()+
 					   ":setGrating:Movement not enabled:Grating not moved.");
 			}
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":setGrating:PLC not enabled:Grating not moved.");
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":setGrating:Finished.");
 	}
 
@@ -965,7 +965,7 @@ public class Plc
 			throw new IllegalArgumentException(this.getClass().getName()+
 							   ":getGratingPositionString:Illegal arm:"+arm);
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getGratingPositionString("+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 			   "):Finished with resolution:"+retval);
 		return retval;
@@ -1023,7 +1023,7 @@ public class Plc
 			throw new IllegalArgumentException(this.getClass().getName()+
 							   ":getGratingPositionString:Illegal arm:"+arm);
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getGratingPositionString("+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 			   "):Finished with status:"+statusString);
 		return statusString;
@@ -1045,7 +1045,7 @@ public class Plc
 	{
 		float humidity;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getHumidity:Started.");
 		if(enable)
 		{
@@ -1056,17 +1056,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getHumidity:Retrieving from: "+humidityPLCAddress);
 			humidity = plc.getFloat(handle,humidityPLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getHumidity:PLC not enabled:Humidity not retrieved.");
 			humidity = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getHumidity:Finished with humidity:"+humidity);
 		return humidity;
 	}
@@ -1090,7 +1090,7 @@ public class Plc
 	{
 		float temperature;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getTemperature("+index+"):Started.");
 		if((index < 0)||(index >= TEMPERATURE_PROBE_COUNT))
 		{
@@ -1106,17 +1106,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getTemperature:Retrieving from: "+temperaturePLCAddress[index]);
 			temperature = plc.getFloat(handle,temperaturePLCAddress[index]);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getTemperature:PLC not enabled:Temperature not retrieved.");
 			temperature = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getTemperature("+index+"):Finished with temperature:"+temperature);
 		return temperature;
 	}
@@ -1137,7 +1137,7 @@ public class Plc
 	{
 		float temperature;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getInstrumentTemperature:Started.");
 		if(enable)
 		{
@@ -1148,17 +1148,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getInstrumentTemperature:Retrieving from: "+instrumentTemperaturePLCAddress);
 			temperature = plc.getFloat(handle,instrumentTemperaturePLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getInstrumentTemperature:PLC not enabled:Instrument Temperature not retrieved.");
 			temperature = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getInstrumentTemperature:Finished with instrument temperature:"+temperature);
 		return temperature;
 	}
@@ -1179,7 +1179,7 @@ public class Plc
 	{
 		float temperature;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getPanelTemperature:Started.");
 		if(enable)
 		{
@@ -1190,17 +1190,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getPanelTemperature:Retrieving from: "+panelTemperaturePLCAddress);
 			temperature = plc.getFloat(handle,panelTemperaturePLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getPanelTemperature:PLC not enabled:Panel Temperature not retrieved.");
 			temperature = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getPanelTemperature:Finished with panel temperature:"+temperature);
 		return temperature;
 	}
@@ -1221,7 +1221,7 @@ public class Plc
 	{
 		float airFlow;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getAirFlow:Started.");
 		if(enable)
 		{
@@ -1232,17 +1232,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getAirFlow:Retrieving from: "+airFlowPLCAddress);
 			airFlow = plc.getFloat(handle,airFlowPLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getAirFlow:PLC not enabled:Air Flow not retrieved.");
 			airFlow = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getAirFlow:Finished with air flow:"+airFlow);
 		return airFlow;
 	}
@@ -1263,7 +1263,7 @@ public class Plc
 	{
 		float airPressure;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getAirPressure:Started.");
 		if(enable)
 		{
@@ -1274,17 +1274,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getAirPressure:Retrieving from: "+airPressurePLCAddress);
 			airPressure = plc.getFloat(handle,airPressurePLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getAirPressure:PLC not enabled:Air Pressure not retrieved.");
 			airPressure = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getAirPressure:Finished with air pressure:"+airPressure);
 		return airPressure;
 	}
@@ -1305,7 +1305,7 @@ public class Plc
 	{
 		float time;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getCoolingTimeOn:Started.");
 		if(enable)
 		{
@@ -1316,17 +1316,17 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getCoolingTimeOn:Retrieving from: "+coolingTimePLCAddress);
 			time = plc.getFloat(handle,coolingTimePLCAddress);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getCoolingTimeOn:PLC not enabled:Cooling time not retrieved.");
 			time = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getCoolingTimeOn:Finished with cooling time:"+time);
 		return time;
 	}
@@ -1352,7 +1352,7 @@ public class Plc
 	{
 		float position;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getLinearEncoderPosition:Started.");
 		// check arm is legal
 		if((arm != FrodoSpecConfig.RED_ARM)&&(arm != FrodoSpecConfig.BLUE_ARM))
@@ -1369,18 +1369,18 @@ public class Plc
 					open();
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getLinearEncoderPosition(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 				   "):Retrieving from: "+linearEncoderPositionPLCAddress[arm]);
 			position = plc.getFloat(handle,linearEncoderPositionPLCAddress[arm]);
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":getLinearEncoderPosition:PLC not enabled:Position not retrieved.");
 			position = 0.0f;
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":getLinearEncoderPosition(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 			   "):Finished with linear encoder position:"+position);
 		return position;
@@ -1409,7 +1409,7 @@ public class Plc
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":destroyHandle:enable was false:Handle not destroyed.");
 		}
 	}
@@ -1485,10 +1485,10 @@ public class Plc
 			{
 				if(handle.isOpen() == false)
 				{
-					logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+					logger.log(Logger.VERBOSITY_VERBOSE,
 						   this.getClass().getName()+":open:Opening handle.");
 					plc.open(handle);
-					logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,
+					logger.log(Logger.VERBOSITY_VERBOSE,
 						   this.getClass().getName()+":open:Starting connection idle thread.");
 					connectionIdleThread = new ConnectionIdleThread();
 					connectionIdleThread.start();
@@ -1499,7 +1499,7 @@ public class Plc
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":open:enable was false:PLC not opened.");
 		}
 	}
@@ -1531,7 +1531,7 @@ public class Plc
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":close:enable was false:PLC not closed.");
 		}
 	}
@@ -1592,14 +1592,14 @@ public class Plc
 	{
 		String plcTypeString = null;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":loadConfig:Started.");
 		// load config
 		enable = status.getPropertyBoolean("frodospec.plc.enable");
 		if(enable)
 		{
 			moveEnable = status.getPropertyBoolean("frodospec.plc.enable.move");
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":loadConfig:PLC enabled.");
 			hostname = status.getProperty("frodospec.plc.hostname");
 			backplane = status.getPropertyInteger("frodospec.plc.backplane");
@@ -1693,7 +1693,7 @@ public class Plc
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":loadConfig:enable was false:PLC not initialised.");
 		}
 	}
@@ -1728,11 +1728,11 @@ public class Plc
 		{
 			boolean done = false;
 
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+":run:"+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":run:"+
 				   hostname+":Started.");
 			while(done == false)
 			{
-				logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 					   ":run:"+hostname+":Sleeping.");
 				isIdle = true;
 				try
@@ -1742,11 +1742,11 @@ public class Plc
 				catch(Exception e)
 				{
 				}
-				logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 					   ":run:"+hostname+":Checking whether connection is idle:"+isIdle+".");
 				done = (isIdle == true);
 			}// while not done
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":run:"+hostname+":Closing connection.");
 			try
 			{
@@ -1754,10 +1754,10 @@ public class Plc
 			}
 			catch(Exception e)
 			{
-				logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 					   ":run:"+hostname+":Close connection failed.",e);
 			}
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 				   ":run:"+hostname+":Finished.");
 		}
 
@@ -1773,4 +1773,7 @@ public class Plc
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //

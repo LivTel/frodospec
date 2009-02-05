@@ -1,6 +1,6 @@
 /* ngat_frodospec_newmark_Newmark.c
 ** implementation of Java Class ngat.frodospec.newmark.Newmark native interfaces
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/ngat_frodospec_newmark_Newmark.c,v 1.1 2008-11-20 11:35:45 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/ngat_frodospec_newmark_Newmark.c,v 1.2 2009-02-05 11:41:03 cjm Exp $
 */
 /**
  * ngat_frodospec_newmark_Newmark.c is the 'glue' between libfrodospec_newmark, 
@@ -8,7 +8,7 @@
  * a Java Class to drive the motion controller. Newmark specifically
  * contains all the native C routines corresponding to native methods in Java.
  * @author Chris Mottram LJMU
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -67,7 +67,7 @@ struct Handle_Map_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ngat_frodospec_newmark_Newmark.c,v 1.1 2008-11-20 11:35:45 cjm Exp $";
+static char rcsid[] = "$Id: ngat_frodospec_newmark_Newmark.c,v 1.2 2009-02-05 11:41:03 cjm Exp $";
 
 /**
  * Copy of the java virtual machine pointer, used for logging back up to the Java layer from C.
@@ -134,12 +134,12 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
  * This takes the supplied logger object reference and stores it in the logger variable as a global reference.
  * The log method ID is also retrieved and stored.
  * The libfrodospec_newmark's log handler is set to the JNI routine Newmark_Log_Handler.
- * The libfrodospec_newmark's log filter function is set bitwise.
+ * The libfrodospec_newmark's log filter function is set absolute.
  * @param l The Newmark's "ngat.frodospec.newmark.Newmark" logger.
  * @see #Newmark_Log_Handler
  * @see #logger
  * @see #log_method_id
- * @see newmark_general.html#Newmark_Log_Filter_Level_Bitwise
+ * @see newmark_general.html#Newmark_Log_Filter_Level_Absolute
  * @see newmark_general.html#Newmark_Set_Log_Handler_Function
  * @see newmark_general.html#Newmark_Set_Log_Filter_Function
  */
@@ -167,8 +167,8 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_initialiseLoggerRefer
 	}
 	/* Make the C layer log back to the Java logger, using Newmark_Log_Handler JNI routine.  */
 	Newmark_Set_Log_Handler_Function(Newmark_Log_Handler);
-	/* Make the filtering bitwise, as expected by the C layer */
-	Newmark_Set_Log_Filter_Function(Newmark_Log_Filter_Level_Bitwise);
+	/* Make the filtering absolute, as expected by the C layer */
+	Newmark_Set_Log_Filter_Function(Newmark_Log_Filter_Level_Absolute);
 }
 
 /**
@@ -651,4 +651,7 @@ static int Newmark_Handle_Map_Find(JNIEnv *env,jobject newmark_instance,
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2008/11/20 11:35:45  cjm
+** Initial revision
+**
 */

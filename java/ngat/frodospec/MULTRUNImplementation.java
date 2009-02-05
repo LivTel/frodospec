@@ -1,5 +1,5 @@
 // MULTRUNImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -17,19 +17,20 @@ import ngat.message.ISS_INST.MULTRUN_DONE;
 import ngat.message.ISS_INST.FRODOSPEC_MULTRUN;
 import ngat.message.ISS_INST.FRODOSPEC_MULTRUN_DONE;
 import ngat.phase2.FrodoSpecConfig;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation for the MULTRUN command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -165,7 +166,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
        // setup reduced filename list
 		reduceFilenameList = new Vector();
        // do any calibrate before here
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_MULTRUN,"Command:"+
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"Command:"+
 			     frodospecMultRunDone.getClass().getName()+
 			     ":calibrate before = "+status.getConfigCalibrateBefore(arm)+".");
 		if(status.getConfigCalibrateBefore(arm))
@@ -311,7 +312,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			}// end if ccdEnable
 			else
 			{
-				frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+				frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 					      this.getClass().getName()+
 					      ":processCommand:Did not do multrun exposure, ccd enable was false.");
 			}
@@ -364,7 +365,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		index = 0;
 		retval = true;
 	// calibrate after here
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_MULTRUN,"Command:"+
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"Command:"+
 			     frodospecMultRunDone.getClass().getName()+
 			     ":calibrate after = "+status.getConfigCalibrateAfter(arm)+".");
 		if(status.getConfigCalibrateAfter(arm))
@@ -444,4 +445,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //

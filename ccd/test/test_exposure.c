@@ -1,9 +1,10 @@
 /* test_exposure.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.5 2008-11-20 11:34:58 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.6 2009-02-05 11:40:55 cjm Exp $
  */
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "log_udp.h"
 #include "ccd_dsp.h"
 #include "ccd_dsp_download.h"
 #include "ccd_interface.h"
@@ -31,7 +32,7 @@
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /* hash definitions */
 /**
@@ -78,7 +79,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_exposure.c,v 1.5 2008-11-20 11:34:58 cjm Exp $";
+static char rcsid[] = "$Id: test_exposure.c,v 1.6 2009-02-05 11:40:55 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -175,11 +176,8 @@ static int Exposure_Length = 0;
 static char *Filename = NULL;
 /**
  * Log level to use.
- * @see ../cdocs/ccd_global.html#CCD_GLOBAL_LOG_BIT_SETUP
- * @see ../cdocs/ccd_global.html#CCD_GLOBAL_LOG_BIT_EXPOSURE
- * @see ../cdocs/ccd_global.html#CCD_GLOBAL_LOG_BIT_TEMPERATURE
  */
-static int Log_Filter_Level = CCD_GLOBAL_LOG_BIT_SETUP|CCD_GLOBAL_LOG_BIT_EXPOSURE|CCD_GLOBAL_LOG_BIT_TEMPERATURE;
+static int Log_Filter_Level = LOG_VERBOSITY_VERY_VERBOSE;
 /* internal routines */
 static int Parse_Arguments(int argc, char *argv[]);
 static void Help(void);
@@ -833,10 +831,7 @@ static void Help(void)
 	fprintf(stdout,"\t<temperature> should be a valid double, a temperature in degrees Celcius.\n");
 	fprintf(stdout,"\t<exposure length> is a positive integer in milliseconds.\n");
 	fprintf(stdout,"\t<no. of pixels> and <binning factor> is a positive integer.\n");
-	fprintf(stdout,"\t<log level> is a bit field ORed as follows: "
-		"setup = %d,exposure = %d, temperature = %d, dsp = %d, interface = %d.\n",
-		CCD_GLOBAL_LOG_BIT_SETUP,CCD_GLOBAL_LOG_BIT_EXPOSURE,CCD_GLOBAL_LOG_BIT_TEMPERATURE,
-		CCD_GLOBAL_LOG_BIT_DSP,CCD_GLOBAL_LOG_BIT_INTERFACE);
+	fprintf(stdout,"\t<log level> is the verbosity between 0 and 5 inclusive.\n");
 }
 
 /**
@@ -946,6 +941,9 @@ static void Test_Fits_Header_Error(int status)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2008/11/20 11:34:58  cjm
+** *** empty log message ***
+**
 ** Revision 1.4  2006/05/16 18:18:25  cjm
 ** gnuify: Added GNU General Public License.
 **

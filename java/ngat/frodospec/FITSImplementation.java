@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.3 2008-11-28 11:15:56 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -14,20 +14,21 @@ import ngat.eip.*;
 import ngat.fits.*;
 import ngat.frodospec.ccd.*;
 import ngat.lamp.*;
+import ngat.util.logging.*;
 
 /**
  * This class provides the generic implementation of commands that write FITS files. It extends those that
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.3 2008-11-28 11:15:56 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -211,7 +212,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		MOVE_FOLD moveFold = null;
 
 		moveFold = new MOVE_FOLD(command.getId());
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			this.getClass().getName()+":moveFold:"+command.getClass().getName()+
 			":position = "+mirrorFoldPosition);
 		moveFold.setMirror_position(mirrorFoldPosition);
@@ -948,19 +949,19 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 					// get current binning for later
 					xbin = ccd.getXBin();
 					ybin = ccd.getYBin();
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_MISC,
+					frodospec.log(Logger.VERBOSITY_VERBOSE,
 						      this.getClass().getName()+
 						":saveFitsHeaders:Default window X size = "+
 						frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDWXSIZ")+" / "+xbin+" = "+
 						(frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDWXSIZ")/xbin)+".");
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_MISC,this.getClass().getName()+
+					frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 						":saveFitsHeaders:Default window Y size = "+
 						frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDWYSIZ")+" / "+ybin+" = "+
 						(frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDWYSIZ")/ybin)+".");
 					window = new CCDLibrarySetupWindow(0,0,
 							  frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDWXSIZ")/xbin,
 							  frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDWYSIZ")/ybin);
-					frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_MISC,this.getClass().getName()+
+					frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 						":saveFitsHeaders:Using default window : "+window+".");
 					frodospecFilenameList[arm].setWindowNumber(1);
 					ncols = ccd.getNCols();
@@ -1300,6 +1301,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2008/11/28 11:15:56  cjm
+// CONFIGID / getConfigId now per-arm.
+//
 // Revision 1.2  2008/11/24 14:57:23  cjm
 // Added objectName field and associated code to extraxt from returned ISS headers.
 // The OBJECT FITS header is then modified before saving for ARCs and Darks.

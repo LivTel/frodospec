@@ -1,5 +1,5 @@
 /* newmark_general.h
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/include/newmark_general.h,v 1.1 2008-11-20 11:35:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/include/newmark_general.h,v 1.2 2009-02-05 11:41:12 cjm Exp $
 */
 
 #ifndef NEWMARK_GENERAL_H
@@ -22,14 +22,6 @@
  * How long the error string is.
  */
 #define NEWMARK_ERROR_LENGTH (1024)
-
-/**
- * Value to pass into logging calls, used for all command code logging.
- * The Arcom ESS library is allocated bits 28..29.
- * This constant should be the same as that defined in ngat.frodospec.newmark.Newmark.java.
- * @see #Newmark_Log
- */
-#define NEWMARK_LOG_BIT_COMMAND	(1<<29)
 
 /**
  * Macro to check whether the parameter is either TRUE or FALSE.
@@ -58,5 +50,8 @@ extern char Newmark_Error_String[];
 #endif
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2008/11/20 11:35:52  cjm
+** Initial revision
+**
 */
 

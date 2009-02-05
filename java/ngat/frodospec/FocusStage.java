@@ -1,5 +1,5 @@
 // FocusStage.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -13,14 +13,14 @@ import ngat.frodospec.newmark.*;
 /**
  * An instance of this class is used to control a focus stage.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class FocusStage
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FocusStage.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: FocusStage.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * FrodoSpec status object.
 	 */
@@ -127,7 +127,7 @@ public class FocusStage
 		this.status = status;
 		// set logger
 		logger = LogManager.getLogger("log");
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":init:Started.");
 		// check arm and set armString
 		if(arm == FrodoSpecConfig.RED_ARM)
@@ -137,7 +137,7 @@ public class FocusStage
 		else
 			throw new IllegalArgumentException(this.getClass().getName()+":init:Illegal arm value:"+arm);
 		// load config
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":init:Loading configuration for "+armString+" arm.");
 		loadConfig();
 		// home and move focus stage for 
@@ -152,10 +152,10 @@ public class FocusStage
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":init:enable was false:Focus for arm "+armString+" not initialised.");
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+":init:Finished.");
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+":init:Finished.");
 	}
 
 	/**
@@ -177,7 +177,7 @@ public class FocusStage
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":close:enable was false:Focus for arm "+armString+" not closed.");
 		}
 	}
@@ -206,7 +206,7 @@ public class FocusStage
 				{
 					open();
 					position = newmark.getPosition();
-					logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,
+					logger.log(Logger.VERBOSITY_VERY_TERSE,
 						   this.getClass().getName()+
 						   ":getPosition:Arm "+armString+" has focus position "+position+".");
 				}
@@ -219,7 +219,7 @@ public class FocusStage
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			     ":getPosition:enable was false:Focus for arm "+armString+" not read - faking result.");
 			return 0.0;
 		}
@@ -270,13 +270,13 @@ public class FocusStage
 	{
 		String deviceIdString = null;
 
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":loadConfig:Started.");
 		// load config
 		enable = status.getPropertyBoolean("frodospec.focus."+armString+".enable");
 		if(enable)
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":loadConfig:Focus enabled for arm "+armString+".");
 			deviceIdString = status.getProperty("frodospec.focus."+armString+".device_id");
 			deviceId = ArcomESS.interfaceDeviceFromString(deviceIdString);
@@ -298,7 +298,7 @@ public class FocusStage
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":loadConfig:enable was false:Focus for arm "+armString+" not initialised.");
 		}
 	}
@@ -312,15 +312,15 @@ public class FocusStage
 	 */
 	protected void setPositionTolerance() throws NewmarkNativeException
 	{
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":setPositionTolerance:Started.");
 		if(enable)
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":setPositionTolerance:Setting to "+positionTolerance+".");
 			newmark.setPositionTolerance(positionTolerance);
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":setPositionTolerance:Finished.");
 	}
 
@@ -339,7 +339,7 @@ public class FocusStage
 	 */
 	protected void open() throws ArcomESSNativeException
 	{
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":open:Started for arm "+armString+".");
 		if(enable)
 		{
@@ -350,10 +350,10 @@ public class FocusStage
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":open: "+armString+" arm not enabled.");
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":open:Finished for arm "+armString+".");
 	}
 
@@ -371,7 +371,7 @@ public class FocusStage
 	 */
 	protected void home() throws NewmarkNativeException,ArcomESSNativeException
 	{
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":home:Started for arm "+armString+".");
 		if(enable)
 		{
@@ -392,16 +392,16 @@ public class FocusStage
 			}
 			else
 			{
-				logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 					   ":home: "+armString+" arm not enabled for movement.");
 			}
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":home: "+armString+" arm not enabled.");
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":home:Finished for arm "+armString+".");
 	}
 
@@ -420,7 +420,7 @@ public class FocusStage
 	 */
 	protected void moveToSetPoint() throws NewmarkNativeException, ArcomESSNativeException
 	{
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":moveToSetPoint:Started for arm "+armString+".");
 		if(enable)
 		{
@@ -441,19 +441,22 @@ public class FocusStage
 			}
 			else
 			{
-				logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 					   ":moveToSetPoint: "+armString+" arm not enabled for movement.");
 			}
 		}
 		else
 		{
-			logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":moveToSetPoint: "+armString+" arm not enabled.");
 		}
-		logger.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":moveToSetPoint:Finished for arm "+armString+".");
 	}
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //

@@ -1,10 +1,11 @@
 /* newmark_test_move.c
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/test/newmark_test_move.c,v 1.1 2008-11-20 11:35:54 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/test/newmark_test_move.c,v 1.2 2009-02-05 11:42:14 cjm Exp $
 */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
+#include "log_udp.h"
 #include "arcom_ess_general.h"
 #include "arcom_ess_interface.h"
 #include "newmark_general.h"
@@ -13,18 +14,18 @@
 /**
  * This program tests the Newmark motion controller MOVA command.
  * @author $Author: cjm $
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /**
- * Default bit-wise log level.
+ * Default absolute log level.
  */
-#define DEFAULT_LOG_LEVEL       (ARCOM_ESS_LOG_BIT_SERIAL|ARCOM_ESS_LOG_BIT_SOCKET|NEWMARK_LOG_BIT_COMMAND)
+#define DEFAULT_LOG_LEVEL       (LOG_VERBOSITY_VERY_VERBOSE)
 
 /* internal variables */
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: newmark_test_move.c,v 1.1 2008-11-20 11:35:54 cjm Exp $";
+static char rcsid[] = "$Id: newmark_test_move.c,v 1.2 2009-02-05 11:42:14 cjm Exp $";
 /**
  * Variable holding which type of device we are using to communicate with the PLC.
  * @see ../cdocs/arcom_ess_interface.html#ARCOM_ESS_INTERFACE_DEVICE_ID
@@ -63,10 +64,10 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Newmark Test Move command.\n");
 	/* initialise logging */
 	Arcom_ESS_Set_Log_Handler_Function(Arcom_ESS_Log_Handler_Stdout);
-	Arcom_ESS_Set_Log_Filter_Function(Arcom_ESS_Log_Filter_Level_Bitwise);
+	Arcom_ESS_Set_Log_Filter_Function(Arcom_ESS_Log_Filter_Level_Absolute);
 	Arcom_ESS_Set_Log_Filter_Level(DEFAULT_LOG_LEVEL);
 	Newmark_Set_Log_Handler_Function(Newmark_Log_Handler_Stdout);
-	Newmark_Set_Log_Filter_Function(Newmark_Log_Filter_Level_Bitwise);
+	Newmark_Set_Log_Filter_Function(Newmark_Log_Filter_Level_Absolute);
 	Newmark_Set_Log_Filter_Level(DEFAULT_LOG_LEVEL);
 	fprintf(stdout,"Parsing Arguments.\n");
 	/* parse arguments */
@@ -252,9 +253,12 @@ static void Help(void)
 	fprintf(stdout,"\t-socket_device specifies the socket device name.\n");
 	fprintf(stdout,"\t-position specifies the new absolute position in mm.\n");
 	fprintf(stdout,"\t-baud_rate changes the serial devices configured baud rate (serial connection only).\n");
-	fprintf(stdout,"\t-log_level specifies the logging. See arcom_ess_general.h/newmark_general.h for details.\n");
+	fprintf(stdout,"\t-log_level specifies the logging(0..5).\n");
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2008/11/20 11:35:54  cjm
+** Initial revision
+**
 */

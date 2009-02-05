@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.2 2008-11-28 11:16:14 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -11,20 +11,21 @@ import ngat.message.ISS_INST.OFFSET_FOCUS;
 import ngat.message.ISS_INST.OFFSET_FOCUS_DONE;
 import ngat.message.ISS_INST.INST_TO_ISS_DONE;
 import ngat.phase2.*;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation for the CONFIG command sent to a server using the
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.2 2008-11-28 11:16:14 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -249,7 +250,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			}
 			else
 			{
-				frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ALL,this.getClass().getName()+
+				frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 					      ":processCommand:CCD not enabled:CCD library NOT configured.");
 			}
 			if(testAbort(configCommand,configDone) == true)
@@ -336,11 +337,11 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		focusOffset = 0.0f;
 	// get default focus offset
 		focusOffset += status.getPropertyDouble("frodospec.focus.offset");
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ALL,this.getClass().getName()+
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			      ":setFocusOffset:Master offset is "+focusOffset+".");
 	// set the commands focus offset
 		focusOffsetCommand.setFocusOffset(focusOffset);
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_ALL,
+		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			      this.getClass().getName()+":setFocusOffset:Total offset is "+focusOffset+".");
 		instToISSDone = frodospec.sendISSCommand(focusOffsetCommand,serverConnectionThread);
 		if(instToISSDone.getSuccessful() == false)
@@ -358,6 +359,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2008/11/28 11:16:14  cjm
+// CONFIGID / incConfigId now per-arm.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //

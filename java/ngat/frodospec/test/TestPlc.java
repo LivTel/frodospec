@@ -1,5 +1,5 @@
 // TestPlc.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/TestPlc.java,v 1.1 2008-11-20 11:34:41 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/TestPlc.java,v 1.2 2009-02-05 11:40:19 cjm Exp $
 package ngat.frodospec.test;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
 /**
  * This class tests the FrodoSpec Plc class.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class TestPlc
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: TestPlc.java,v 1.1 2008-11-20 11:34:41 cjm Exp $");
+	public final static String RCSID = new String("$Id: TestPlc.java,v 1.2 2009-02-05 11:40:19 cjm Exp $");
 	/**
 	 * The properties filename to configure the Plc.
 	 */
@@ -45,15 +45,8 @@ public class TestPlc
 	protected BitFieldLogFilter logFilter = null;
 	/**
 	 * The log level.
-	 * @see ngat.eip.EIPPLC#LOG_BIT_SESSION
-	 * @see ngat.eip.EIPPLC#LOG_BIT_READ
-	 * @see ngat.eip.EIPPLC#LOG_BIT_WRITE
-	 * @see ngat.eip.EIPPLC#LOG_BIT_ADDRESS
 	 */
-	protected int logLevel = EIPPLC.LOG_BIT_SESSION|EIPPLC.LOG_BIT_READ|
-		EIPPLC.LOG_BIT_WRITE|EIPPLC.LOG_BIT_ADDRESS|
-		FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_COMMANDS|FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_REPLIES|
-		FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_PLC;
+	protected int logLevel = Logging.VERBOSITY_VERY_VERBOSE;
 	/**
 	 * The Frodospec Plc instance.
 	 */
@@ -384,4 +377,7 @@ public class TestPlc
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:34:41  cjm
+// Initial revision
+//
 //

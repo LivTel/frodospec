@@ -1,5 +1,5 @@
 // DAY_CALIBRATEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -12,20 +12,21 @@ import ngat.message.base.*;
 import ngat.message.ISS_INST.*;
 import ngat.phase2.FrodoSpecConfig;
 import ngat.util.*;
+import ngat.util.logging.*;
 
 /**
  * This class provides the implementation of a FRODOSPEC_DAY_CALIBRATE command sent to a server using the
  * Java Message System. It performs a series of BIAS and DARK frames from a configurable list,
  * taking into account frames done in previous invocations of this command (it saves it's state).
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.1 2008-11-20 11:33:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
 	/**
 	 * Initial part of a key string, used to create a list of potential day calibrations to
 	 * perform from a Java property file.
@@ -344,7 +345,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 			// add calibration instance to list
 				calibrationList.add(calibration);
 			// log
-				frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE,
+				frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
 					"Command:"+dayCalibrateCommand.getClass().getName()+
 					":Loaded calibration "+index+
 					"\n\ttype:"+calibration.getType()+
@@ -434,7 +435,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 			count = calibration.getCount();
 			lastTime = dayCalibrateState.getLastTime(arm,type,bin,exposureTime,count);
 			calibration.setLastTime(lastTime);
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE,
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
 				"Command:"+dayCalibrateCommand.getClass().getName()+":Calibration:"+
 				"\n\tarm:"+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 				":type:"+calibration.getType()+
@@ -482,7 +483,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	// We don't want to do any more calibrations, return false.
 		if(now > (implementationStartTime+dayCalibrateCommand.getTimeToComplete()))
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE,
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
 				"Command:"+dayCalibrateCommand.getClass().getName()+":Testing Calibration:"+
 				"\n\tarm:"+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 				":type:"+calibration.getType()+
@@ -499,7 +500,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	// too soon to do the calibration again.
 		if((now-calibration.getLastTime()) < calibration.getFrequency())
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE,
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
 				"Command:"+dayCalibrateCommand.getClass().getName()+":Testing Calibration:"+
 				"\n\tarm:"+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 				":type:"+calibration.getType()+
@@ -526,7 +527,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	// if it's going to take us longer than the remaining time to do this, return false
 		if((now+calibrationCompletionTime) > (implementationStartTime+dayCalibrateCommand.getTimeToComplete()))
 		{
-			frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE,
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
 				"Command:"+dayCalibrateCommand.getClass().getName()+":Testing Calibration:"+
 				"\n\tarm:"+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 				":type:"+calibration.getType()+
@@ -570,7 +571,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 		int arm;
 
 		arm = dayCalibrateCommand.getArm();
-		frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE,
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
 			      "Command:"+dayCalibrateCommand.getClass().getName()+
 			      ":doCalibrate:arm:"+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 			      ":type:"+calibration.getType()+":bin:"+calibration.getBin()+
@@ -692,7 +693,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 			}
 			else
 			{
-				frodospec.log(FrodoSpecConstants.FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE,
+				frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
 					      this.getClass().getName()+
 					      ":doConfig:CCD not enabled:CCD library NOT configured.");
 			}
@@ -714,7 +715,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	// This is queried when saving FITS headers to get the CONFIGID value.
 		try
 		{
-			status.incConfigId();
+			status.incConfigId(arm);
 		}
 		catch(Exception e)
 		{
@@ -1353,4 +1354,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:33:35  cjm
+// Initial revision
+//
 //

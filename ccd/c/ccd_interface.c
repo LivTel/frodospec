@@ -1,13 +1,13 @@
 /* ccd_interface.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.8 2008-12-04 15:05:50 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.9 2009-02-05 11:40:27 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.8 $
+ * @version $Revision: 0.9 $
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include "log_udp.h"
 #include "ccd_exposure.h"
 #include "ccd_global.h"
 #include "ccd_interface.h"
@@ -30,7 +31,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.8 2008-12-04 15:05:50 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.9 2009-02-05 11:40:27 cjm Exp $";
 
 /* external variables */
 
@@ -116,7 +117,7 @@ int CCD_Interface_Open(enum CCD_INTERFACE_DEVICE_ID device_number,char *device_p
 	CCD_Exposure_Data_Initialise((*handle));
         CCD_Setup_Data_Initialise((*handle));
 #if LOGGING > 1
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_INTERFACE,"CCD_Interface_Open() %s of type %d using handle %p.",
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_Interface_Open() %s of type %d using handle %p.",
 			      device_pathname,device_number,(*handle));
 #endif
 	/* call the device specific open routine */
@@ -361,7 +362,7 @@ int CCD_Interface_Close(CCD_Interface_Handle_T **handle)
 			return FALSE;
 	}
 #if LOGGING > 1
-	CCD_Global_Log_Format(CCD_GLOBAL_LOG_BIT_INTERFACE,"CCD_Interface_Close(): Closing handle %p of type %d.",
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_Interface_Close(): Closing handle %p of type %d.",
 			      (*handle),(*handle)->Interface_Device);
 #endif
 	/* free alocated handle */
@@ -420,6 +421,9 @@ void CCD_Interface_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.8  2008/12/04 15:05:50  cjm
+** Fixed CCD_Interface_Close so switch on interface type does not fall through to error generating code.
+**
 ** Revision 0.7  2008/11/20 11:34:46  cjm
 ** *** empty log message ***
 **
