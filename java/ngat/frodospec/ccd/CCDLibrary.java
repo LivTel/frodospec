@@ -1,5 +1,5 @@
 // CCDLibrary.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/CCDLibrary.java,v 1.1 2008-11-20 11:34:28 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/CCDLibrary.java,v 1.2 2009-02-05 11:39:58 cjm Exp $
 package ngat.frodospec.ccd;
 
 import java.lang.*;
@@ -10,14 +10,14 @@ import ngat.util.logging.*;
 /**
  * This class supports an interface to the SDSU CCD Controller library, for controlling the FrodoSpec CCD.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class CCDLibrary
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: CCDLibrary.java,v 1.1 2008-11-20 11:34:28 cjm Exp $");
+	public final static String RCSID = new String("$Id: CCDLibrary.java,v 1.2 2009-02-05 11:39:58 cjm Exp $");
 	// ccd_dsp.h
 	/* These constants should be the same as those in ccd_dsp.h */
 	/**
@@ -123,32 +123,6 @@ public class CCDLibrary
 	 * @see #getExposureStatus
 	 */
 	public final static int EXPOSURE_STATUS_POST_READOUT       = 6;
-// ccd_global.h
-	/**
-	 * Logging filter bit.
-	 * @see #setLogFilterLevel
-	 */
-	public final static int LOG_BIT_SETUP       = (1<<8);
-	/**
-	 * Logging filter bit.
-	 * @see #setLogFilterLevel
-	 */
-	public final static int LOG_BIT_EXPOSURE    = (1<<9);
-	/**
-	 * Logging filter bit.
-	 * @see #setLogFilterLevel
-	 */
-	public final static int LOG_BIT_DSP         = (1<<12);
-	/**
-	 * Logging filter bit.
-	 * @see #setLogFilterLevel
-	 */
-	public final static int LOG_BIT_INTERFACE   = (1<<13);
-	/**
-	 * Logging filter bit.
-	 * @see #setLogFilterLevel
-	 */
-	public final static int LOG_BIT_GLOBAL      = (1<<14);
 // ccd_interface.h
 	/* These constants should be the same as those in ccd_interface.h */
 	/**
@@ -690,11 +664,6 @@ public class CCDLibrary
 	 * Routine that changes the libfrodospec_ccd logging filter level.
 	 * @param level The logging filter level.
 	 * @see #CCD_Global_Set_Log_Filter_Level
-	 * @see #LOG_BIT_SETUP
-	 * @see #LOG_BIT_EXPOSURE
-	 * @see #LOG_BIT_DSP
-	 * @see #LOG_BIT_INTERFACE
-	 * @see #LOG_BIT_GLOBAL
 	 */
 	public void setLogFilterLevel(int level)
 	{
@@ -1196,4 +1165,7 @@ public class CCDLibrary
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2008/11/20 11:34:28  cjm
+// Initial revision
+//
 //
