@@ -1,0 +1,16 @@
+# $Header: /home/cjm/cvs/frodospec/Makefile.common,v 1.1 2009-02-05 11:42:55 cjm Exp $
+
+SHELL                    =       /bin/sh
+FRODOSPEC_HOME           =       frodospec
+FRODOSPEC_SRC_HOME       =       $(LT_SRC_HOME)/$(FRODOSPEC_HOME)
+FRODOSPEC_BIN_HOME       =       $(LT_BIN_HOME)/$(FRODOSPEC_HOME)
+FRODOSPEC_DOC_HOME       =       $(LT_DOC_HOME)/$(FRODOSPEC_HOME)
+
+# log_udp library (log_udp.h is included for verbosity settings)
+LOG_UDP_HOME		= log_udp
+LOG_UDP_SRC_HOME	= $(LT_SRC_HOME)/$(LOG_UDP_HOME)
+LOG_UDP_CFLAGS		= -I$(LOG_UDP_SRC_HOME)/include
+
+#
+# $Log: not supported by cvs2svn $
+#
