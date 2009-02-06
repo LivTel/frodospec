@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.5 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.6 2009-02-06 15:28:04 cjm Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.5 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.6 2009-02-06 15:28:04 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1425,9 +1425,7 @@ public class FrodoSpec
 	/**
 	 * Method to set the level of logging filtered. The status, logFilter, and filters associated with
 	 * the CCDLibrary, EIPPLC, FocusStage, lamp unit objects all have their filters set.
-	 * @param level An integer, used as a bit-field. Each bit set will allow
-	 * any messages with that level bit set to be logged. e.g. 0 logs no messages,
-	 * 127 logs any messages with one of the first 8 bits set.
+	 * @param level An integer, used as a verbosity level.
 	 * @see #status
 	 * @see #logLogger
 	 * @see #errorLogger
@@ -1959,6 +1957,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.4  2008/12/15 18:04:29  cjm
 // Added ngat.lamp to list of handlers to copy.
 //
