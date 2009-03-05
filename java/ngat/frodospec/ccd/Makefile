@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/Makefile,v 1.1 2008-11-20 11:34:34 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/Makefile,v 1.2 2009-03-05 16:18:22 cjm Exp $
 include ../../../../../Makefile.common
 include	../../../../Makefile.common
 
@@ -12,8 +12,7 @@ SRCS 		= CCDLibraryNativeException.java CCDLibraryFormatException.java CCDLibrar
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 DOCS 		= $(SRCS:%.java=$(DOCSDIR)/%.html)
 
-DIRS 		= 
-#test
+DIRS 		= test
 
 top: $(OBJS)
 	@for i in $(DIRS); \
@@ -60,4 +59,7 @@ backup: tidy
 	done;
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2008/11/20 11:34:34  cjm
+# Initial revision
+#
 #
