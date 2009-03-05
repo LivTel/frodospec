@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.2 2008-12-15 14:44:05 cjm Exp $
-# Version: $Revision: 1.2 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.3 2009-03-05 12:15:37 cjm Exp $
+# Version: $Revision: 1.3 $
 # By $Author: cjm $
 # Make a deployment tar file.
 # This contains:
@@ -254,7 +254,7 @@ echo "${file_count} scripts copied."
 #
 # in bin sub-directories
 echo "Copying machine configuration files..."
-set file_list = "frodospec/java/${machine_name}.fits.properties frodospec/java/${machine_name}.frodospec.net.properties frodospec/java/${machine_name}.frodospec.properties ccs_gui/java/${machine_name}.ccs_gui.properties ccs_gui/java/${machine_name}.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties dprt/java/${machine_name}.dprt.properties autobooter/java/${machine_name}.autobooter.properties frodospec/java/lamp.properties"
+set file_list = "frodospec/java/${machine_name}.fits.properties frodospec/java/${machine_name}.frodospec.net.properties frodospec/java/${machine_name}.frodospec.properties frodospec/java/test_ccd_redatum.properties ccs_gui/java/${machine_name}.ccs_gui.properties ccs_gui/java/${machine_name}.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties dprt/java/${machine_name}.dprt.properties autobooter/java/${machine_name}.autobooter.properties frodospec/java/lamp.properties"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -368,6 +368,9 @@ echo "Download ${deployment_tar}.gz frodospec_tar_install icc_cshrc icc_cshrc_ed
 echo "Deployment ready."
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.2  2008/12/15 14:44:05  cjm
+# Fixed deployment machine name.
+#
 # Revision 1.1  2008/12/01 10:37:20  cjm
 # Initial revision
 #
