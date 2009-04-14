@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.5 2009-04-14 16:02:21 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.5 2009-04-14 16:02:21 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -403,12 +403,14 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		Date date = null;
 		Vector defaultFitsHeaderList = null;
 		double doubleValue = 0.0;
-		int xbin,ybin,ivalue;
+		int xbin,ybin,naxis2,ccdximsi,ivalue;
 		int preScan,postScan;
 		String currentResolutionString = null;
 		String plcAddress = null;
 		String lampName = null;
 		float fvalue;
+		int wavelength;
+		double dispersion,crpix1;
 
 		// which arm do we need the data for
 		if(arm == FrodoSpecConfig.RED_ARM)
@@ -448,7 +450,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			cardImage.setValue(new Integer(ccd.getNCols()));
 		// NAXIS2
 			cardImage = frodospecFitsHeaderList[arm].get("NAXIS2");
-			cardImage.setValue(new Integer(ccd.getNRows()));
+			naxis2 = ccd.getNRows();
+			cardImage.setValue(new Integer(naxis2));
 		// OBSTYPE
 			cardImage = frodospecFitsHeaderList[arm].get("OBSTYPE");
 			cardImage.setValue(obsTypeString);
@@ -507,6 +510,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				    status.getNumberColumns(xbin)+"."+getCCDRDOUTValue()+"."+xbin);
 			cardImage.setValue(new Integer(postScan));
 		// CCDXIMSI
+			ccdximsi = frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDXIMSI")/xbin;
 		// CCDYIMSI
 		// CCDSCALE
 		// CCDRDOUT
@@ -546,12 +550,14 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 						       getValueInteger("ROTCENTY")/ybin));
 		// WAVCENT
 			cardImage = frodospecFitsHeaderList[arm].get("WAVCENT");
-			cardImage.setValue(new Integer(frodospecFitsHeaderDefaultsList[arm].getValueInteger(
-				  "WAVCENT."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString)));
+			wavelength = frodospecFitsHeaderDefaultsList[arm].getValueInteger(
+				     "WAVCENT."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString);
+			cardImage.setValue(new Integer(wavelength));
 		// WAVDISP
 			cardImage = frodospecFitsHeaderList[arm].get("WAVDISP");
-			cardImage.setValue(new Double(frodospecFitsHeaderDefaultsList[arm].getValueDouble(
-				  "WAVDISP."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString)));
+			dispersion = frodospecFitsHeaderDefaultsList[arm].getValueDouble(
+				  "WAVDISP."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString);
+			cardImage.setValue(new Double(dispersion));
 		// WAVRESOL
 			cardImage = frodospecFitsHeaderList[arm].get("WAVRESOL");
 			cardImage.setValue(new Double(frodospecFitsHeaderDefaultsList[arm].getValueDouble(
@@ -695,6 +701,26 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			ivalue = plc.getFaultStatus();
 			cardImage = frodospecFitsHeaderList[arm].get("STATFALT");
 			cardImage.setValue(new Integer(ivalue));
+		// Axis 1 WCS - in pixels (actually fibres)
+		// CRVAL1 - axis 1 reference value is half way between 0 and (naxis2-1)
+			cardImage = frodospecFitsHeaderList[arm].get("CRVAL1");
+			cardImage.setValue(new Double( (((double)naxis2)-1.0)/(((double)ybin)*2.0)));
+		// CRPIX1
+			cardImage = frodospecFitsHeaderList[arm].get("CRPIX1");
+			cardImage.setValue(new Double(((double)naxis2)/(((double)ybin)*2.0)));
+		// Axis 1 WCS - in Angstroms/wavelength
+		// CRVAL2
+			cardImage = frodospecFitsHeaderList[arm].get("CRVAL2");
+			cardImage.setValue(new Double(wavelength));
+		// CRPIX2
+			cardImage = frodospecFitsHeaderList[arm].get("CRPIX2");
+			// ccdximsi and preScan have already accounted for xbin
+			crpix1 = (double)((((double)ccdximsi)/2.0)+((double)preScan));
+			// old value ((double)naxis1)/(((double)xbin)*2.0)
+			cardImage.setValue(new Double(crpix1));
+		// CDELT2
+			cardImage = frodospecFitsHeaderList[arm].get("CDELT2");
+			cardImage.setValue(new Double(dispersion));
 		}// end try
 		// ngat.fits.FitsHeaderException thrown by frodospecFitsHeaderDefaults.getValue
 		// ngat.util.FileUtilitiesNativeException thrown by FrodoSpecStatus.getConfigId
@@ -1301,6 +1327,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.3  2008/11/28 11:15:56  cjm
 // CONFIGID / getConfigId now per-arm.
 //
