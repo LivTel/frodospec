@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.5 2009-04-14 16:02:21 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.6 2009-04-28 13:16:56 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.5 2009-04-14 16:02:21 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.6 2009-04-28 13:16:56 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -346,7 +346,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * FILTER1, FILTERI1, FILTER2, FILTERI2, CONFIGID, CONFNAME, 
 	 * PRESCAN, POSTSCAN, CCDXIMSI, CCDYIMSI, CCDSCALE, CCDRDOUT,
 	 * CCDXBIN, CCDYBIN, CCDSTEMP, CCDATEMP, CCDWMODE, CALBEFOR, CALAFTER,
-	 * WAVCENT, WAVDISP, WAVRESOL, WAVSHORT, WAVLONG, COLID, CAMID, FOREID, ENVTEMP1.
+	 * WAVCENT, WAVDISP, WAVRESOL, WAVSHORT, WAVLONG, WAVSET, COLID, CAMID, FOREID, ENVTEMP1,
+	 * CRPIX1, CRVAL1, CDELT2, CRVAL2, CRPIX2..
 	 * Windowing keywords CCDWXOFF, CCDWYOFF, CCDWXSIZ, CCDWYSIZ are not implemented at the moment.
 	 * Note the DATE, DATE-OBS, UTSTART and MJD keywords are given the value of the current
 	 * system time, this value is updated to the exposure start time when the image has been exposed. </p>
@@ -409,8 +410,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		String plcAddress = null;
 		String lampName = null;
 		float fvalue;
-		int wavelength;
-		double dispersion,crpix1;
+		double wavelength;
 
 		// which arm do we need the data for
 		if(arm == FrodoSpecConfig.RED_ARM)
@@ -550,14 +550,13 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 						       getValueInteger("ROTCENTY")/ybin));
 		// WAVCENT
 			cardImage = frodospecFitsHeaderList[arm].get("WAVCENT");
-			wavelength = frodospecFitsHeaderDefaultsList[arm].getValueInteger(
-				     "WAVCENT."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString);
-			cardImage.setValue(new Integer(wavelength));
+			wavelength = frodospecFitsHeaderDefaultsList[arm].getValueDouble(
+			      "WAVCENT."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString);
+			cardImage.setValue(new Double(wavelength));
 		// WAVDISP
 			cardImage = frodospecFitsHeaderList[arm].get("WAVDISP");
-			dispersion = frodospecFitsHeaderDefaultsList[arm].getValueDouble(
-				  "WAVDISP."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString);
-			cardImage.setValue(new Double(dispersion));
+			cardImage.setValue(new Double(frodospecFitsHeaderDefaultsList[arm].getValueDouble(
+				  "WAVDISP."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString)));
 		// WAVRESOL
 			cardImage = frodospecFitsHeaderList[arm].get("WAVRESOL");
 			cardImage.setValue(new Double(frodospecFitsHeaderDefaultsList[arm].getValueDouble(
@@ -570,6 +569,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			cardImage = frodospecFitsHeaderList[arm].get("WAVLONG");
 			cardImage.setValue(new Integer(frodospecFitsHeaderDefaultsList[arm].getValueInteger(
 				  "WAVLONG."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString)));
+		// WAVSET
+			cardImage = frodospecFitsHeaderList[arm].get("WAVSET");
+			cardImage.setValue(new Double(wavelength));
 		// LAMPS
 			lampUnit = frodospec.getLampUnit();
 			try
@@ -703,24 +705,26 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			cardImage.setValue(new Integer(ivalue));
 		// Axis 1 WCS - in pixels (actually fibres)
 		// CRVAL1 - axis 1 reference value is half way between 0 and (naxis2-1)
-			cardImage = frodospecFitsHeaderList[arm].get("CRVAL1");
-			cardImage.setValue(new Double( (((double)naxis2)-1.0)/(((double)ybin)*2.0)));
+			//cardImage = frodospecFitsHeaderList[arm].get("CRVAL1");
+			//cardImage.setValue(new Double( (((double)naxis2)-1.0)/(((double)ybin)*2.0)));
 		// CRPIX1
-			cardImage = frodospecFitsHeaderList[arm].get("CRPIX1");
-			cardImage.setValue(new Double(((double)naxis2)/(((double)ybin)*2.0)));
+			//cardImage = frodospecFitsHeaderList[arm].get("CRPIX1");
+			//cardImage.setValue(new Double(((double)naxis2)/(((double)ybin)*2.0)));
 		// Axis 1 WCS - in Angstroms/wavelength
+	        // Retrieved from per arm/resolution fits header default config values
 		// CRVAL2
 			cardImage = frodospecFitsHeaderList[arm].get("CRVAL2");
-			cardImage.setValue(new Double(wavelength));
+			cardImage.setValue(new Double(frodospecFitsHeaderDefaultsList[arm].getValueDouble(
+				  "CRVAL2."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString)));
+
 		// CRPIX2
 			cardImage = frodospecFitsHeaderList[arm].get("CRPIX2");
-			// ccdximsi and preScan have already accounted for xbin
-			crpix1 = (double)((((double)ccdximsi)/2.0)+((double)preScan));
-			// old value ((double)naxis1)/(((double)xbin)*2.0)
-			cardImage.setValue(new Double(crpix1));
+			cardImage.setValue(new Double(frodospecFitsHeaderDefaultsList[arm].getValueDouble(
+				  "CRPIX2."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString)));
 		// CDELT2
 			cardImage = frodospecFitsHeaderList[arm].get("CDELT2");
-			cardImage.setValue(new Double(dispersion));
+			cardImage.setValue(new Double(frodospecFitsHeaderDefaultsList[arm].getValueDouble(
+				  "CDELT2."+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+currentResolutionString)));
 		}// end try
 		// ngat.fits.FitsHeaderException thrown by frodospecFitsHeaderDefaults.getValue
 		// ngat.util.FileUtilitiesNativeException thrown by FrodoSpecStatus.getConfigId
@@ -1327,6 +1331,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2009/04/14 16:02:21  cjm
+// Added FITS headers for basic spectrograph WCS.
+//
 // Revision 1.4  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
