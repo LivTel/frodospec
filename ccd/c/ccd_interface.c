@@ -1,13 +1,13 @@
 /* ccd_interface.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.9 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.10 2009-04-30 14:19:31 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.9 $
+ * @version $Revision: 0.10 $
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -18,6 +18,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include "log_udp.h"
+#include "ccd_dsp.h"
 #include "ccd_exposure.h"
 #include "ccd_global.h"
 #include "ccd_interface.h"
@@ -31,7 +32,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.9 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.10 2009-04-30 14:19:31 cjm Exp $";
 
 /* external variables */
 
@@ -74,6 +75,7 @@ void CCD_Interface_Initialise(void)
  * 	if the device was successfully opened, or FALSE if it failed in some way.
  * @see #CCD_INTERFACE_DEVICE_ID
  * @see #CCD_Interface_Handle_T
+ * @see ccd_dsp.html#CCD_DSP_Data_Initialise
  * @see ccd_exposure.html#CCD_Exposure_Data_Initialise
  * @see ccd_text.html#CCD_Text_Open
  * @see ccd_pci.html#CCD_PCI_Open
@@ -113,7 +115,8 @@ int CCD_Interface_Open(enum CCD_INTERFACE_DEVICE_ID device_number,char *device_p
 	}
 	/* set the device type */
 	(*handle)->Interface_Device = device_number;
-	/* initialise setup and exposure data */
+	/* initialise dsp, setup and exposure data */
+        CCD_DSP_Data_Initialise((*handle));
 	CCD_Exposure_Data_Initialise((*handle));
         CCD_Setup_Data_Initialise((*handle));
 #if LOGGING > 1
@@ -421,6 +424,9 @@ void CCD_Interface_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.9  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 0.8  2008/12/04 15:05:50  cjm
 ** Fixed CCD_Interface_Close so switch on interface type does not fall through to error generating code.
 **
