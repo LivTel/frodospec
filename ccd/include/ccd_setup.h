@@ -1,5 +1,5 @@
 /* ccd_setup.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.14 2008-11-20 11:34:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.15 2009-04-30 14:22:45 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -97,7 +97,7 @@ extern int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nro
 	enum CCD_DSP_AMPLIFIER amplifier,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,
 	int window_flags,struct CCD_Setup_Window_Struct window_list[]);
 extern int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count);
-extern void CCD_Setup_Abort(void);
+extern void CCD_Setup_Abort(CCD_Interface_Handle_T* handle);
 extern int CCD_Setup_Get_NCols(CCD_Interface_Handle_T* handle);
 extern int CCD_Setup_Get_NRows(CCD_Interface_Handle_T* handle);
 extern int CCD_Setup_Get_NSBin(CCD_Interface_Handle_T* handle);
