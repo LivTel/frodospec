@@ -11,14 +11,14 @@ import ngat.util.logging.*;
 /**
  * An instance of this class is used to control the FrodoSpec Plc.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class Plc
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: Plc.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: Plc.java,v 1.3 2009-04-30 09:54:13 cjm Exp $");
 	/**
 	 * The number of temperature probes in FrodoSpec.
 	 */
@@ -370,6 +370,11 @@ public class Plc
 	 * @see #setGrating
 	 */
 	protected int gratingMoveSleepTime = 100;
+	/**
+	 * Abort flag set by abort method. Currently used to abort setGrating
+	 * as part of a CONFIG abort.
+	 */
+	protected boolean abortMovement = false;
 
 	/**
 	 * Constructor. Also creates plc instance at this point, so we can configure
@@ -699,6 +704,7 @@ public class Plc
 	 *     <li>Reset any faults using <b>faultReset</b>
 	 *     <li>if <b>moveEnable</b> is true, we:
 	 *         <ul>
+	 *         <li>Reset the abortMovement flag.
 	 *         <li>We select the demand PLC address from the arm, or throw an error is the arm is illegal.
 	 *         <li>We work out the transit bit based on arm.
 	 *         <li>We work out the in position and fault bit based on arm / resolution.
@@ -713,6 +719,8 @@ public class Plc
 	 *             <li>We determine if the PLC is in local, log and error accordingly. 
 	 *             <li>We read the fault status using <b>getFaultStatus</b>.
 	 *             <li>If the relevant fault bit is set we log and error accordingly.
+	 *             <li>If the abortMovement flag has been set by another (abort) thread 
+	 *                 we log and error accordingly.
 	 *             </ul>
 	 *         </ul>
 	 *     <li>else if <b>moveEnable</b> is false we log we havn't moved the grating.
@@ -740,6 +748,7 @@ public class Plc
 	 * @see #printBits
 	 * @see #gratingDemandPLCAddress
 	 * @see #gratingMoveSleepTime
+	 * @see #abortMovement
 	 * @see #MECH_STATUS_GRATING_RED_IN_TRANSIT
 	 * @see #MECH_STATUS_GRATING_BLUE_IN_TRANSIT
 	 * @see #MECH_STATUS_GRATING_RED_IN_POSITION_HIGH
@@ -784,6 +793,8 @@ public class Plc
 			faultReset();
 			if(moveEnable)
 			{
+				// reset abort flag
+				abortMovement = false;
 				// work out PLC address from arm
 				if(arm == FrodoSpecConfig.RED_ARM)
 					demandPLCAddress = gratingDemandPLCAddress[arm];
@@ -841,7 +852,7 @@ public class Plc
 					   ":Setting "+demandPLCAddress+" to "+demandValue+".");
 				plc.setBoolean(handle,demandPLCAddress,demandValue);
 				// monitor for completion/error
-				done = false;
+				done = false;	
 				while(done == false)
 				{
 					// sleep for a bit
@@ -894,6 +905,15 @@ public class Plc
 								    ":setGrating:Grating Position Fault bit set:"+
 								    printBits(faultStatus));
 					}
+					// check abort flag
+					if(abortMovement)
+					{
+						logger.log(Logger.VERBOSITY_VERBOSE,
+							   this.getClass().getName()+
+							   ":setGrating:Abort movement flag set:Aborting.");
+						throw new Exception(this.getClass().getName()+
+								    ":setGrating:Abort movement flag set:Aborting.");
+					}
 				}// end while on done
 			}
 			else
@@ -910,6 +930,16 @@ public class Plc
 		}
 		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
 			   ":setGrating:Finished.");
+	}
+
+	/**
+	 * Abort method. This currently sets the abortMovement flag to true.
+	 * This should abort (throw an exception) in any running setGrating methods.
+	 * @see #abortMovement
+	 */
+	public void abort()
+	{
+		abortMovement = true;
 	}
 
 	/**
@@ -1773,6 +1803,9 @@ public class Plc
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
