@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.31 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.32 2009-04-30 14:21:30 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.31 $
+ * @version $Revision: 0.32 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -40,7 +40,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.31 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.32 2009-04-30 14:21:30 cjm Exp $";
 
 /* #defines */
 /**
@@ -291,7 +291,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 /* we are in a setup routine */
 	handle->Setup_Data.Setup_In_Progress = TRUE;
 /* reset abort flag - we havn't aborted yet! */
-	CCD_DSP_Set_Abort(FALSE);
+	CCD_DSP_Set_Abort(handle,FALSE);
 /* reset completion flags - even dimension flag is reset, as the controller itself is reset */
 	handle->Setup_Data.Power_Complete = FALSE;
 	handle->Setup_Data.PCI_Complete = FALSE;
@@ -299,7 +299,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 	handle->Setup_Data.Utility_Complete = FALSE;
 	handle->Setup_Data.Dimension_Complete = FALSE;
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 67;
@@ -315,7 +315,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 	else   /*acknowlege PCI load complete*/
 		handle->Setup_Data.PCI_Complete = TRUE;
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 68;
@@ -334,7 +334,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 69;
@@ -348,7 +348,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return(FALSE);
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 70;
@@ -362,7 +362,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 71;
@@ -378,7 +378,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 	else   /*acknowlege timing load complete*/
 		handle->Setup_Data.Timing_Complete = TRUE;
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 72;
@@ -394,7 +394,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 	else /*acknowlege utility load complete*/ 
 		handle->Setup_Data.Utility_Complete = TRUE;
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 73;
@@ -410,7 +410,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 	else /*acknowlege power on complete*/ 
 		handle->Setup_Data.Power_Complete = TRUE;
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 74;
@@ -424,7 +424,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 75;
@@ -441,7 +441,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 76;
@@ -482,14 +482,14 @@ int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Stutdown(handle=%p) started.",handle);
 #endif
 /* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
+	CCD_DSP_Set_Abort(handle,FALSE);
 /* perform a power off */
 	if(!Setup_Power_Off(handle))
 	{
 		return FALSE;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 77;
@@ -566,7 +566,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 /* we are in a setup routine */
 	handle->Setup_Data.Setup_In_Progress = TRUE;
 /* reset abort flag - we havn't aborted yet! */
-	CCD_DSP_Set_Abort(FALSE);
+	CCD_DSP_Set_Abort(handle,FALSE);
 /* reset dimension flag */
 	handle->Setup_Data.Dimension_Complete = FALSE;
 /* The binning needs to be done first to set the final
@@ -600,7 +600,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 		return FALSE; 
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 78;
@@ -614,7 +614,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 		return FALSE;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 79;
@@ -630,7 +630,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 	else /*acknowlege dimensions complete*/ 
 		handle->Setup_Data.Dimension_Complete = TRUE;
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 80;
@@ -673,7 +673,7 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 	int pci_errno,tim_errno,util_errno;	/* num of test encountered, per board */
 
 	Setup_Error_Number = 0;
-	CCD_DSP_Set_Abort(FALSE);
+	CCD_DSP_Set_Abort(handle,FALSE);
 	value_increment = TDL_MAX_VALUE/test_count;
 
 	/* test the PCI board test_count times */
@@ -687,7 +687,7 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 		value += value_increment;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 81;
@@ -705,7 +705,7 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 		value += value_increment;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 82;
@@ -723,14 +723,13 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 		value += value_increment;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 83;
 		sprintf(Setup_Error_String,"CCD_Setup_Hardware_Test:Aborted.");
 		return FALSE;
 	}
-
 	/* if some PCI errors occured, setup an error message and determine whether it was fatal or not */
 	if(pci_errno > 0)
 	{
@@ -770,15 +769,16 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 /**
  * Routine to abort a setup that is underway. This will cause CCD_Setup_Startup and CCD_Setup_Dimensions
  * to return FALSE as it will fail to complete the setup.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @see #CCD_Setup_Startup
  * @see #CCD_Setup_Dimensions
  */
-void CCD_Setup_Abort(void)
+void CCD_Setup_Abort(CCD_Interface_Handle_T* handle)
 {
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Abort() started.");
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Abort(handle=%p) started.",handle);
 #endif
-	CCD_DSP_Set_Abort(TRUE);
+	CCD_DSP_Set_Abort(handle,TRUE);
 }
 
 /**
@@ -2075,6 +2075,9 @@ static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.31  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 0.30  2008/12/11 16:50:26  cjm
 ** Added handle logging for multiple CCD system.
 **
