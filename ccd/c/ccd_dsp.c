@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.53 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.54 2009-04-30 14:16:35 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.53 $
+ * @version $Revision: 0.54 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -36,14 +36,16 @@
 #include "log_udp.h"
 #include "ccd_global.h"
 #include "ccd_interface.h"
+#include "ccd_interface_private.h"
 #include "ccd_pci.h"
 #include "ccd_dsp.h"
+#include "ccd_dsp_private.h"
 #include "ccd_exposure.h"
 
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.53 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.54 2009-04-30 14:16:35 cjm Exp $";
 
 /* defines */
 /**
@@ -55,21 +57,6 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.53 2009-02-05 11:40:27 cjm Exp $";
 #define	DSP_ACTUAL_VALUE 		-1 /* flag indicating return value of DSP command is to be returned as data */
 
 /* structure */
-/**
- * Structure used to hold local data to ccd_dsp.
- * <dl>
- * <dt>Abort</dt> <dd>Whether it has been requested to abort the current operation.</dd>
- * <dt>Mutex</dt> <dd>Optionally compiled mutex locking for sending commands and getting replies from the 
- * 	controller.</dd>
- * </dl>
- */
-struct DSP_Attr_Struct
-{
-	volatile int Abort; /* This is volatile as a different thread may change this variable. */
-#ifdef CCD_DSP_MUTEXED
-	pthread_mutex_t Mutex;
-#endif
-};
 
 /* external variables */
 
@@ -82,21 +69,6 @@ static int DSP_Error_Number = 0;
  * Internal  variable holding description of the last error that occured.
  */
 static char DSP_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
-/**
- * Data holding the current status of ccd_dsp. This is statically initialised to the following:
- * <dl>
- * <dt>Abort</dt> <dd>FALSE</dd>
- * <dt>Mutex</dt> <dd>If compiled in, PTHREAD_MUTEX_INITIALIZER</dd>
- * </dl>
- * @see #DSP_Attr_Struct
- */
-static struct DSP_Attr_Struct DSP_Data = 
-{
-	FALSE,
-#ifdef CCD_DSP_MUTEXED
-	PTHREAD_MUTEX_INITIALIZER
-#endif
-};
 
 /* internal functions */
 static int DSP_Send_Lda(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value);
@@ -138,8 +110,8 @@ static int DSP_Send_Command(CCD_Interface_Handle_T* handle,int hcvr_command,int 
 static int DSP_Check_Reply(int reply,int expected_reply);
 
 #ifdef CCD_DSP_MUTEXED
-static int DSP_Mutex_Lock(void);
-static int DSP_Mutex_Unlock(void);
+static int DSP_Mutex_Lock(CCD_Interface_Handle_T* handle);
+static int DSP_Mutex_Unlock(CCD_Interface_Handle_T* handle);
 #endif
 static char *DSP_Manual_Command_To_String(int manual_command);
 
@@ -158,7 +130,6 @@ static char *DSP_Manual_Command_To_String(int manual_command);
 int CCD_DSP_Initialise(void)
 {
 	DSP_Error_Number = 0;
-	DSP_Data.Abort = FALSE;
 /* don't intialise the mutex here, it is statically initialised, once only */
 /* print some compile time information to stdout */
 	fprintf(stdout,"CCD_DSP_Initialise:%s.\n",rcsid);
@@ -179,6 +150,34 @@ int CCD_DSP_Initialise(void)
 #endif
 	fflush(stdout);
 	return TRUE;
+}
+
+/**
+ * Routine to initialise the dsp data in the interface handle. The data is initialsied as follows:
+ * <dl>
+ * <dt>Abort</dt> <dd>FALSE</dd>
+ * <dt>Mutex</dt> <dd>If compiled in, PTHREAD_MUTEX_INITIALIZER.</dd>
+ * </dl>
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
+ * @see ccd_dsp_private.html#CCD_DSP_Struct
+ * @see ccd_interface.html#CCD_Interface_Handle_T
+ */
+void CCD_DSP_Data_Initialise(CCD_Interface_Handle_T* handle)
+{
+	/*
+#ifdef CCD_DSP_MUTEXED
+	pthread_mutexattr_t mutexattr;
+#endif
+	*/
+
+	handle->DSP_Data.Abort = FALSE;
+#ifdef CCD_DSP_MUTEXED
+	/*
+	pthread_mutexattr_init(&mutexattr);
+	*/
+	pthread_mutex_init(&(handle->DSP_Data.Mutex),NULL);
+#endif
+
 }
 
 /* Boot commands */
@@ -223,18 +222,18 @@ int CCD_DSP_Command_LDA(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Lda(handle,board_id,application_number,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - should be DON */
@@ -310,7 +309,7 @@ int CCD_DSP_Command_RDM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 /* Version 1.3: We can only read memory on the utility board when we are not exposing.
@@ -335,7 +334,7 @@ int CCD_DSP_Command_RDM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		DSP_Error_Number = 64; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RDM failed:Illegal Exposure Status (%d) when"
@@ -346,12 +345,12 @@ int CCD_DSP_Command_RDM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 	if(!DSP_Send_Rdm(handle,board_id,mem_space,address,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - actual value of memory location returned so this does nothing! */
@@ -395,7 +394,7 @@ int CCD_DSP_Command_TDL(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 /* Version 1.3: We can only TDL on the utility board when we are not exposing.
@@ -420,7 +419,7 @@ int CCD_DSP_Command_TDL(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		DSP_Error_Number = 65; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_TDL failed:Illegal Exposure Status (%d) when"
@@ -431,12 +430,12 @@ int CCD_DSP_Command_TDL(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 	if(!DSP_Send_Tdl(handle,board_id,data,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - data value sent should be returned */
@@ -501,7 +500,7 @@ int CCD_DSP_Command_WRM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 /* Version 1.3: We can only write memory on the utility board when we are not exposing.
@@ -526,7 +525,7 @@ int CCD_DSP_Command_WRM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 #endif
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		DSP_Error_Number = 91; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_WRM failed:Illegal Exposure Status (%d) when"
@@ -537,12 +536,12 @@ int CCD_DSP_Command_WRM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID boa
 	if(!DSP_Send_Wrm(handle,board_id,mem_space,address,data,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -597,7 +596,6 @@ int CCD_DSP_Command_ABR(CCD_Interface_Handle_T* handle)
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #DSP_Send_Clr
  * @see #DSP_Check_Reply
- * @see #DSP_Data
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
 int CCD_DSP_Command_CLR(CCD_Interface_Handle_T* handle)
@@ -609,18 +607,18 @@ int CCD_DSP_Command_CLR(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_CLR(handle=%p) started.",handle);
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Clr(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -641,7 +639,6 @@ int CCD_DSP_Command_CLR(CCD_Interface_Handle_T* handle)
  * and receiving a reply from it.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
- * @see #DSP_Data
  * @see #CCD_DSP_Command_SEX
  * @see #DSP_Send_Rdc
  * @see ccd_interface.html#CCD_Interface_Handle_T
@@ -655,20 +652,20 @@ int CCD_DSP_Command_RDC(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_RDC() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 /* set exposure status */
 	if(!DSP_Send_Rdc(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 /* no reply is generated for a RDC command. */
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 	{
 		return FALSE;
 	}
@@ -701,18 +698,18 @@ int CCD_DSP_Command_IDL(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_IDL() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Idl(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 /* check reply - DON should be returned */
@@ -742,18 +739,18 @@ int CCD_DSP_Command_SBV(CCD_Interface_Handle_T* handle)
 
 	DSP_Error_Number = 0;
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Sbv(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -802,18 +799,18 @@ int CCD_DSP_Command_SGN(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,in
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Sgn(handle,gain,speed,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -857,18 +854,18 @@ int CCD_DSP_Command_SOS(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER am
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Sos(handle,amplifier,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -925,18 +922,18 @@ int CCD_DSP_Command_SSP(CCD_Interface_Handle_T* handle,int y_offset,int x_offset
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Ssp(handle,y_offset,x_offset,bias_x_offset,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -991,18 +988,18 @@ int CCD_DSP_Command_SSS(CCD_Interface_Handle_T* handle,int bias_width,int box_wi
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Sss(handle,bias_width,box_width,box_height,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1036,18 +1033,18 @@ int CCD_DSP_Command_STP(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_STP() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Stp(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1080,18 +1077,18 @@ int CCD_DSP_Command_AEX(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_AEX(handle=%p) started.",handle);
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Aex(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1121,18 +1118,18 @@ int CCD_DSP_Command_CSH(CCD_Interface_Handle_T* handle)
 
 	DSP_Error_Number = 0;
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Csh(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1158,18 +1155,18 @@ int CCD_DSP_Command_OSH(CCD_Interface_Handle_T* handle)
 
 	DSP_Error_Number = 0;
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Osh(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1199,18 +1196,18 @@ int CCD_DSP_Command_PEX(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_PEX() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Pex(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1242,18 +1239,18 @@ int CCD_DSP_Command_PON(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_PON(handle=%p) started.",handle);
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Pon(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1286,18 +1283,18 @@ int CCD_DSP_Command_POF(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_POF(handle=%p) started.",handle);
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Pof(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1331,18 +1328,18 @@ int CCD_DSP_Command_REX(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_REX() started.");
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Rex(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - DON should be returned */
@@ -1364,7 +1361,6 @@ int CCD_DSP_Command_REX(CCD_Interface_Handle_T* handle)
  * @param exposure_length The length of exposure we are about to start. Passed to DSP_Send_Sex.
  * @return The routine returns DON if the command succeeded and FALSE if the command failed.
  * @see #CCD_DSP_EXPOSURE_MAX_LENGTH
- * @see #DSP_Data
  * @see #DSP_Send_Sex
  * @see #DSP_Check_Reply
  * @see ccd_interface.html#CCD_Interface_Handle_T
@@ -1379,18 +1375,18 @@ int CCD_DSP_Command_SEX(CCD_Interface_Handle_T* handle,struct timespec start_tim
 			      handle,exposure_length);
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Sex(handle,start_time,exposure_length,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-       	if(!DSP_Mutex_Unlock())
+       	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 #if LOGGING > 4
@@ -1425,18 +1421,18 @@ int CCD_DSP_Command_Reset(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_Reset(handle=%p) started.",handle);
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Reset(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	/* check reply - SYR should be returned */
@@ -1472,20 +1468,20 @@ int CCD_DSP_Command_Get_HSTR(CCD_Interface_Handle_T* handle,int *value)
 #endif
 	(*value) = 0;
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_GET_HSTR,value))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		DSP_Error_Number = 11;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_Get_HSTR:Sending Get HSTR failed.");
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	return TRUE;
@@ -1515,20 +1511,20 @@ int CCD_DSP_Command_Get_Readout_Progress(CCD_Interface_Handle_T* handle,int *val
 #endif
 	(*value) = 0;
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_GET_PROGRESS,value))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		DSP_Error_Number = 13;
 		sprintf(DSP_Error_String,"CCD_DSP_Command_Get_Readout_Progress:Sending Get Progress failed.");
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 	return TRUE;
@@ -1557,18 +1553,18 @@ int CCD_DSP_Command_RCC(CCD_Interface_Handle_T* handle,int *value)
 	}
 	(*value) = 0;
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Rcc(handle,value))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 /* check reply - the controller config value should be returned */
@@ -1688,18 +1684,18 @@ int CCD_DSP_Command_SET(CCD_Interface_Handle_T* handle,int msecs)
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 	if(!DSP_Send_Set(handle,msecs,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 /* check reply - DON should be returned */
@@ -1733,7 +1729,7 @@ int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Command_RET(handle=%p) started.",handle);
 #endif
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Lock())
+	if(!DSP_Mutex_Lock(handle))
 		return FALSE;
 #endif
 /* Version 1.7: We can only read elapsed exposure time when we are not reading out.
@@ -1746,7 +1742,7 @@ int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle)
 	   (CCD_Exposure_Get_Exposure_Status(handle) == CCD_EXPOSURE_STATUS_READOUT))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		DSP_Error_Number = 17; /* this error code is checked for in the Java layer */
 		sprintf(DSP_Error_String,"CCD_DSP_Command_RET failed:Illegal Exposure Status (%d) when"
@@ -1760,12 +1756,12 @@ int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle)
 	if(!DSP_Send_Ret(handle,&retval))
 	{
 #ifdef CCD_DSP_MUTEXED
-		DSP_Mutex_Unlock();
+		DSP_Mutex_Unlock(handle);
 #endif
 		return FALSE;
 	}
 #ifdef CCD_DSP_MUTEXED
-	if(!DSP_Mutex_Unlock())
+	if(!DSP_Mutex_Unlock(handle))
 		return FALSE;
 #endif
 /* check reply - the exposure time in milliseconds returned so this does nothing! */
@@ -1782,27 +1778,29 @@ int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle)
  * This routine returns the current stste of the Abort flag.
  * The Abort flag is defined in DSP_Data and is set to true when
  * the user wants to stop execution mid-commend.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The current Abort status.
  * @see #CCD_DSP_Set_Abort
  */
-int CCD_DSP_Get_Abort(void)
+int CCD_DSP_Get_Abort(CCD_Interface_Handle_T* handle)
 {
-	return DSP_Data.Abort;
+	return handle->DSP_Data.Abort;
 }
 
 /**
  * This routine allows the setting and reseting of the Abort flag.
  * The Abort flag is defined in DSP_Data and is set to true when
  * the user wants to stop execution mid-commend.
- * @return Returns TRUE or FALSE to indicate success/failure.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param value What to set the Abort flag to: either TRUE or FALSE.
+ * @return Returns TRUE or FALSE to indicate success/failure.
  * @see #CCD_DSP_Get_Abort
  * @see #DSP_Data
  */
-int CCD_DSP_Set_Abort(int value)
+int CCD_DSP_Set_Abort(CCD_Interface_Handle_T* handle,int value)
 {
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Set_Abort(%d) started.",value);
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Set_Abort(handle=%p,value=%d) started.",handle,value);
 #endif
 	if(!CCD_GLOBAL_IS_BOOLEAN(value))
 	{
@@ -1810,9 +1808,9 @@ int CCD_DSP_Set_Abort(int value)
 		sprintf(DSP_Error_String,"CCD_DSP_Set_Abort:Illegal value '%d'.",value);
 		return FALSE;
 	}
-	DSP_Data.Abort = value;
+	handle->DSP_Data.Abort = value;
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Set_Abort(%d) returned.",value);
+	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_DSP_Set_Abort(handle=%p,value=%d) returned.",handle,value);
 #endif
 	return TRUE;
 }
@@ -2280,8 +2278,8 @@ static int DSP_Send_Rex(CCD_Interface_Handle_T* handle,int *reply_value)
 /**
  * Internal DSP command to make the SDSU CCD Controller start an exposure.
  * If the tv_sec field of start_time is non-zero, we want to open the shutter as near as possible to the 
- * passed in time, allowing for some transmission delay (DSP_Data.Start_Exposure_Offset_Time).
- * Sets the DSP_Data.Exposure_Start_Time to start of the exposure.
+ * passed in time, allowing for some transmission delay (CCD_Exposure_Start_Exposure_Offset_Time).
+ * Sets the Exposure_Start_Time to start of the exposure.
  * Sets the exposure status to either EXPOSING or READOUT (if the exposure length is small).
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param start_time The time to start the exposure. If the tv_sec field of the structure is zero,
@@ -2290,7 +2288,6 @@ static int DSP_Send_Rex(CCD_Interface_Handle_T* handle,int *reply_value)
  * 	CCD_Exposure_Get_Readout_Remaining_Time, to see whether to change status to EXPOSING or READOUT.
  * @param reply_value The address of an integer to store the value returned from the SDSU board.
  * @return Returns true if sending the command succeeded, false if it failed.
- * @see #DSP_Data
  * @see #DSP_Send_Manual_Command
  * @see ccd_pci.html#CCD_PCI_HCVR_START_EXPOSURE
  * @see ccd_exposure.html#CCD_Exposure_Set_Exposure_Start_Time
@@ -2359,7 +2356,7 @@ static int DSP_Send_Sex(CCD_Interface_Handle_T* handle,struct timespec start_tim
 			else
 				done = TRUE;
 		/* if an abort has occured, stop sleeping. */
-			if(DSP_Data.Abort)
+			if(handle->DSP_Data.Abort)
 			{
 				DSP_Error_Number = 31;
 				sprintf(DSP_Error_String,"DSP_Send_Sex:Abort detected whilst waiting for start time.");
@@ -2684,15 +2681,15 @@ static int DSP_Check_Reply(int reply,int expected_reply)
 /**
  * Routine to lock the controller access mutex. This will block until the mutex has been acquired,
  * unless an error occurs.
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the mutex has been  locked for access by this thread,
  * 	FALSE if an error occured.
- * @see #DSP_Data
  */
-static int DSP_Mutex_Lock(void)
+static int DSP_Mutex_Lock(CCD_Interface_Handle_T* handle)
 {
 	int error_number;
 
-	error_number = pthread_mutex_lock(&(DSP_Data.Mutex));
+	error_number = pthread_mutex_lock(&(handle->DSP_Data.Mutex));
 	if(error_number != 0)
 	{
 		DSP_Error_Number = 18;
@@ -2704,14 +2701,15 @@ static int DSP_Mutex_Lock(void)
 
 /**
  * Routine to unlock the controller access mutex. 
+ * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the mutex has been unlocked, FALSE if an error occured.
  * @see #DSP_Data
  */
-static int DSP_Mutex_Unlock(void)
+static int DSP_Mutex_Unlock(CCD_Interface_Handle_T* handle)
 {
 	int error_number;
 
-	error_number = pthread_mutex_unlock(&(DSP_Data.Mutex));
+	error_number = pthread_mutex_unlock(&(handle->DSP_Data.Mutex));
 	if(error_number != 0)
 	{
 		DSP_Error_Number = 20;
@@ -2743,6 +2741,9 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.53  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 0.52  2008/12/11 18:14:38  cjm
 ** Fixes to logging changes.
 **
