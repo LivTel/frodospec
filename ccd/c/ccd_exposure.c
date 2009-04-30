@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.36 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.37 2009-04-30 14:20:12 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.36 $
+ * @version $Revision: 0.37 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -97,7 +97,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.36 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.37 2009-04-30 14:20:12 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -266,7 +266,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			      handle,clear_array,open_shutter,start_time.tv_sec,exposure_time,filename_count);
 #endif
 /* reset abort flag */
-	CCD_DSP_Set_Abort(FALSE);
+	CCD_DSP_Set_Abort(handle,FALSE);
 /* we shouldn't be able to expose until setup has been successfully completed - check this */
 	if(!CCD_Setup_Get_Setup_Complete(handle))
 	{
@@ -326,7 +326,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		return FALSE;
 	}
 /* if we have aborted - stop here */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 4;
@@ -345,7 +345,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		return FALSE;
 	}
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 5;
@@ -366,7 +366,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		return FALSE;
 	}
 	handle->Exposure_Data.Exposure_Length = exposure_time;
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		Exposure_Error_Number = 25;
@@ -405,7 +405,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			else
 				done = TRUE;
 		/* check - have we been aborted? */
-			if(CCD_DSP_Get_Abort())
+			if(CCD_DSP_Get_Abort(handle))
 			{
 				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -437,7 +437,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 
 	}
 /* check - have we been aborted? */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -625,7 +625,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			}
 		} 
 		/* check - have we been aborted? */
-		if(CCD_DSP_Get_Abort())
+		if(CCD_DSP_Get_Abort(handle))
 		{
 #if LOGGING > 4
 			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
@@ -683,7 +683,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		return FALSE;
 	}
 /* check - have we been aborted? */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -705,7 +705,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	}
 	handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_POST_READOUT;
 /* did we abort? */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -721,7 +721,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	Exposure_Byte_Swap(exposure_data,expected_pixel_count);
 #endif
 /* did we abort? */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -789,7 +789,7 @@ int CCD_Exposure_Open_Shutter(CCD_Interface_Handle_T* handle)
 	Exposure_Error_Number = 0;
 	if(!CCD_DSP_Command_OSH(handle))
 	{
-		CCD_DSP_Set_Abort(FALSE);
+		CCD_DSP_Set_Abort(handle,FALSE);
 		Exposure_Error_Number = 11;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Open_Shutter:Open shutter failed.");
 		return FALSE;
@@ -811,7 +811,7 @@ int CCD_Exposure_Close_Shutter(CCD_Interface_Handle_T* handle)
 	Exposure_Error_Number = 0;
 	if(!CCD_DSP_Command_CSH(handle))
 	{
-		CCD_DSP_Set_Abort(FALSE);
+		CCD_DSP_Set_Abort(handle,FALSE);
 		Exposure_Error_Number = 12;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Close_Shutter:Close shutter failed.");
 		return FALSE;
@@ -838,7 +838,7 @@ int CCD_Exposure_Pause(CCD_Interface_Handle_T* handle)
 #endif
 	if(!CCD_DSP_Command_PEX(handle))
 	{
-		CCD_DSP_Set_Abort(FALSE);
+		CCD_DSP_Set_Abort(handle,FALSE);
 		Exposure_Error_Number = 13;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Pause:Pause command failed.");
 		return FALSE;
@@ -867,7 +867,7 @@ int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle)
 #endif
 	if(!CCD_DSP_Command_REX(handle))
 	{
-		CCD_DSP_Set_Abort(FALSE);
+		CCD_DSP_Set_Abort(handle,FALSE);
 		Exposure_Error_Number = 14;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Resume:Resume command failed.");
 		return FALSE;
@@ -880,7 +880,7 @@ int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle)
 
 /**
  * This routine aborts an exposure currenly underway, whether it is reading out or not.
- * This routine sets the Abort flag to true by calling CCD_DSP_Set_Abort(TRUE).
+ * This routine sets the Abort flag to true by calling CCD_DSP_Set_Abort(handle,TRUE).
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the abort succeeds  returns FALSE if an error occurs.
  * @see ccd_exposure_private.html#CCD_Exposure_Struct
@@ -898,7 +898,7 @@ int CCD_Exposure_Abort(CCD_Interface_Handle_T* handle)
 	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Abort() started with exposure status %d.",
 			      handle->Exposure_Data.Exposure_Status);
 #endif
-	CCD_DSP_Set_Abort(TRUE);
+	CCD_DSP_Set_Abort(handle,TRUE);
 #if LOGGING > 0
 	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Abort() finished.");
 #endif
@@ -1330,7 +1330,7 @@ static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handl
 		return FALSE;
 	}
 /* if we have aborted stop and return */
-	if(CCD_DSP_Get_Abort())
+	if(CCD_DSP_Get_Abort(handle))
 	{
 		filename_list[0] = filename;
 		Exposure_Expose_Delete_Fits_Images(filename_list,1);
@@ -1454,7 +1454,7 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
 				return FALSE;
 			}
 /* if we have aborted stop and return */
-			if(CCD_DSP_Get_Abort())
+			if(CCD_DSP_Get_Abort(handle))
 			{
 				free(subimage_data);
 				Exposure_Expose_Delete_Fits_Images(filename_list+filename_index,
@@ -2059,6 +2059,9 @@ static int fexist(char *filename)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.36  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 0.35  2008/12/11 16:50:25  cjm
 ** Added handle logging for multiple CCD system.
 **
@@ -2163,7 +2166,7 @@ static int fexist(char *filename)
 ** Added current time to error routines.
 **
 ** Revision 0.5  2000/03/13 12:30:17  cjm
-** Removed duplicate CCD_DSP_Set_Abort(FALSE) in CCD_Exposure_Bias.
+** Removed duplicate CCD_DSP_Set_Abort(handle,FALSE) in CCD_Exposure_Bias.
 **
 ** Revision 0.4  2000/02/28 19:13:01  cjm
 ** Backup.
