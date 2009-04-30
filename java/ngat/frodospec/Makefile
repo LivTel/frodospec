@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.3 2008-11-25 20:13:38 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.4 2009-04-30 09:48:21 cjm Exp $
 include ../../../Makefile.common
 include ../../../../Makefile.common
 
@@ -17,9 +17,10 @@ IMPL_SRCS = $(BASE_IMPL_SRCS) $(CALIBRATE_IMPL_SRCS) $(EXPOSE_IMPL_SRCS) $(INTER
 BASE_IMPL_SRCS	=JMSCommandImplementation.java CommandImplementation.java UnknownCommandImplementation.java \
 		HardwareImplementation.java FITSImplementation.java FocusStage.java Plc.java LampController.java
 CALIBRATE_IMPL_SRCS = CALIBRATEImplementation.java ARCImplementation.java BIASImplementation.java \
-	DARKImplementation.java DAY_CALIBRATEImplementation.java LAMPFLATImplementation.java
+		DARKImplementation.java DAY_CALIBRATEImplementation.java LAMPFLATImplementation.java
 EXPOSE_IMPL_SRCS= EXPOSEImplementation.java MULTRUNImplementation.java
-INTERRUPT_IMPL_SRCS = INTERRUPTImplementation.java GET_STATUSImplementation.java REBOOTImplementation.java 
+INTERRUPT_IMPL_SRCS = ABORTImplementation.java INTERRUPTImplementation.java GET_STATUSImplementation.java \
+		REBOOTImplementation.java 
 SETUP_IMPL_SRCS	= SETUPImplementation.java CONFIGImplementation.java
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 DOCS 		= $(SRCS:%.java=$(DOCSDIR)/%.html)
@@ -87,6 +88,9 @@ backup: tidy checkin
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.3  2008/11/25 20:13:38  cjm
+# Added CONFIG_SRCS to checkin/checkout.
+#
 # Revision 1.2  2008/11/25 17:16:48  cjm
 # Added LAMPFLATImplementation.java.
 #
