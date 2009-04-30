@@ -1,5 +1,5 @@
 // FrodoSpecTCPServerConnectionThread.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.4 2009-04-30 09:58:38 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
 /**
  * This class extends the TCPServerConnectionThread class for the FrodoSpec application.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.4 2009-04-30 09:58:38 cjm Exp $");
 	/**
 	 * Default time taken to respond to a command. This is a class-wide field.
 	 */
@@ -224,6 +224,7 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 	 * @see FrodoSpec#log
 	 * @see FrodoSpecStatus#commandCanBeRun
 	 * @see FrodoSpecStatus#setCurrentCommand
+	 * @see FrodoSpecStatus#setCurrentThread
 	 * @see #commandImplementation
 	 * @see JMSCommandImplementation#processCommand
 	 */
@@ -259,6 +260,7 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 		if(!(command instanceof INTERRUPT))
 		{
 			frodospec.getStatus().setCurrentCommand((ISS_TO_INST)command);
+			frodospec.getStatus().setCurrentThread((ISS_TO_INST)command,(Thread)this);
 		}
 	// setup return object.
 		try
@@ -279,6 +281,7 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 		if(!(command instanceof INTERRUPT))
 		{
 			frodospec.getStatus().clearCurrentCommand((ISS_TO_INST)command);
+			frodospec.getStatus().setCurrentThread((ISS_TO_INST)command,null);
 		}
 	// log command/done
 		frodospec.log(Logger.VERBOSITY_VERY_TERSE,"Command:"+command.getClass().getName()+
@@ -319,6 +322,9 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.2  2008/12/04 11:30:17  cjm
 // Rewrote confusing commandCanBeRun failure message.
 //
