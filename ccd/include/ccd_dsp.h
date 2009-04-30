@@ -1,5 +1,5 @@
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.29 2008-11-20 11:34:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.30 2009-04-30 14:17:16 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -315,6 +315,7 @@ enum CCD_DSP_AMPLIFIER
 #define CCD_DSP_CONTROLLER_CONFIG_BIT_MPP_CAPABLE		(0x4000)
 
 extern int CCD_DSP_Initialise(void);
+extern void CCD_DSP_Data_Initialise(CCD_Interface_Handle_T* handle);
 /* Boot commands */
 extern int CCD_DSP_Command_LDA(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int application_number);
 extern int CCD_DSP_Command_RDM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address);
@@ -349,8 +350,8 @@ extern int CCD_DSP_Command_PCI_Download_Wait(CCD_Interface_Handle_T* handle);
 extern int CCD_DSP_Command_PCI_PC_Reset(CCD_Interface_Handle_T* handle);
 extern int CCD_DSP_Command_SET(CCD_Interface_Handle_T* handle,int msecs);
 extern int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Get_Abort(void);
-extern int CCD_DSP_Set_Abort(int value);
+extern int CCD_DSP_Get_Abort(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Set_Abort(CCD_Interface_Handle_T* handle,int value);
 extern int CCD_DSP_Get_Error_Number(void);
 extern void CCD_DSP_Error(void);
 extern void CCD_DSP_Error_String(char *error_string);
