@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.4 2009-04-30 09:57:46 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.4 2009-04-30 09:57:46 cjm Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -214,25 +214,14 @@ public class FrodoSpecStatus
 	 * @see ngat.phase2.FrodoSpecConfig#NO_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 * @see #getArmFromCommand
 	 */
 	public synchronized void setCurrentCommand(ISS_TO_INST command)
 	{
 		int arm;
 
-		if(command instanceof FRODOSPEC_CALIBRATE)
-		{
-			FRODOSPEC_CALIBRATE calibrateCommand = null;
-			calibrateCommand = (FRODOSPEC_CALIBRATE)command;
-			arm = calibrateCommand.getArm();
-		}
-		else if (command instanceof FRODOSPEC_EXPOSE)
-		{
-			FRODOSPEC_EXPOSE exposeCommand = null;
-			exposeCommand = (FRODOSPEC_EXPOSE)command;
-			arm = exposeCommand.getArm();
-		}
-		else
-			arm = FrodoSpecConfig.NO_ARM;
+		// derive arm from command
+		arm = getArmFromCommand(command);
 		currentCommand[arm] = command;
 	}
 
@@ -242,25 +231,14 @@ public class FrodoSpecStatus
 	 * @see ngat.phase2.FrodoSpecConfig#NO_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 * @see #getArmFromCommand
 	 */
 	public synchronized void clearCurrentCommand(ISS_TO_INST command)
 	{
 		int arm;
 
-		if(command instanceof FRODOSPEC_CALIBRATE)
-		{
-			FRODOSPEC_CALIBRATE calibrateCommand = null;
-			calibrateCommand = (FRODOSPEC_CALIBRATE)command;
-			arm = calibrateCommand.getArm();
-		}
-		else if (command instanceof FRODOSPEC_EXPOSE)
-		{
-			FRODOSPEC_EXPOSE exposeCommand = null;
-			exposeCommand = (FRODOSPEC_EXPOSE)command;
-			arm = exposeCommand.getArm();
-		}
-		else
-			arm = FrodoSpecConfig.NO_ARM;
+		// derive arm from command
+		arm = getArmFromCommand(command);
 		currentCommand[arm] = null;
 	}
 
@@ -271,25 +249,14 @@ public class FrodoSpecStatus
 	 * @see ngat.phase2.FrodoSpecConfig#NO_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 * @see #getArmFromCommand
 	 */
 	public synchronized ISS_TO_INST getCurrentCommand(ISS_TO_INST command)
 	{
 		int arm;
 
-		if(command instanceof FRODOSPEC_CALIBRATE)
-		{
-			FRODOSPEC_CALIBRATE calibrateCommand = null;
-			calibrateCommand = (FRODOSPEC_CALIBRATE)command;
-			arm = calibrateCommand.getArm();
-		}
-		else if (command instanceof FRODOSPEC_EXPOSE)
-		{
-			FRODOSPEC_EXPOSE exposeCommand = null;
-			exposeCommand = (FRODOSPEC_EXPOSE)command;
-			arm = exposeCommand.getArm();
-		}
-		else
-			arm = FrodoSpecConfig.NO_ARM;
+		// derive arm from command
+		arm = getArmFromCommand(command);
 		return currentCommand[arm];
 	}
 
@@ -319,6 +286,8 @@ public class FrodoSpecStatus
 		int arm;
 		String lampString = null;
 
+		// get arm from command
+		// This code is similar to that in getArmFromCommand
 		if(command instanceof FRODOSPEC_CALIBRATE)
 		{
 			FRODOSPEC_CALIBRATE calibrateCommand = null;
@@ -362,7 +331,7 @@ public class FrodoSpecStatus
 			// for each arm
 			for(int cci = FrodoSpecConfig.RED_ARM; cci <= FrodoSpecConfig.BLUE_ARM; cci++)
 			{
-				// wew are doing something on this arm
+				// we are doing something on this arm
 				if(currentCommand[cci] != null)
 				{
 					// we can't do an arc if an expose is underway on either arm
@@ -386,6 +355,87 @@ public class FrodoSpecStatus
 		if(command instanceof INTERRUPT)
 			return true;
 		return false;
+	}
+
+	/**
+	 * Set the thread that is currently executing the <a href="#currentCommand">currentCommand</a>.
+	 * @param command The command to be executed in the thread. This is used to extract the arm to be used.
+	 * @param thread The thread that is currently executing (per-arm).
+	 * @see ngat.phase2.FrodoSpecConfig#NO_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 * @see #currentThread
+	 * @see #getArmFromCommand
+	 */
+	public synchronized void setCurrentThread(ISS_TO_INST command,Thread thread)
+	{
+		int arm;
+
+		// derive arm from command
+		arm = getArmFromCommand(command);
+		currentThread[arm] = thread;
+	}
+
+	/**
+	 * Get the the thread FrodoSpec is currently executing to process the 
+	 * <a href="#currentCommand">currentCommand</a>.
+	 * @return The thread currently being executed on the specified arm.
+	 * @see ngat.phase2.FrodoSpecConfig#NO_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 * @see #currentThread
+	 */
+	public synchronized Thread getCurrentThread(int arm)
+	{
+		return currentThread[arm];
+	}
+
+	/**
+	 * Try to extract arm information from the specified command.
+	 * If the command is a subclass of FRODOSPEC_CALIBRATE or FRODOSPEC_EXPOSE the arm can be extracted.
+	 * If it is a CONFIG the arm can be extracted from from enclosed instrument config.
+	 * @param command A command specifying an arm (or NO_ARM).
+	 * @return The extracted arm number.
+	 * @see ngat.phase2.FrodoSpecConfig#NO_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 */
+	public synchronized int getArmFromCommand(ISS_TO_INST command)
+	{
+		int arm;
+
+		if(command instanceof FRODOSPEC_CALIBRATE)
+		{
+			FRODOSPEC_CALIBRATE calibrateCommand = null;
+			calibrateCommand = (FRODOSPEC_CALIBRATE)command;
+			arm = calibrateCommand.getArm();
+		}
+		else if (command instanceof FRODOSPEC_EXPOSE)
+		{
+			FRODOSPEC_EXPOSE exposeCommand = null;
+			exposeCommand = (FRODOSPEC_EXPOSE)command;
+			arm = exposeCommand.getArm();
+		}
+		else if (command instanceof CONFIG)
+		{
+			CONFIG configCommand = null;
+			InstrumentConfig instrumentConfig = null;
+
+			configCommand = (CONFIG)command;
+			instrumentConfig = configCommand.getConfig();
+			if(instrumentConfig instanceof FrodoSpecConfig)
+			{
+				FrodoSpecConfig frodospecConfig = null;
+
+				frodospecConfig = (FrodoSpecConfig)instrumentConfig;
+				arm = frodospecConfig.getArm();
+			}
+			else // a little bit dodgy, but the CONFIG should just return an error when run anyway.
+				arm = FrodoSpecConfig.NO_ARM;
+		}
+		else
+			arm = FrodoSpecConfig.NO_ARM;
+		return arm;
 	}
 
 	/**
@@ -1032,6 +1082,9 @@ public class FrodoSpecStatus
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.2  2008/11/28 11:16:43  cjm
 // configId now per-arm.
 //
