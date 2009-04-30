@@ -1,11 +1,12 @@
 /* ccd_interface_private.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_interface_private.h,v 1.1 2008-12-11 14:20:22 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_interface_private.h,v 1.2 2009-04-30 14:18:53 cjm Exp $
 */
 
 #ifndef CCD_INTERFACE_PRIVATE_H
 #define CCD_INTERFACE_PRIVATE_H
 #include "ccd_pci.h"
 #include "ccd_text.h"
+#include "ccd_dsp_private.h"
 #include "ccd_exposure_private.h"
 #include "ccd_setup_private.h"
 
@@ -18,12 +19,14 @@
  *     <dt>PCI</dt> <dd>Pointer to PCI Handle of type CCD_PCI_Handle_T.</dd>
  *     <dt>Text</dt> <dd>Pointer to Text Handle of type CCD_Text_Handle_T.</dd>
  *     </dl>
- * <dt>Setup_Date</dt> <dd>Data type used to hold local data to ccd_setup.</dd>
+ * <dt>DSP_Data</dt> <dd>Data type used to hold local data to ccd_dsp.</dd>
+ * <dt>Setup_Data</dt> <dd>Data type used to hold local data to ccd_setup.</dd>
  * <dt>Exposure_Data</dt> <dd>Structure used to hold local data to ccd_exposure.</dd>
  * </dl>
  * @see #CCD_INTERFACE_DEVICE_ID
  * @see ccd_pci.html#CCD_PCI_Handle_T
  * @see ccd_text.html#CCD_Text_Handle_T
+ * @see ccd_dsp_private.html#CCD_DSP_Struct
  * @see ccd_setup_private.html#CCD_Setup_Struct
  * @see ccd_exposure_private.html#CCD_Exposure_Struct
  */
@@ -35,11 +38,15 @@ struct CCD_Interface_Handle_Struct
 		CCD_PCI_Handle_T *PCI;
 		CCD_Text_Handle_T *Text;
 	} Handle;
+	struct CCD_DSP_Struct DSP_Data;
 	struct CCD_Setup_Struct Setup_Data;
 	struct CCD_Exposure_Struct Exposure_Data;
 };
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2008/12/11 14:20:22  cjm
+** Initial revision
+**
 */
 #endif
