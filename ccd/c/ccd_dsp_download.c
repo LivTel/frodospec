@@ -1,11 +1,11 @@
 /* ccd_dsp_download.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.6 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.7 2009-04-30 14:22:51 cjm Exp $
 */
 /**
  * ccd_dsp_download.c contains the code to download DSP code to the SDSU controller.
  * @author SDSU, Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -35,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.6 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.7 2009-04-30 14:22:51 cjm Exp $";
 
 /* defines */
 /**
@@ -281,7 +281,7 @@ static int DSP_Download_Timing_Utility(CCD_Interface_Handle_T* handle,enum CCD_D
 	finished = FALSE;
 /* send the data to the board until the end of the file is reached 
 ** or the operation is aborted */
-	while((!finished)&&(!CCD_DSP_Get_Abort()))
+	while((!finished)&&(!CCD_DSP_Get_Abort(handle)))
 	{
 		DSP_Download_Read_Line(download_fp,buff);
 		if(strncmp(buff,"_END",4) == 0)
@@ -719,7 +719,7 @@ static int DSP_Download_Process_Data(CCD_Interface_Handle_T* handle,FILE *downlo
 
 	finished = FALSE;
 	/* while theres data to download and we've not aborted the operation */
-	while ((!finished) && (!CCD_DSP_Get_Abort()))
+	while ((!finished) && (!CCD_DSP_Get_Abort(handle)))
 	{
 		/* ignore spaces */
 		while ((c = getc(download_fp)) == 32);
@@ -753,6 +753,9 @@ static int DSP_Download_Process_Data(CCD_Interface_Handle_T* handle,FILE *downlo
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.6  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 1.5  2008/11/20 11:34:46  cjm
 ** *** empty log message ***
 **
