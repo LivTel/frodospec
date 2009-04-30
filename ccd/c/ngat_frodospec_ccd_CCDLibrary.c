@@ -1,6 +1,6 @@
 /* ngat_frodospec_ccd_CCDLibrary.c
 ** implementation of Java Class ngat.frodospec.ccd.CCDLibrary native interfaces
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.2 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.3 2009-04-30 14:15:34 cjm Exp $
 */
 /**
  * ngat_frodospec_ccd_CCDLibrary.c is the 'glue' between libfrodospec_ccd, 
@@ -8,7 +8,7 @@
  * a Java Class to drive the controller. CCDLibrary specifically
  * contains all the native C routines corresponding to native methods in Java.
  * @author Chris Mottram LJMU
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -134,7 +134,7 @@ struct Handle_Map_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.2 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.3 2009-04-30 14:15:34 cjm Exp $";
 
 /**
  * Copy of the java virtual machine pointer, used for logging back up to the Java layer from C.
@@ -787,13 +787,18 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Hardware_1
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Abort<br>
  * Signature: ()V<br>
+ * @see #CCDLibrary_Handle_Map_Find
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Throw_Exception
+ * @see ccd_setup.html#CCD_Setup_Abort
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Abort(JNIEnv *env, jobject obj)
 {
-	/* no handle needed atm */
-	CCD_Setup_Abort();
+	CCD_Interface_Handle_T *handle = NULL;
+	/* get interface handle from CCDLibrary instance map */
+	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
+		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
+	CCD_Setup_Abort(handle);
 }
 
 /**
@@ -1684,6 +1689,9 @@ static int CCDLibrary_Handle_Map_Find(JNIEnv *env,jobject instance,CCD_Interface
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 1.1  2008/11/20 11:34:46  cjm
 ** Initial revision
 **
