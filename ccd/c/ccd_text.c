@@ -1,12 +1,12 @@
 /* ccd_text.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.26 2008-11-20 11:34:46 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_text.c,v 0.27 2009-04-30 14:22:51 cjm Exp $
 */
 /**
  * ccd_text.c implements a virtual interface that prints out all commands that are sent to the SDSU CCD Controller
  * and emulates appropriate replies to requests.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.26 $
+ * @version $Revision: 0.27 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -37,7 +37,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_text.c,v 0.26 2008-11-20 11:34:46 cjm Exp $";
+static char rcsid[] = "$Id: ccd_text.c,v 0.27 2009-04-30 14:22:51 cjm Exp $";
 
 /* #defines */
 /**
@@ -773,7 +773,7 @@ int CCD_Text_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short **data
 	/* fill data with return values */
 	(*data) = (unsigned short *)(Text_Data.Buffer);
 	i=0;
-	while((i<(Text_Data.Buffer_Length/sizeof(unsigned short)))&&(!CCD_DSP_Get_Abort()))
+	while((i<(Text_Data.Buffer_Length/sizeof(unsigned short)))&&(!CCD_DSP_Get_Abort(handle)))
 	{
 		(*data)[i] = (i%((1<<16)-1));
 		i++;
@@ -1273,6 +1273,9 @@ static void Text_Manual_Resume_Exposure(CCD_Interface_Handle_T *handle)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.26  2008/11/20 11:34:46  cjm
+** *** empty log message ***
+**
 ** Revision 0.25  2006/05/16 14:14:09  cjm
 ** gnuify: Added GNU General Public License.
 **
