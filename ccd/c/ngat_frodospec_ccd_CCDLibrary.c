@@ -1,6 +1,6 @@
 /* ngat_frodospec_ccd_CCDLibrary.c
 ** implementation of Java Class ngat.frodospec.ccd.CCDLibrary native interfaces
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.3 2009-04-30 14:15:34 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.4 2009-05-01 14:23:56 cjm Exp $
 */
 /**
  * ngat_frodospec_ccd_CCDLibrary.c is the 'glue' between libfrodospec_ccd, 
@@ -8,7 +8,7 @@
  * a Java Class to drive the controller. CCDLibrary specifically
  * contains all the native C routines corresponding to native methods in Java.
  * @author Chris Mottram LJMU
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -134,7 +134,7 @@ struct Handle_Map_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.3 2009-04-30 14:15:34 cjm Exp $";
+static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.4 2009-05-01 14:23:56 cjm Exp $";
 
 /**
  * Copy of the java virtual machine pointer, used for logging back up to the Java layer from C.
@@ -238,7 +238,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_initialiseLoggerRefere
 		** NoSuchMethodError, ExceptionInInitializerError, OutOfMemoryError */
 		return;
 	}
-	/* Make the C layer log back to the Java logger, using CCDLibrary_Log_Handler JNI routine. diddly */
+	/* Make the C layer log back to the Java logger, using CCDLibrary_Log_Handler JNI routine. */
 	CCD_Global_Set_Log_Handler_Function(CCDLibrary_Log_Handler);
 	/* Make the filtering absolute, as expected by the C layer */
 	CCD_Global_Set_Log_Filter_Function(CCD_Global_Log_Filter_Level_Absolute);
@@ -1689,6 +1689,9 @@ static int CCDLibrary_Handle_Map_Find(JNIEnv *env,jobject instance,CCD_Interface
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.3  2009/04/30 14:15:34  cjm
+** Changed CCD_Setup_Abort implementation as it now needs a handle.
+**
 ** Revision 1.2  2009/02/05 11:40:27  cjm
 ** Swapped Bitwise for Absolute logging levels.
 **
