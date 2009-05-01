@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.7 2009-02-09 15:08:20 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.8 2009-05-01 14:27:40 cjm Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.7 2009-02-09 15:08:20 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.8 2009-05-01 14:27:40 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -388,16 +388,16 @@ public class FrodoSpec
 		logLogger.setLogLevel(status.getLogLevel());
 	// library logging loggers
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.ccd.CCDLibrary"),null,
-				status.getLogLevel());
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.eip.EIPPLC"),null,status.getLogLevel());
+				Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.eip.EIPPLC"),null,Logging.ALL);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.newmark.Newmark"),null,
-				status.getLogLevel());
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.net.TitServer"),null,status.getLogLevel());
+				Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.net.TitServer"),null,Logging.ALL);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.serial.arcomess.ArcomESS"),null,
-				status.getLogLevel());
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTAGLampUnit"),null,status.getLogLevel());
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTLamp"),null,status.getLogLevel());
-		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.PLCConnection"),null,status.getLogLevel());
+				Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTAGLampUnit"),null,Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.LTLamp"),null,Logging.ALL);
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.lamp.PLCConnection"),null,Logging.ALL);
 	}
 
 	/**
@@ -1957,6 +1957,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2009/02/09 15:08:20  cjm
+// Fixed comment.
+//
 // Revision 1.6  2009/02/06 15:28:04  cjm
 // Fixed comment.
 //
