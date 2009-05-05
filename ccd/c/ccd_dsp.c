@@ -1,12 +1,12 @@
 /* ccd_dsp.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.54 2009-04-30 14:16:35 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp.c,v 0.55 2009-05-05 10:42:04 cjm Exp $
 */
 /**
  * ccd_dsp.c contains all the SDSU CCD Controller commands. Commands are passed to the 
  * controller using the <a href="ccd_interface.html">CCD_Interface_</a> calls.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.54 $
+ * @version $Revision: 0.55 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -45,7 +45,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp.c,v 0.54 2009-04-30 14:16:35 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp.c,v 0.55 2009-05-05 10:42:04 cjm Exp $";
 
 /* defines */
 /**
@@ -57,6 +57,19 @@ static char rcsid[] = "$Id: ccd_dsp.c,v 0.54 2009-04-30 14:16:35 cjm Exp $";
 #define	DSP_ACTUAL_VALUE 		-1 /* flag indicating return value of DSP command is to be returned as data */
 
 /* structure */
+/**
+ * Structure used to hold local data to ccd_dsp.
+ * <dl>
+ * <dt>Mutex</dt> <dd>Optionally compiled mutex locking for sending commands and getting replies from the 
+ *    controller.</dd>
+ * </dl>
+ */
+struct DSP_Struct
+{
+#ifdef CCD_DSP_MUTEXED
+      pthread_mutex_t Mutex;
+#endif
+};
 
 /* external variables */
 
@@ -69,6 +82,19 @@ static int DSP_Error_Number = 0;
  * Internal  variable holding description of the last error that occured.
  */
 static char DSP_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
+/**
+ * Data holding the current status of ccd_dsp. This is statically initialised to the following:
+ * <dl>
+ * <dt>Mutex</dt> <dd>If compiled in, PTHREAD_MUTEX_INITIALIZER</dd>
+ * </dl>
+ * @see #DSP_Struct
+ */
+static struct DSP_Struct DSP_Data = 
+{
+#ifdef CCD_DSP_MUTEXED
+      PTHREAD_MUTEX_INITIALIZER
+#endif
+};
 
 /* internal functions */
 static int DSP_Send_Lda(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data,int *reply_value);
@@ -156,7 +182,6 @@ int CCD_DSP_Initialise(void)
  * Routine to initialise the dsp data in the interface handle. The data is initialsied as follows:
  * <dl>
  * <dt>Abort</dt> <dd>FALSE</dd>
- * <dt>Mutex</dt> <dd>If compiled in, PTHREAD_MUTEX_INITIALIZER.</dd>
  * </dl>
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @see ccd_dsp_private.html#CCD_DSP_Struct
@@ -164,20 +189,7 @@ int CCD_DSP_Initialise(void)
  */
 void CCD_DSP_Data_Initialise(CCD_Interface_Handle_T* handle)
 {
-	/*
-#ifdef CCD_DSP_MUTEXED
-	pthread_mutexattr_t mutexattr;
-#endif
-	*/
-
 	handle->DSP_Data.Abort = FALSE;
-#ifdef CCD_DSP_MUTEXED
-	/*
-	pthread_mutexattr_init(&mutexattr);
-	*/
-	pthread_mutex_init(&(handle->DSP_Data.Mutex),NULL);
-#endif
-
 }
 
 /* Boot commands */
@@ -2681,7 +2693,14 @@ static int DSP_Check_Reply(int reply,int expected_reply)
 /**
  * Routine to lock the controller access mutex. This will block until the mutex has been acquired,
  * unless an error occurs.
+ * Mutex locking is currently acheived against one statically initialised mutex in ccd_dsp. 
+ * I have tried this with one mutex per PCI card in the CCD_DSP_Struct (as part of the handle data), 
+ * but this causes the control computer to lock.
+ * Although it should theoretically work (as the data paths are parallel), I suspect the locking in the v1.7
+ * linux PCI card device driver cannot cope - certainly the software (device driver) locking has changed compared to 
+ * v2.0, and installing that may fix the problem and allow simultaneous DSP commands to both SDSU PCI cards.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
+ *       This isn't used anymore, but is left in in case I fix the device driver.
  * @return Returns TRUE if the mutex has been  locked for access by this thread,
  * 	FALSE if an error occured.
  */
@@ -2689,7 +2708,7 @@ static int DSP_Mutex_Lock(CCD_Interface_Handle_T* handle)
 {
 	int error_number;
 
-	error_number = pthread_mutex_lock(&(handle->DSP_Data.Mutex));
+	error_number = pthread_mutex_lock(&(DSP_Data.Mutex));
 	if(error_number != 0)
 	{
 		DSP_Error_Number = 18;
@@ -2709,7 +2728,7 @@ static int DSP_Mutex_Unlock(CCD_Interface_Handle_T* handle)
 {
 	int error_number;
 
-	error_number = pthread_mutex_unlock(&(handle->DSP_Data.Mutex));
+	error_number = pthread_mutex_unlock(&(DSP_Data.Mutex));
 	if(error_number != 0)
 	{
 		DSP_Error_Number = 20;
@@ -2741,6 +2760,11 @@ static char *DSP_Manual_Command_To_String(int manual_command)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.54  2009/04/30 14:16:35  cjm
+** Removed DSP_Data. This data is now per-handle.
+** Rewrote mutex and abort routines to take handles.
+** Added CCD_DSP_Data_Initialise to initialise handle DSP data.
+**
 ** Revision 0.53  2009/02/05 11:40:27  cjm
 ** Swapped Bitwise for Absolute logging levels.
 **
