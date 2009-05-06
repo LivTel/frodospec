@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.4 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.5 2009-05-06 10:12:00 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.4 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.5 2009-05-06 10:12:00 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -92,7 +92,7 @@ public class LampController
 	}
 
 	/**
-	 * Set the lamp lock to NO_LAMP (i.e. we want to do a MULTRUN).
+	 * Set the lamp lock to NO_LAMP (i.e. we want to do a MULTRUN). And actually turn all the lamps off.
 	 * @param arm The arm to set the lock for.
 	 * @param serverConnectionThread The servers connection thread. Used to send ACKs whilst waiting for the
 	 *                               light (or lack thereof) to become available.
@@ -103,6 +103,7 @@ public class LampController
 	 * @see #inUseLamps
 	 * @see #lampUnit
 	 * @see #waitLength
+	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
 	 */
 	public void setNoLampLock(int arm,FrodoSpecTCPServerConnectionThread serverConnectionThread) 
 		throws IOException, Exception
@@ -181,6 +182,7 @@ public class LampController
 
 	/**
 	 * Set the lamp lock to lampsString (i.e. we want to do an ARC of some sort).
+	 * Then turn all the lamps off, and then turn on the specified lamps.
 	 * @param arm The arm to set the lock for.
 	 * @param lampsString Which set of lamps we want to use.
 	 * @param serverConnectionThread The servers connection thread. Used to send ACKs whilst waiting for the
@@ -191,6 +193,8 @@ public class LampController
 	 * @see #inUseCount
 	 * @see #inUseLamps
 	 * @see #lampUnit
+	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
+	 * @see ngat.lamp.LTAGLampUnit#turnLampsOn
 	 */
 	public void setLampLock(int arm,String lampsString,FrodoSpecTCPServerConnectionThread serverConnectionThread)
 		throws IOException, Exception
@@ -268,12 +272,13 @@ public class LampController
 	}
 
 	/**
-	 * Clear the previously specified lock.
+	 * Clear the previously specified lock. Then turn all the lamps off.
 	 * @exception Exception Thrown if a problem with the lamp unit occurs.
 	 * @see #inUseLock
 	 * @see #inUseCount
 	 * @see #inUseLamps
 	 * @see #lampUnit
+	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
 	 */
 	public void clearLampLock(int arm) throws Exception
 	{
@@ -321,6 +326,9 @@ public class LampController
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.3  2008/11/24 15:51:04  cjm
 // Fixed logging errors.
 //
