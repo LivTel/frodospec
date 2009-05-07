@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.4 2009-05-07 15:32:07 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.4 2009-05-07 15:32:07 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -160,7 +160,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see FITSImplementation#testAbort
 	 * @see FITSImplementation#objectName
 	 * @see #serverConnectionThread
-	 * @see ngat.spec.SpecLibrary#cameraExpose
+	 * @see ngat.frodospec.ccd.CCDLibrary#expose
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
@@ -297,7 +297,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see FITSImplementation#testAbort
 	 * @see FITSImplementation#objectName
 	 * @see #serverConnectionThread
-	 * @see ngat.spec.SpecLibrary#cameraExpose
+	 * @see ngat.frodospec.ccd.CCDLibrary#expose
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
 	 * @see FrodoSpecConstants#RESOLUTION_STRING_LIST
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
@@ -540,6 +540,9 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.2  2008/11/24 14:59:20  cjm
 // Added code to modify OBJECT FITS header keyword for calibration ARCs and DARKs using
 // previously extracted objectName.
