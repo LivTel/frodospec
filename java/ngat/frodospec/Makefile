@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.4 2009-04-30 09:48:21 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.5 2009-05-07 16:04:17 cjm Exp $
 include ../../../Makefile.common
 include ../../../../Makefile.common
 
@@ -21,7 +21,7 @@ CALIBRATE_IMPL_SRCS = CALIBRATEImplementation.java ARCImplementation.java BIASIm
 EXPOSE_IMPL_SRCS= EXPOSEImplementation.java MULTRUNImplementation.java
 INTERRUPT_IMPL_SRCS = ABORTImplementation.java INTERRUPTImplementation.java GET_STATUSImplementation.java \
 		REBOOTImplementation.java 
-SETUP_IMPL_SRCS	= SETUPImplementation.java CONFIGImplementation.java
+SETUP_IMPL_SRCS	= SETUPImplementation.java CONFIGImplementation.java LAMPFOCUSImplementation.java
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 DOCS 		= $(SRCS:%.java=$(DOCSDIR)/%.html)
 
@@ -88,6 +88,9 @@ backup: tidy checkin
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.4  2009/04/30 09:48:21  cjm
+# Added ABORTImplementation.java.
+#
 # Revision 1.3  2008/11/25 20:13:38  cjm
 # Added CONFIG_SRCS to checkin/checkout.
 #
