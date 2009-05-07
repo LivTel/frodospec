@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.6 2009-04-28 13:16:56 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.7 2009-05-07 15:56:21 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.6 2009-04-28 13:16:56 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.7 2009-05-07 15:56:21 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -886,7 +886,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	/**
 	 * This routine uses the Fits Header object, stored in the frodospec object, to save the headers to disc.
 	 * This method also updates the RUNNUM and EXPNUM keywords with the current multRun and runNumber values
-	 * in the ccsFilename object, as they must be correct when the file is saved. 
+	 * in the frodospecFilename object, as they must be correct when the file is saved. 
 	 * A list of windows are defined from the setup's window flags, and a set of headers
 	 * are saved to a window specific filename for each window defined.
 	 * It changess the CCDWXOFF, CCDWYOFF, CCDWXSIZ and CCDWYSIZ keywords for each window defined. 
@@ -1029,12 +1029,12 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				cardImage.setValue(new Integer(window.getYEnd()-window.getYStart()));
 			}//end try
 			// CCDLibraryNativeException thrown by CCDSetupGetWindow
-			// FitsHeaderException thrown by ccsFitsHeaderDefaults.getValue
-			// IllegalAccessException thrown by ccsFitsHeaderDefaults.getValue
-			// InvocationTargetException thrown by ccsFitsHeaderDefaults.getValue
-			// NoSuchMethodException thrown by ccsFitsHeaderDefaults.getValue
-			// InstantiationException thrown by ccsFitsHeaderDefaults.getValue
-			// ClassNotFoundException thrown by ccsFitsHeaderDefaults.getValue
+			// FitsHeaderException thrown by frodospecFitsHeaderDefaults.getValue
+			// IllegalAccessException thrown by frodospecFitsHeaderDefaults.getValue
+			// InvocationTargetException thrown by frodospecFitsHeaderDefaults.getValue
+			// NoSuchMethodException thrown by frodospecFitsHeaderDefaults.getValue
+			// InstantiationException thrown by frodospecFitsHeaderDefaults.getValue
+			// ClassNotFoundException thrown by frodospecFitsHeaderDefaults.getValue
 			catch(Exception e)
 			{
 				String s = new String("Command "+command.getClass().getName()+
@@ -1331,6 +1331,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2009/04/28 13:16:56  cjm
+// setFitsHeaders changed. WAVSET, CRPIX1, CRVAL1, CDELT2, CRVAL2, CRPIX2 now updated as per Fault #1279.
+//
 // Revision 1.5  2009/04/14 16:02:21  cjm
 // Added FITS headers for basic spectrograph WCS.
 //
