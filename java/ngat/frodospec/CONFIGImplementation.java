@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.4 2009-05-07 15:36:26 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.3 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.4 2009-05-07 15:36:26 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -47,8 +47,8 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	/**
 	 * This method gets the CONFIG command's acknowledge time.
 	 * This can take a long time to move the filter wheels to the required position.
-	 * This method returns an ACK with timeToComplete set to the &quot; ccs.config.acknowledge_time &quot;
-	 * held in the Ccs configuration file. If this cannot be found/is not a valid number the default acknowledge
+	 * This method returns an ACK with timeToComplete set to the &quot; frodospec.config.acknowledge_time &quot;
+	 * held in the configuration file. If this cannot be found/is not a valid number the default acknowledge
 	 * time is used instead.
 	 * @param command The command instance we are implementing.
 	 * @return An instance of ACK with the timeToComplete set to a time (in milliseconds).
@@ -359,6 +359,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.2  2008/11/28 11:16:14  cjm
 // CONFIGID / incConfigId now per-arm.
 //
