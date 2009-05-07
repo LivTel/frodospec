@@ -1,5 +1,5 @@
 // FocusStage.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.3 2009-05-07 15:55:48 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -13,14 +13,14 @@ import ngat.frodospec.newmark.*;
 /**
  * An instance of this class is used to control a focus stage.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class FocusStage
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FocusStage.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: FocusStage.java,v 1.3 2009-05-07 15:55:48 cjm Exp $");
 	/**
 	 * FrodoSpec status object.
 	 */
@@ -253,6 +253,104 @@ public class FocusStage
 		return enable;
 	}
 
+	/**
+	 * Method to move the focus stage, if the device is enabled and movement is enabled.
+	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
+	 * @exception NewmarkNativeException Thrown if the focus stage failed.
+	 * @see #enable
+	 * @see #moveEnable
+	 * @see #newmark
+	 * @see #moveValue
+	 * @see #open
+	 * @see #close
+	 * @see ngat.frodospec.newmark.Newmark#move
+	 */
+	public void moveToSetPoint() throws NewmarkNativeException, ArcomESSNativeException
+	{
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			   ":moveToSetPoint:Started for arm "+armString+".");
+		if(enable)
+		{
+			if(moveEnable)
+			{
+				synchronized(arcomESS)
+				{
+					try
+					{
+						open();
+						newmark.move(moveValue);
+					}
+					finally
+					{
+						close();
+					}
+				}
+			}
+			else
+			{
+				logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+					   ":moveToSetPoint: "+armString+" arm not enabled for movement.");
+			}
+		}
+		else
+		{
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				   ":moveToSetPoint: "+armString+" arm not enabled.");
+		}
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			   ":moveToSetPoint:Finished for arm "+armString+".");
+	}
+
+	/**
+	 * Method to move the focus stage to a specified position, if the device is enabled and movement is enabled.
+	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param position The position to move the focus stage to, in mm.
+	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
+	 * @exception NewmarkNativeException Thrown if the focus stage failed.
+	 * @see #enable
+	 * @see #moveEnable
+	 * @see #newmark
+	 * @see #open
+	 * @see #close
+	 * @see ngat.frodospec.newmark.Newmark#move
+	 */
+	public void moveToPosition(double position) throws NewmarkNativeException, ArcomESSNativeException
+	{
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			   ":moveToPosition:Moving arm "+armString+" to position "+position+".");
+		if(enable)
+		{
+			if(moveEnable)
+			{
+				synchronized(arcomESS)
+				{
+					try
+					{
+						open();
+						newmark.move(position);
+					}
+					finally
+					{
+						close();
+					}
+				}
+			}
+			else
+			{
+				logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+					   ":moveToPosition: "+armString+" arm not enabled for movement.");
+			}
+		}
+		else
+		{
+			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				   ":moveToPosition: "+armString+" arm not enabled.");
+		}
+		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			   ":moveToPosition:Finished moving arm "+armString+" to position "+position+".");
+	}
+
 	// protected methods
 	/**
 	 * Method to load configuration from the status object.
@@ -404,58 +502,12 @@ public class FocusStage
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":home:Finished for arm "+armString+".");
 	}
-
-	/**
-	 * Method to move the focus stage, if the device is enabled and movement is enabled.
-	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
-	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
-	 * @exception NewmarkNativeException Thrown if the focus stage failed.
-	 * @see #enable
-	 * @see #moveEnable
-	 * @see #newmark
-	 * @see #moveValue
-	 * @see #open
-	 * @see #close
-	 * @see ngat.frodospec.newmark.Newmark#move
-	 */
-	protected void moveToSetPoint() throws NewmarkNativeException, ArcomESSNativeException
-	{
-		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-			   ":moveToSetPoint:Started for arm "+armString+".");
-		if(enable)
-		{
-			if(moveEnable)
-			{
-				synchronized(arcomESS)
-				{
-					try
-					{
-						open();
-						newmark.move(moveValue);
-					}
-					finally
-					{
-						close();
-					}
-				}
-			}
-			else
-			{
-				logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-					   ":moveToSetPoint: "+armString+" arm not enabled for movement.");
-			}
-		}
-		else
-		{
-			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-				   ":moveToSetPoint: "+armString+" arm not enabled.");
-		}
-		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
-			   ":moveToSetPoint:Finished for arm "+armString+".");
-	}
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
