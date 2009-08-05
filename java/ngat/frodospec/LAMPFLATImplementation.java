@@ -1,5 +1,5 @@
 // LAMPFLATImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.3 2009-08-05 14:42:20 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFLAT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class LAMPFLATImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.3 2009-08-05 14:42:20 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -178,15 +178,9 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		status.setExposureCount(arm,1);
 		status.setExposureNumber(arm,0);
 		status.clearPauseResumeTimes();
-	// move the fold mirror to the stowed location
-		if(stowFold(lampFlatCommand,lampFlatDone) == false)
-			return lampFlatDone;
-		if(testAbort(lampFlatCommand,lampFlatDone) == true)
-			return lampFlatDone;
 	// switch lamp on
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
-	// Turn all lamps off before turning them back on again. This resets any on demand bits that have
-	// subsequently timed out and been turned off by the PLC.
+	// Before moving fold, so fold is not moved until lamp lock acquired.
 		try
 		{
 			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
@@ -198,6 +192,19 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 			lampFlatDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2704);
 			lampFlatDone.setErrorString("Failed to turn on lamps:"+lampsString+":"+e);
 			lampFlatDone.setSuccessful(false);
+			return lampFlatDone;
+		}
+	// move the fold mirror to the stowed location
+		if(stowFold(lampFlatCommand,lampFlatDone) == false)
+		{
+			// turn lamps off
+			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			return lampFlatDone;
+		}
+		if(testAbort(lampFlatCommand,lampFlatDone) == true)
+		{
+			// turn lamps off
+			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
 			return lampFlatDone;
 		}
 	// get fits headers
@@ -315,6 +322,9 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.1  2008/11/25 17:16:39  cjm
 // Initial revision
 //

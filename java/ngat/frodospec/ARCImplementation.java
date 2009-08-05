@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.5 2009-08-05 14:42:19 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.4 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.5 2009-08-05 14:42:19 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -176,15 +176,9 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		status.setExposureCount(arm,1);
 		status.setExposureNumber(arm,0);
 		status.clearPauseResumeTimes();
-	// move the fold mirror to the stowed location
-		if(stowFold(arcCommand,arcDone) == false)
-			return arcDone;
-		if(testAbort(arcCommand,arcDone) == true)
-			return arcDone;
 	// switch lamp on
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
-	// Turn all lamps off before turning them back on again. This resets any on demand bits that have
-	// subsequently timed out and been turned off by the PLC.
+	// Before moving fold, so fold is not moved until lamp lock acquired.
 		try
 		{
 			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
@@ -196,6 +190,19 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 			arcDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1507);
 			arcDone.setErrorString("Failed to turn on lamps:"+lampsString+":"+e);
 			arcDone.setSuccessful(false);
+			return arcDone;
+		}
+	// move the fold mirror to the stowed location
+		if(stowFold(arcCommand,arcDone) == false)
+		{
+			// turn lamps off
+			turnLampsOff(arm,arcCommand,arcDone);
+			return arcDone;
+		}
+		if(testAbort(arcCommand,arcDone) == true)
+		{
+			// turn lamps off
+			turnLampsOff(arm,arcCommand,arcDone);
 			return arcDone;
 		}
 	// get fits headers
@@ -312,6 +319,9 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.3  2008/11/25 18:28:06  cjm
 // Fixed logging.
 //
