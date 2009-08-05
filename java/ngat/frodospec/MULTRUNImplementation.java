@@ -1,5 +1,5 @@
 // MULTRUNImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.3 2009-08-05 14:42:17 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the MULTRUN command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.3 2009-08-05 14:42:17 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -78,6 +78,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * This method implements the FRODOSPEC_MULTRUN command. 
 	 * <ul>
 	 * <li>If calibrate before is set, doCalibration is called to do some BIAS/DARKs/ARCs.
+	 * <li>Uses setNoLampLock to acquire the lock for no lamps being on. This ensures the other
+	 *     arm is not doing an ARC etc (with the fold mirror stowed).
 	 * <li>It moves the fold mirror to the correct location.
 	 * <li>It starts the autoguider.
 	 * <li>For each exposure it performs the following:
@@ -87,6 +89,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * 	<li>It performs an exposure and saves the data from this to disc.
 	 * 	<li>Keeps track of the generated filenames in the list.
 	 * 	</ul>
+	 * <li>It releases the "no lamp lock" using clearLampLock.
 	 * <li>It stops the autoguider.
 	 * <li>If calibrate after is set, doCalibration is called to do some BIAS/DARKs/ARCs.
 	 * <li>It calls the Real Time Data Pipeline to reduce the data for each exposure taken.
@@ -177,12 +180,42 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}
 		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
 			return frodospecMultRunDone;
+	// ensure all lamps are off
+	// before moving fold, so fold is not moved until lamp lock acquired
+		try
+		{
+			frodospec.getLampController().setNoLampLock(arm,serverConnectionThread);
+		}
+		catch(Exception e)
+		{
+			autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
+			frodospec.error(this.getClass().getName()+
+				  ":processCommand:"+command+":Failed to set No lamp lock:"+e.toString());
+			frodospecMultRunDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1200);
+			frodospecMultRunDone.setErrorString(e.toString());
+			frodospecMultRunDone.setSuccessful(false);
+			return frodospecMultRunDone;
+		}
+		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
+		{
+			// actually removing NO_LAMP lock
+			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+			return frodospecMultRunDone;
+		}
 	// move the fold mirror to the correct location
 	// after calibrate before which will stow the fold for ARCs
 		if(moveFold(frodospecMultRunCommand,frodospecMultRunDone) == false)
+		{
+			// actually removing NO_LAMP lock
+			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
 			return frodospecMultRunDone;
+		}
 		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
+		{
+			// actually removing NO_LAMP lock
+			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);			
 			return frodospecMultRunDone;
+		}
 	// setup filename obs type/exposure code
 	// must be done after calibrate before, which will change these
 		try
@@ -202,6 +235,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}
 		catch(Exception e)
 		{
+			// actually removing NO_LAMP lock
+			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
 			frodospec.error(this.getClass().getName()+
 				  ":processCommand:"+command+":"+e.toString());
 			frodospecMultRunDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1206);
@@ -211,25 +246,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		}
 	// autoguider on
 		if(autoguiderStart(frodospecMultRunCommand,frodospecMultRunDone) == false)
-			return frodospecMultRunDone;
-		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
 		{
-			autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
-			return frodospecMultRunDone;
-		}
-	// ensure all lamps are off
-		try
-		{
-			frodospec.getLampController().setNoLampLock(arm,serverConnectionThread);
-		}
-		catch(Exception e)
-		{
-			autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
-			frodospec.error(this.getClass().getName()+
-				  ":processCommand:"+command+":Failed to set No lamp lock:"+e.toString());
-			frodospecMultRunDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1200);
-			frodospecMultRunDone.setErrorString(e.toString());
-			frodospecMultRunDone.setSuccessful(false);
+			// actually removing NO_LAMP lock
+			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
 			return frodospecMultRunDone;
 		}
 		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
@@ -445,6 +464,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
