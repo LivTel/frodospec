@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.4 2009-05-07 15:36:26 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.5 2009-08-06 13:41:45 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.4 2009-05-07 15:36:26 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.5 2009-08-06 13:41:45 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -316,6 +316,8 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	/**
 	 * Routine to set the telescope focus offset. Sends a OFFSET_FOCUS command to
 	 * the ISS. The OFFSET_FOCUS sent is the total of the selected filter's optical thickness.
+	 * The sendISSCommand command is synchronised by the getFocusOffsetLock lock object,
+	 * to stop both arms sending OFFSET_FOCUS at the same time, which causes the TCS to issue an error message.
 	 * @param id The Id is used as the OFFSET_FOCUS command's id.
 	 * @param frodospecConfig The configuration to attain.
 	 * @param status A reference to the FrodoSpec's status object, which contains the filter database.
@@ -323,6 +325,10 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	 * 	OFFSET_FOCUS fails.
 	 * @return The method returns true if the telescope attained the focus offset, otherwise false is
 	 * 	returned an telFocusDone is filled in with an error message.
+	 * @see FrodoSpecStatus#getFocusOffsetLock
+	 * @see FrodoSpec#sendISSCommand
+	 * @see #status
+	 * @see #frodospec
 	 */
 	private boolean setFocusOffset(String id,FrodoSpecConfig frodospecConfig,FrodoSpecStatus status,
 				       CONFIG_DONE configDone)
@@ -332,6 +338,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		String filterIdName = null;
 		String filterTypeString = null;
 		float focusOffset = 0.0f;
+		Object focusOffsetLock = null;
 
 		focusOffsetCommand = new OFFSET_FOCUS(id);
 		focusOffset = 0.0f;
@@ -343,7 +350,18 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		focusOffsetCommand.setFocusOffset(focusOffset);
 		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			      this.getClass().getName()+":setFocusOffset:Total offset is "+focusOffset+".");
-		instToISSDone = frodospec.sendISSCommand(focusOffsetCommand,serverConnectionThread);
+       // Get a synchronisation lock
+		focusOffsetLock = status.getFocusOffsetLock();
+       // do the focus offset
+		synchronized(focusOffsetLock)
+		{
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
+				      this.getClass().getName()+":setFocusOffset:Acquired lock.");
+			instToISSDone = frodospec.sendISSCommand(focusOffsetCommand,serverConnectionThread);
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
+				      this.getClass().getName()+":setFocusOffset:Command returned:"+
+				      instToISSDone.getSuccessful());
+		}
 		if(instToISSDone.getSuccessful() == false)
 		{
 			frodospec.error(this.getClass().getName()+":focusOffset failed:"+focusOffset+":"+
@@ -359,6 +377,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/05/07 15:36:26  cjm
+// Fixed comment.
+//
 // Revision 1.3  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
