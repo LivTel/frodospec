@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.7 2009-05-07 15:56:21 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.8 2009-08-06 13:41:47 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.7 2009-05-07 15:56:21 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.8 2009-08-06 13:41:47 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -197,6 +197,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * This routine tries to move the mirror fold to the specified location, by issuing a MOVE_FOLD command
 	 * to the ISS.
 	 * If an error occurs the done objects field's are set accordingly.
+	 * The sendISSCommand command is synchronised by the getFoldLock lock object,
+	 * to stop both arms sending MOVE_FOLD at the same time, which causes the TCS to issue an error message.
 	 * @param command The command being implemented that made this call to the ISS. This is used
 	 * 	for error logging.
 	 * @param done A COMMAND_DONE subclass specific to the command being implemented. If an
@@ -205,18 +207,34 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @return The routine returns a boolean to indicate whether the operation was completed
 	 *  	successfully.
 	 * @see FrodoSpec#sendISSCommand
+	 * @see FrodoSpecStatus#getFoldLock
+	 * @see #status
+	 * @see #frodospec
 	 */
 	public boolean moveFold(COMMAND command,COMMAND_DONE done,int mirrorFoldPosition)
 	{
 		INST_TO_ISS_DONE instToISSDone = null;
 		MOVE_FOLD moveFold = null;
+		Object foldLock = null;
 
 		moveFold = new MOVE_FOLD(command.getId());
 		frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 			this.getClass().getName()+":moveFold:"+command.getClass().getName()+
 			":position = "+mirrorFoldPosition);
 		moveFold.setMirror_position(mirrorFoldPosition);
-		instToISSDone = frodospec.sendISSCommand(moveFold,serverConnectionThread);
+       // Get a synchronisation lock
+		foldLock = status.getFoldLock();
+       // do the move fold
+		synchronized(foldLock)
+		{
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
+				      this.getClass().getName()+":moveFold:"+command.getClass().getName()+
+				      ":Acquired lock.");
+			instToISSDone = frodospec.sendISSCommand(moveFold,serverConnectionThread);
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
+				      this.getClass().getName()+":moveFold:"+command.getClass().getName()+
+				      ":Command returned:"+instToISSDone.getSuccessful());
+		}
 		if(instToISSDone.getSuccessful() == false)
 		{
 			frodospec.error(this.getClass().getName()+":moveFold:"+
@@ -1331,6 +1349,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2009/05/07 15:56:21  cjm
+// Fixed comments.
+//
 // Revision 1.6  2009/04/28 13:16:56  cjm
 // setFitsHeaders changed. WAVSET, CRPIX1, CRVAL1, CDELT2, CRVAL2, CRPIX2 now updated as per Fault #1279.
 //
