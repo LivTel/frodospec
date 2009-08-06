@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.4 2009-04-30 09:57:46 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.5 2009-08-06 13:38:47 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.4 2009-04-30 09:57:46 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.5 2009-08-06 13:38:47 cjm Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -108,18 +108,35 @@ public class FrodoSpecStatus
 	 * resume exposure command was initiated during an exposure.
 	 */
 	private Vector resumeTimeList = null;
+	/**
+	 * An object to be used as a synchronisation lock around ISS MOVE_FOLD calls.
+	 * This stops two (arm) threads calling the ISS MOVE_FOLD command at the same time,
+	 * resulting in the TCS throwing a "Command overriden by more recent request" TCS error <<<90041>>>.
+	 */
+	private Object foldLock = null;
+	/**
+	 * An object to be used as a synchronisation lock around ISS FOCUS_OFFSET calls.
+	 * This stops two (arm) threads calling the ISS FOCUS_OFFSET command at the same time,
+	 * resulting in the TCS throwing a "Command overriden by more recent request" TCS error <<<90041>>>.
+	 */
+	private Object focusOffsetLock = null;
 
 	/**
 	 * Default constructor. Initialises the pause and resume time lists, and the properties.
+	 * Creates the foldLock and focusOffsetLock objects.
 	 * @see #pauseTimeList
 	 * @see #resumeTimeList
 	 * @see #properties
+	 * @see #foldLock
+	 * @see #focusOffsetLock
 	 */
 	public FrodoSpecStatus()
 	{
 		pauseTimeList = new Vector();
 		resumeTimeList = new Vector();
 		properties = new Properties();
+		foldLock = new Object();
+		focusOffsetLock = new Object();
 	}
 
 	/**
@@ -1059,6 +1076,28 @@ public class FrodoSpecStatus
 	}
 
 	/**
+	 * Method to return the object to synchronise on, whilst moving the fold mirror.
+	 * This stops two MOVE_FOLD ISS commands being issued simultaneously by FrodoSpec,
+	 * causing the TCS error "Command overriden by more recent request" <<<90041>>>.
+	 * @see #foldLock
+	 */
+	public Object getFoldLock()
+	{
+		return foldLock;
+	}
+
+	/**
+	 * Method to return the object to synchronise on, whilst offseting the focus.
+	 * This stops two FOCUS_OFFSET ISS commands being issued simultaneously by FrodoSpec,
+	 * causing the TCS error "Command overriden by more recent request" <<<90041>>>.
+	 * @see #focusOffsetLock
+	 */
+	public Object getFocusOffsetLock()
+	{
+		return focusOffsetLock;
+	}
+
+	/**
 	 * Internal method to initialise the configId array field. This is not done during construction
 	 * as the property files need to be loaded to determine the filename to use.
 	 * This is got from the <i>frodospec.config.unique_id_filename</i> property.
@@ -1082,6 +1121,13 @@ public class FrodoSpecStatus
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/04/30 09:57:46  cjm
+// Added getArmFromCommand method to collect together common code.
+// Used in setCurrentCommand, clearCurrentCommand, getCurrentCommand.
+// getArmFromCommand also retrieves arm from CONFIG command so currentCommand setting have changed
+// for CONFIG commands.
+// Added setCurrentThread, getCurrentThread for ABORT implementation.
+//
 // Revision 1.3  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
