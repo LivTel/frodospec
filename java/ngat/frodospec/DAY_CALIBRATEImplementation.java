@@ -1,5 +1,5 @@
 // DAY_CALIBRATEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.3 2009-08-14 14:12:30 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -19,14 +19,14 @@ import ngat.util.logging.*;
  * Java Message System. It performs a series of BIAS and DARK frames from a configurable list,
  * taking into account frames done in previous invocations of this command (it saves it's state).
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.3 2009-08-14 14:12:30 cjm Exp $");
 	/**
 	 * Initial part of a key string, used to create a list of potential day calibrations to
 	 * perform from a Java property file.
@@ -653,14 +653,14 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 			dayCalibrateDone.setSuccessful(false);
 			return false;
 		}
-	// load other required config for dimension configuration from SCS properties file.
+	// load other required config for dimension configuration from properties file.
 		try
 		{
 		// numbers returned from these are affected by previous binning configurations.
 			numberColumns = status.getNumberColumns(bin);
 			numberRows = status.getNumberRows(bin);
-	                amplifier = getAmplifier();
-			deInterlaceSetting = getDeInterlaceSetting();
+	                amplifier = getAmplifier(arm);
+			deInterlaceSetting = getDeInterlaceSetting(arm);
 			ccdEnable = status.getPropertyBoolean("frodospec.ccd."+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							      ".enable");
 		}
@@ -1354,6 +1354,9 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //

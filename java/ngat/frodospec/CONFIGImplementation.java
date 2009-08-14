@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.5 2009-08-06 13:41:45 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.6 2009-08-14 14:12:41 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.5 2009-08-06 13:41:45 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.6 2009-08-14 14:12:41 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -165,8 +165,8 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		{
 			numberColumns = status.getNumberColumns(detector.getXBin());
 			numberRows = status.getNumberRows(detector.getYBin());
-	                amplifier = getAmplifier();
-			deInterlaceSetting = getDeInterlaceSetting();
+	                amplifier = getAmplifier(arm);
+			deInterlaceSetting = getDeInterlaceSetting(arm);
 			ccdEnable = status.getPropertyBoolean("frodospec.ccd."+frodospecConfig.armToString()+
 							      ".enable");
 		}
@@ -377,6 +377,10 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2009/08/06 13:41:45  cjm
+// Added focousOffsetLock to setFocusOffset, to stop both arms calling setFocusOffset at the same time,
+// which can cause the TCS to return an error to the first one.
+//
 // Revision 1.4  2009/05/07 15:36:26  cjm
 // Fixed comment.
 //
