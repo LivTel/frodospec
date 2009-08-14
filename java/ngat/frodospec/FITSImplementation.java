@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.8 2009-08-06 13:41:47 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.9 2009-08-14 14:12:55 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.8 2009-08-06 13:41:47 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.9 2009-08-14 14:12:55 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -520,12 +520,12 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		// PRESCAN
 			cardImage = frodospecFitsHeaderList[arm].get("PRESCAN");
 			preScan = frodospecFitsHeaderDefaultsList[arm].getValueInteger("PRESCAN."+
-				    status.getNumberColumns(xbin)+"."+getCCDRDOUTValue()+"."+xbin);
+				    status.getNumberColumns(xbin)+"."+getCCDRDOUTValue(arm)+"."+xbin);
 			cardImage.setValue(new Integer(preScan));
 		// POSTSCAN
 			cardImage = frodospecFitsHeaderList[arm].get("POSTSCAN");
 			postScan = frodospecFitsHeaderDefaultsList[arm].getValueInteger("POSTSCAN."+
-				    status.getNumberColumns(xbin)+"."+getCCDRDOUTValue()+"."+xbin);
+				    status.getNumberColumns(xbin)+"."+getCCDRDOUTValue(arm)+"."+xbin);
 			cardImage.setValue(new Integer(postScan));
 		// CCDXIMSI
 			ccdximsi = frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDXIMSI")/xbin;
@@ -1119,45 +1119,39 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * Method to get an integer representing a SDSU output Amplifier,that can be passed into the setupDimensions
 	 * method of ngat.ccd.CCDLibrary. 
 	 * This implementation should agree with the eqivalent getDeInterlaceSetting method.
+	 * @param arm Which arm to get the amplifier setting for, one of RED_ARM or BLUE_ARM.
 	 * @return An integer, representing a valid value to pass into CCDSetupDimensions to set the specified
 	 *         amplifier.
 	 * @exception NullPointerException Thrown if the property name, or it's value, are null.
 	 * @exception CCDLibraryFormatException Thrown if the property's value, which is passed into
 	 *            dspAmplifierFromString, does not contain a valid amplifier.
-	 * @see #getAmplifier(java.lang.String)
-	 */
-	public int getAmplifier() throws NullPointerException,CCDLibraryFormatException
-	{
-		int amplifier;
-
-		amplifier = getAmplifier("frodospec.config.amplifier");
-		return amplifier;
-	}
-
-	/**
-	 * Method to get an integer represeting a SDSU output Amplifier, that can be passed into the setupDimensions
-	 * method of ngat.ccd.CCDLibrary. The amplifier to use is retrieved from the specified property.
-	 * @param propertyName A string, of the property keyword, the value of which is used to specify the
-	 *        amplifier.
-	 * @return An integer, representing a valid value to pass into setupDimensions to set the specified
-	 *         amplifier.
-	 * @exception NullPointerException Thrown if the property name, or it's value, are null.
-	 * @exception CCDLibraryFormatException Thrown if the property's value, which is passed into
-	 *            CCDDSPAmplifierFromString, does not contain a valid amplifier.
+	 * @exception IllegalArgumentException Thrown if arm is not one of RED_ARM or BLUE_ARM.
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 * @see #status
+	 * @see #redCCD
 	 * @see #blueCCD
 	 * @see FrodoSpecStatus#getProperty
 	 * @see ngat.frodospec.ccd.CCDLibrary#dspAmplifierFromString
 	 */
-	public int getAmplifier(String propertyName) throws NullPointerException,CCDLibraryFormatException
+	public int getAmplifier(int arm) throws NullPointerException,CCDLibraryFormatException, 
+						IllegalArgumentException
 	{
+		int amplifier;
+		CCDLibrary ccd = null;
+		String propertyName = null;
 		String propertyValue = null;
 
-		if(propertyName == null)
+		if((arm != FrodoSpecConfig.RED_ARM)&&(arm != FrodoSpecConfig.BLUE_ARM))
 		{
-			throw new NullPointerException(this.getClass().getName()+
-						       ":getAmplifier:Property Name was null.");
+			throw new IllegalArgumentException(this.getClass().getName()+":getAmplifier:Arm "+arm+
+							   " out of range.");
 		}
+		if(arm == FrodoSpecConfig.RED_ARM)
+			ccd = redCCD;
+		else if(arm == FrodoSpecConfig.BLUE_ARM)
+			ccd = blueCCD;
+		propertyName = new String("frodospec.config.amplifier."+FrodoSpecConstants.ARM_STRING_LIST[arm]);
 		propertyValue = status.getProperty(propertyName);
 		if(propertyValue == null)
 		{
@@ -1165,8 +1159,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 						       ":getAmplifier:Property Value of keyword "+propertyName+
 						       " was null.");
 		}
-		// NB does not matter which arm we call this for.
-		return blueCCD.dspAmplifierFromString(propertyValue);
+		return ccd.dspAmplifierFromString(propertyValue);
 	}
 
 	/**
@@ -1175,44 +1168,34 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * The chosen property name is passed to getDeInterlaceSetting to get the
 	 * equivalent de-interlace setting.
 	 * This implementation should agree with the eqivalent getAmplifier method.
+	 * @param arm Which arm to get the de-interlace setting for, one of RED_ARM or BLUE_ARM.
 	 * @return An integer, representing a valid value to pass into setupDimensions to set the specified
 	 *         de-interlace setting.
 	 * @exception NullPointerException Thrown if getDeInterlaceSetting fails.
 	 * @exception CCDLibraryFormatException Thrown if getDeInterlaceSetting fails.
-	 * @see #getDeInterlaceSetting(java.lang.String)
-	 */
-	public int getDeInterlaceSetting() throws NullPointerException,CCDLibraryFormatException
-	{
-		int deInterlaceSetting;
-
-		deInterlaceSetting = getDeInterlaceSetting("frodospec.config.amplifier");
-		return deInterlaceSetting;
-	}
-
-	/**
-	 * Method to get an integer represeting a SDSU de-interlace setting,
-	 * that can be passed into the setupDimensions method of ngat.ccd.CCDLibrary. 
-	 * The amplifier to use is retrieved from the specified property, and the de-interlace setting determined 
-	 * from this.
-	 * @param amplifierPropertyName A string, of the property keyword, the value of which is used to specify the
-	 *        amplifier.
-	 * @return An integer, representing a valid value to pass into setupDimensions to set the specified
-	 *         de-interlace setting.
-	 * @exception NullPointerException Thrown if the property name, or it's value, are null.
-	 * @exception IllegalArgumentException Thrown if the amplifier was not recognised by this method.
-	 * @exception CCDLibraryFormatException Thrown if the derived de-interlace string, which is passed into
-	 *            CCDDSPDeinterlaceFromString, does not contain a valid de-interlace setting.
-	 * @see #blueCCD
+	 * @exception IllegalArgumentException Thrown if arm is not one of RED_ARM or BLUE_ARM.
 	 * @see #getAmplifier
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 * @see ngat.frodospec.ccd.CCDLibrary#dspDeinterlaceFromString
 	 */
-	public int getDeInterlaceSetting(String amplifierPropertyName) throws NullPointerException,
-	                                 IllegalArgumentException,CCDLibraryFormatException
+	public int getDeInterlaceSetting(int arm) throws NullPointerException,CCDLibraryFormatException,
+							 IllegalArgumentException
 	{
+		CCDLibrary ccd = null;
 		String deInterlaceString = null;
 		int amplifier,deInterlaceSetting;
 
-		amplifier = getAmplifier(amplifierPropertyName);
+		if((arm != FrodoSpecConfig.RED_ARM)&&(arm != FrodoSpecConfig.BLUE_ARM))
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+":getDeInterlaceSetting:Arm "+arm+
+							   " out of range.");
+		}
+		if(arm == FrodoSpecConfig.RED_ARM)
+			ccd = redCCD;
+		else if(arm == FrodoSpecConfig.BLUE_ARM)
+			ccd = blueCCD;
+		amplifier = getAmplifier(arm);
 		// convert Amplifier to De-Interlace Setting string
 		switch(amplifier)
 		{
@@ -1227,12 +1210,11 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				break;
 			default:
 				throw new IllegalArgumentException(this.getClass().getName()+
-						       ":getDeInterlaceSetting:Amplifier String of keyword "+
-						       amplifierPropertyName+" was illegal value "+amplifier+".");
+						       ":getDeInterlaceSetting:Amplifier for arm "+
+						       arm+" was illegal value "+amplifier+".");
 		}
 		// convert de-interlace string into value to pass to libccd.
-		// Does not matter which instance of CCDLibrary we use for the conversion
-		deInterlaceSetting = blueCCD.dspDeinterlaceFromString(deInterlaceString);
+		deInterlaceSetting = ccd.dspDeinterlaceFromString(deInterlaceString);
 		return deInterlaceSetting;
 	}
 
@@ -1240,9 +1222,12 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * This method retrieves the current Amplifier configuration used to configure the CCD controller.
 	 * This determines which readout(s) the CCD uses. The numeric setting is then converted into a 
 	 * valid string as specified by the LT FITS standard.
+	 * @param arm Which arm to get the de-interlace setting for, one of RED_ARM or BLUE_ARM.
 	 * @return A String is returned, either 'LEFT', 'RIGHT', or 'DUAL'. If the amplifier cannot be
 	 * 	determined an exception is thrown.
 	 * @exception IllegalArgumentException Thrown if the amplifier string cannot be determined.
+	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
+	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 * @see ngat.frodospec.ccd.CCDLibrary#getAmplifier
 	 * @see ngat.frodospec.ccd.CCDLibrary#DSP_AMPLIFIER_LEFT
 	 * @see ngat.frodospec.ccd.CCDLibrary#DSP_AMPLIFIER_RIGHT
@@ -1250,15 +1235,23 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see #blueCCD
 	 * @see #redCCD
 	 */
-	private String getCCDRDOUTValue() throws IllegalArgumentException
+	private String getCCDRDOUTValue(int arm) throws IllegalArgumentException
 	{
+		CCDLibrary ccd = null;
 		String amplifierString = null;
 		int amplifier;
 
+		if((arm != FrodoSpecConfig.RED_ARM)&&(arm != FrodoSpecConfig.BLUE_ARM))
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+":getCCDRDOUTValue:Arm "+arm+
+							   " out of range.");
+		}
+		if(arm == FrodoSpecConfig.RED_ARM)
+			ccd = redCCD;
+		else if(arm == FrodoSpecConfig.BLUE_ARM)
+			ccd = blueCCD;
 		//get amplifier from libccd cached setting.
-		amplifier = blueCCD.getAmplifier();
-		// diddly method does not exist
-		// diddly arm parameter
+		amplifier = ccd.getAmplifier();
 		switch(amplifier)
 		{
 			case CCDLibrary.DSP_AMPLIFIER_LEFT:
@@ -1349,6 +1342,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2009/08/06 13:41:47  cjm
+// Added foldLock to moveFold, to stop both arms calling moveFold at the same time,
+// which can cause the TCS to return an error to the first one.
+//
 // Revision 1.7  2009/05/07 15:56:21  cjm
 // Fixed comments.
 //
