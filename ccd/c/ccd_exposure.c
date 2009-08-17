@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.37 2009-04-30 14:20:12 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.38 2009-08-17 14:42:43 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.37 $
+ * @version $Revision: 0.38 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -97,7 +97,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.37 2009-04-30 14:20:12 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.38 2009-08-17 14:42:43 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -1526,8 +1526,8 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 	unsigned short *new_iptr = NULL;
 
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_DeInterlace:Started with type %d.",
-			      deinterlace_type);
+	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_DeInterlace:Started with dimensions (%d,%d), "
+			      "type %d.",ncols,nrows,deinterlace_type);
 #endif
 	switch(deinterlace_type)
 	{
@@ -2059,6 +2059,9 @@ static int fexist(char *filename)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.37  2009/04/30 14:20:12  cjm
+** Changed calls to CCD_DSP_Set_Abort / CCD_DSP_Get_Abort, they now require a handle.
+**
 ** Revision 0.36  2009/02/05 11:40:27  cjm
 ** Swapped Bitwise for Absolute logging levels.
 **
