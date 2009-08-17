@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.32 2009-04-30 14:21:30 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.33 2009-08-17 11:00:13 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.32 $
+ * @version $Revision: 0.33 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -40,7 +40,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.32 2009-04-30 14:21:30 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.33 2009-08-17 11:00:13 cjm Exp $";
 
 /* #defines */
 /**
@@ -111,7 +111,7 @@ static char rcsid[] = "$Id: ccd_setup.c,v 0.32 2009-04-30 14:21:30 cjm Exp $";
  * Memory buffer size for mmap/malloc. Should be bigger than 1 array (4096x2048) number of pixels
  * (pixels are 16 bits/2 bytes).
  */
-#define SETUP_MEMORY_BUFFER_SIZE      (4296*2048*2)
+#define SETUP_MEMORY_BUFFER_SIZE      (4296*2154*2)
 /**
  * The width of bias strip to use when windowing.
  */
@@ -2075,6 +2075,10 @@ static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.32  2009/04/30 14:21:30  cjm
+** Changed calls to CCD_DSP_Get_Abort / CCD_DSP_Set_Abort, they now require a handle.
+** CCD_Setup_Abort now has a handle parameter for the same reason.
+**
 ** Revision 0.31  2009/02/05 11:40:27  cjm
 ** Swapped Bitwise for Absolute logging levels.
 **
