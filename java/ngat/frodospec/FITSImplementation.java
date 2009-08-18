@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.9 2009-08-14 14:12:55 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.10 2009-08-18 12:51:56 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.9 $
+ * @version $Revision: 1.10 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.9 2009-08-14 14:12:55 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.10 2009-08-18 12:51:56 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -429,6 +429,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		String lampName = null;
 		float fvalue;
 		double wavelength;
+		String amplifierConfigName = null,amplifierName = null;
 
 		// which arm do we need the data for
 		if(arm == FrodoSpecConfig.RED_ARM)
@@ -517,6 +518,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		// CONFNAME
 			cardImage = frodospecFitsHeaderList[arm].get("CONFNAME");
 			cardImage.setValue(status.getConfigName(arm));
+		// DETECTOR
+			cardImage = frodospecFitsHeaderList[arm].get("DETECTOR");
+			cardImage.setValue(frodospecFitsHeaderDefaultsList[arm].getValue("DETECTOR."+
+					   FrodoSpecConstants.ARM_STRING_LIST[arm]));
 		// PRESCAN
 			cardImage = frodospecFitsHeaderList[arm].get("PRESCAN");
 			preScan = frodospecFitsHeaderDefaultsList[arm].getValueInteger("PRESCAN."+
@@ -527,11 +532,40 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			postScan = frodospecFitsHeaderDefaultsList[arm].getValueInteger("POSTSCAN."+
 				    status.getNumberColumns(xbin)+"."+getCCDRDOUTValue(arm)+"."+xbin);
 			cardImage.setValue(new Integer(postScan));
+		// GAIN
+			cardImage = frodospecFitsHeaderList[arm].get("GAIN");
+			cardImage.setValue(frodospecFitsHeaderDefaultsList[arm].getValue("GAIN."+
+					   FrodoSpecConstants.ARM_STRING_LIST[arm]));
+		// READNOIS
+			cardImage = frodospecFitsHeaderList[arm].get("READNOIS");
+			cardImage.setValue(frodospecFitsHeaderDefaultsList[arm].getValue("READNOIS."+
+					   FrodoSpecConstants.ARM_STRING_LIST[arm]));
+		// EPERDN
+			cardImage = frodospecFitsHeaderList[arm].get("EPERDN");
+			cardImage.setValue(frodospecFitsHeaderDefaultsList[arm].getValue("EPERDN."+
+					   FrodoSpecConstants.ARM_STRING_LIST[arm]));
 		// CCDXIMSI
 			ccdximsi = frodospecFitsHeaderDefaultsList[arm].getValueInteger("CCDXIMSI")/xbin;
 		// CCDYIMSI
 		// CCDSCALE
 		// CCDRDOUT
+			amplifierConfigName = status.getProperty("frodospec.config.amplifier."+
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
+			if(amplifierConfigName != null)
+			{
+				if(amplifierConfigName.equals("DSP_AMPLIFIER_LEFT"))
+					amplifierName = "LEFT";
+				else if(amplifierConfigName.equals("DSP_AMPLIFIER_RIGHT"))
+					amplifierName = "RIGHT";
+				else if(amplifierConfigName.equals("DSP_AMPLIFIER_BOTH"))
+					amplifierName = "BOTH";
+				else
+					amplifierName = "UNKNOWN";
+			}
+			else
+				amplifierName = "UNKNOWN";
+			cardImage = frodospecFitsHeaderList[arm].get("CCDRDOUT");
+			cardImage.setValue(amplifierName);
 		// CCDXBIN
 			cardImage = frodospecFitsHeaderList[arm].get("CCDXBIN");
 			cardImage.setValue(new Integer(xbin));
@@ -669,7 +703,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			cardImage = frodospecFitsHeaderList[arm].get("FOREID");
 			cardImage.setValue(frodospecFitsHeaderDefaultsList[arm].getValue("FOREID."+
 					   FrodoSpecConstants.ARM_STRING_LIST[arm]));
-	       // COLFOC
+		// COLFOC
 			cardImage = frodospecFitsHeaderList[arm].get("COLFOC");
 			cardImage.setValue(frodospecFitsHeaderDefaultsList[arm].getValue("COLFOC."+
 					   FrodoSpecConstants.ARM_STRING_LIST[arm]));
@@ -1342,6 +1376,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2009/08/14 14:12:55  cjm
+// Amplifier/Deinterlace settings now per-arm.
+//
 // Revision 1.8  2009/08/06 13:41:47  cjm
 // Added foldLock to moveFold, to stop both arms calling moveFold at the same time,
 // which can cause the TCS to return an error to the first one.
