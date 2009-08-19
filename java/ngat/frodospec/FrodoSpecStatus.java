@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.5 2009-08-06 13:38:47 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.6 2009-08-19 13:55:34 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.5 2009-08-06 13:38:47 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.6 2009-08-19 13:55:34 cjm Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -293,11 +293,12 @@ public class FrodoSpecStatus
 	 * If the command is getting status we can generally run this whilst other things are going on.
 	 * If the command is a reboot or abort command that tells FrodoSpec to stop what it is going this is
 	 * generally allowed to be run, otherwise we couldn't stop execution of exposures mid-exposure.
-	 * ARCS are more complicated, we can do an ARC if nothing is exposing on the other arm, or the ARC
-	 * on the other arm has the same lamp string as this command.
 	 * @param command The command we want to run, used to determine the arm.
 	 * @return Whether the command can be run given the current status of the system.
 	 */
+	// This is no longer true due to LampController: lamp locks should take care of this internally:
+	// * ARCS are more complicated, we can do an ARC if nothing is exposing on the other arm, or the ARC
+	// * on the other arm has the same lamp string as this command.
 	public synchronized boolean commandCanBeRun(ISS_TO_INST command)
 	{
 		int arm;
@@ -305,68 +306,70 @@ public class FrodoSpecStatus
 
 		// get arm from command
 		// This code is similar to that in getArmFromCommand
-		if(command instanceof FRODOSPEC_CALIBRATE)
-		{
-			FRODOSPEC_CALIBRATE calibrateCommand = null;
-			calibrateCommand = (FRODOSPEC_CALIBRATE)command;
-			arm = calibrateCommand.getArm();
-			if(command instanceof FRODOSPEC_ARC)
-			{
-				FRODOSPEC_ARC arcCommand = null;
-				arcCommand = (FRODOSPEC_ARC)command;
-				lampString = arcCommand.getLamp();
-			}
-		}
-		else if (command instanceof FRODOSPEC_EXPOSE)
-		{
-			FRODOSPEC_EXPOSE exposeCommand = null;
-			exposeCommand = (FRODOSPEC_EXPOSE)command;
-			arm = exposeCommand.getArm();
-		}
-		else if (command instanceof CONFIG)
-		{
-			CONFIG configCommand = null;
-			InstrumentConfig instrumentConfig = null;
+		//if(command instanceof FRODOSPEC_CALIBRATE)
+		//{
+		//	FRODOSPEC_CALIBRATE calibrateCommand = null;
+		//	calibrateCommand = (FRODOSPEC_CALIBRATE)command;
+		//	arm = calibrateCommand.getArm();
+		//	if(command instanceof FRODOSPEC_ARC)
+		//	{
+		//		FRODOSPEC_ARC arcCommand = null;
+		//		arcCommand = (FRODOSPEC_ARC)command;
+		//		lampString = arcCommand.getLamp();
+		//	}
+		//}
+		//else if (command instanceof FRODOSPEC_EXPOSE)
+		//{
+		//	FRODOSPEC_EXPOSE exposeCommand = null;
+		//	exposeCommand = (FRODOSPEC_EXPOSE)command;
+		//	arm = exposeCommand.getArm();
+		//}
+		//else if (command instanceof CONFIG)
+		//{
+		//	CONFIG configCommand = null;
+		//	InstrumentConfig instrumentConfig = null;
 
-			configCommand = (CONFIG)command;
-			instrumentConfig = configCommand.getConfig();
-			if(instrumentConfig instanceof FrodoSpecConfig)
-			{
-				FrodoSpecConfig frodospecConfig = null;
+		//	configCommand = (CONFIG)command;
+		//	instrumentConfig = configCommand.getConfig();
+		//	if(instrumentConfig instanceof FrodoSpecConfig)
+		//	{
+		//		FrodoSpecConfig frodospecConfig = null;
 
-				frodospecConfig = (FrodoSpecConfig)instrumentConfig;
-				arm = frodospecConfig.getArm();
-			}
-			else // a little bit dodgy, but the CONFIG should just return an error when run anyway.
-				arm = FrodoSpecConfig.NO_ARM;
-		}
-		else
-			arm = FrodoSpecConfig.NO_ARM;
+		//              frodospecConfig = (FrodoSpecConfig)instrumentConfig;
+		//		arm = frodospecConfig.getArm();
+		//	}
+		//	else // a little bit dodgy, but the CONFIG should just return an error when run anyway.
+		//		arm = FrodoSpecConfig.NO_ARM;
+		//}
+		//else
+		//	arm = FrodoSpecConfig.NO_ARM;
+		// This is no longer true due to LampController: lamp locks should take care of this internally:
 		// arcs are more complicated
-		if(lampString != null)
-		{
+		//if(lampString != null)
+		//{
 			// for each arm
-			for(int cci = FrodoSpecConfig.RED_ARM; cci <= FrodoSpecConfig.BLUE_ARM; cci++)
-			{
+		//	for(int cci = FrodoSpecConfig.RED_ARM; cci <= FrodoSpecConfig.BLUE_ARM; cci++)
+		//	{
 				// we are doing something on this arm
-				if(currentCommand[cci] != null)
-				{
+		//		if(currentCommand[cci] != null)
+		//		{
 					// we can't do an arc if an expose is underway on either arm
-					if(currentCommand[cci] instanceof FRODOSPEC_EXPOSE)
-						return false;
+		//			if(currentCommand[cci] instanceof FRODOSPEC_EXPOSE)
+		//				return false;
 					// we are doing an arc on this [cci] arm
-					if(currentCommand[cci] instanceof FRODOSPEC_ARC)
-					{
-						FRODOSPEC_ARC arcCommand = null;
-						arcCommand = (FRODOSPEC_ARC)command;
+		//			if(currentCommand[cci] instanceof FRODOSPEC_ARC)
+		//			{
+		//				FRODOSPEC_ARC arcCommand = null;
+		//				arcCommand = (FRODOSPEC_ARC)command;
 						// if we are already doing an ARC command the lamps must match
-						if(lampString.equals(arcCommand.getLamp()) == false)
-							return false;
-					}
+		//				if(lampString.equals(arcCommand.getLamp()) == false)
+		//					return false;
+		//			}
 					// we don't care if a CONFIG is underway on the other arm
-				}
-			}
-		}
+		//		}
+		//	}
+		//}
+		arm = getArmFromCommand(command);
 		if(currentCommand[arm] == null)
 			return true;
 		if(command instanceof INTERRUPT)
@@ -417,7 +420,7 @@ public class FrodoSpecStatus
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	public synchronized int getArmFromCommand(ISS_TO_INST command)
+	public int getArmFromCommand(ISS_TO_INST command)
 	{
 		int arm;
 
@@ -1121,6 +1124,10 @@ public class FrodoSpecStatus
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2009/08/06 13:38:47  cjm
+// Added foldLock and focusOffsetLock, used for synchronisation to stop the TCS
+// receiving two MOVE_FOLD or FOCUS_OFFSET commands at the same time, which causes a TCS error.
+//
 // Revision 1.4  2009/04/30 09:57:46  cjm
 // Added getArmFromCommand method to collect together common code.
 // Used in setCurrentCommand, clearCurrentCommand, getCurrentCommand.
