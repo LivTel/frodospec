@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.4 2009-05-07 15:32:07 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.5 2009-08-19 13:54:48 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.4 2009-05-07 15:32:07 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.5 2009-08-19 13:54:48 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -381,15 +381,12 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		}
 		frodospecFilenameList[arm].nextRunNumber();
 		filename = frodospecFilenameList[arm].getFilename();
-	// move the fold mirror to the stowed location
-		if(stowFold(exposeCommand,exposeDone) == false)
-			return false;
-		if(testAbort(exposeCommand,exposeDone) == true)
-			return false;
 	// switch lamp on
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
 	// Turn all lamps off before turning them back on again. This resets any on demand bits that have
 	// subsequently timed out and been turned off by the PLC.
+	// Must be done before stowing fold, so lock protects against the fold moving whilst
+	// the other arm is still exposing.
 		try
 		{
 			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
@@ -403,6 +400,11 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 			exposeDone.setSuccessful(false);
 			return false;
 		}
+	// move the fold mirror to the stowed location
+		if(stowFold(exposeCommand,exposeDone) == false)
+			return false;
+		if(testAbort(exposeCommand,exposeDone) == true)
+			return false;
 		// get fits headers
 		clearFitsHeaders(arm);
 		if(setFitsHeaders(exposeCommand,exposeDone,arm,FitsHeaderDefaults.OBSTYPE_VALUE_ARC,
@@ -540,6 +542,9 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/05/07 15:32:07  cjm
+// Fixed comments.
+//
 // Revision 1.3  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
