@@ -1,5 +1,5 @@
 // MULTRUNImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.3 2009-08-05 14:42:17 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.4 2009-08-20 11:24:46 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the MULTRUN command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.3 2009-08-05 14:42:17 cjm Exp $");
+	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.4 2009-08-20 11:24:46 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -190,9 +190,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		{
 			autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 			frodospec.error(this.getClass().getName()+
-				  ":processCommand:"+command+":Failed to set No lamp lock:"+e.toString());
+				  ":processCommand:"+command+":Failed to set No lamp lock:",e);
 			frodospecMultRunDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1200);
-			frodospecMultRunDone.setErrorString(e.toString());
+			frodospecMultRunDone.setErrorString(command+":Failed to set No lamp lock:"+e.toString());
 			frodospecMultRunDone.setSuccessful(false);
 			return frodospecMultRunDone;
 		}
@@ -464,6 +464,10 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/08/05 14:42:17  cjm
+// Moved setLampLock before moveFold, so fold is not moved until lamp lock is acquired
+// (and therefore any ARC/LAMPFLATs on the other arm are finished).
+//
 // Revision 1.2  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
