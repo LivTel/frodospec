@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.5 2009-05-06 10:12:00 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.6 2009-08-20 12:10:05 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.5 2009-05-06 10:12:00 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.6 2009-08-20 12:10:05 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -116,14 +116,15 @@ public class LampController
 		synchronized(inUseLock)
 		{
 			logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				   ":setNoLampLock: Entered lock.");
+				   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+"): Entered lock.");
 			// if no lamp locked out, acquire NO_LAMP
 			if(inUseCount == 0)
 			{
 				inUseLamps = NO_LAMP;
 				inUseCount++;
 				logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					   ":setNoLampLock: inUseCount was zero: Acquired NO_LAMP lock.");
+					   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+					   "): inUseCount was zero: Acquired NO_LAMP lock.");
 			}
 			else
 			{
@@ -133,28 +134,39 @@ public class LampController
 					inUseCount++;
 					logger.log(Logger.VERBOSITY_INTERMEDIATE,
 						   this.getClass().getName()+
-						  ":setNoLampLock: inUseLamp was NO_LAMP: inUseCount now:"+inUseCount);
+						  ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+						   "): inUseLamp was NO_LAMP: inUseCount now:"+inUseCount);
 				}
 				else
 				{
 					logger.log(Logger.VERBOSITY_INTERMEDIATE,
 						   this.getClass().getName()+
-						   ":setNoLampLock: lamp lock in use ("+inUseLamps+","+inUseCount+
+						   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+						   "): lamp lock in use ("+inUseLamps+","+inUseCount+
 						   "):waiting to acquire lamp.");
 					// wait until lamp in use is NO_LAMP or inUseCount is zero
-					while((inUseLamps.equals(NO_LAMP) == false) && (inUseCount > 0))
+					// use short circuit evaluation here, if lock is released whilst this
+					// thread is in wait inUseLamps can become null, but then inUseCount
+					// _must_ be zero
+					while((inUseCount > 0) && (inUseLamps.equals(NO_LAMP) == false))
 					{
 						logger.log(Logger.VERBOSITY_INTERMEDIATE,
 							   this.getClass().getName()+
-							   ":setNoLampLock: Sending ACK:"+waitLength);
+							   ":setNoLampLock(arm="+
+							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   "): Sending ACK:"+waitLength);
 						// send ACK to command client to stop timeout
-						ack = new ACK(this.getClass().getName()+":setNoLampLock:inUseLamps="+
+						ack = new ACK(this.getClass().getName()+":setNoLampLock(arm="+
+							      FrodoSpecConstants.ARM_STRING_LIST[arm]+"):inUseLamps="+
 							      inUseLamps+":inUseCount="+inUseCount);
 						ack.setTimeToComplete((waitLength * 2));
-						serverConnectionThread.sendAcknowledge(ack);
+						if(serverConnectionThread != null)
+							serverConnectionThread.sendAcknowledge(ack);
 						logger.log(Logger.VERBOSITY_INTERMEDIATE,
 							   this.getClass().getName()+
-							   ":setNoLampLock: Entering wait on lock:"+waitLength);
+							   ":setNoLampLock(arm="+
+							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   "): Entering wait on lock:"+waitLength);
 						// wait releases lock on inUseLock
 						try
 						{
@@ -170,14 +182,16 @@ public class LampController
 					inUseCount++;
 					logger.log(Logger.VERBOSITY_INTERMEDIATE,
 						   this.getClass().getName()+
-						  ":setNoLampLock: acquired NO_LAMP: inUseCount now:"+inUseCount);
+						  ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+						   "): acquired NO_LAMP: inUseCount now:"+inUseCount);
 				}// endif wrong lamp is in use
 			}// end if in use count > 0
 		}// end synchronized on inUseLock
 		// actually turn all lamps off (this even works if lock was on NO_LAMP!)
 		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 			   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning off all lamps.");
-		lampUnit.turnAllLampsOff();
+		if(lampUnit != null)
+			lampUnit.turnAllLampsOff();
 	}
 
 	/**
@@ -212,7 +226,9 @@ public class LampController
 				inUseLamps = lampsString;
 				inUseCount++;
 				logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-					   ":setLampLock: inUseCount was zero: Acquired lock for:"+lampsString);
+					   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+					   ",lamps="+lampsString+"): inUseCount was zero: Acquired lock for:"+
+					   lampsString);
 			}
 			else
 			{
@@ -221,8 +237,9 @@ public class LampController
 				{
 					inUseCount++;
 					logger.log(Logger.VERBOSITY_INTERMEDIATE,
-						   this.getClass().getName()+":setLampLock: inUseLamp was "+
-						   lampsString+": inUseCount now:"+inUseCount);
+						   this.getClass().getName()+":setLampLock(arm="+
+						   FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+lampsString+
+						   "): inUseLamp was "+lampsString+": inUseCount now:"+inUseCount);
 				}
 				else
 				{
@@ -234,15 +251,21 @@ public class LampController
 					{
 						logger.log(Logger.VERBOSITY_INTERMEDIATE,
 							   this.getClass().getName()+
-							   ":setLampLock: Sending ACK:"+waitLength);
+							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ",lamps="+lampsString+"): Sending ACK:"+waitLength);
 						// send ACK to command client to stop timeout
-						ack = new ACK(this.getClass().getName()+":setLampLock:inUseLamps="+
+						ack = new ACK(this.getClass().getName()+":setLampLock(arm="+
+							      FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+
+							      lampsString+"):inUseLamps="+
 							      inUseLamps+":inUseCount="+inUseCount);
 						ack.setTimeToComplete((waitLength * 2));
-						serverConnectionThread.sendAcknowledge(ack);
+						if(serverConnectionThread != null)
+							serverConnectionThread.sendAcknowledge(ack);
 						logger.log(Logger.VERBOSITY_INTERMEDIATE,
 							   this.getClass().getName()+
-							   ":setLampLock: Entering wait on lock:"+waitLength);
+							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ",lamps="+lampsString+"): Entering wait on lock:"+
+							   waitLength);
 						// wait releases lock on inUseLock
 						try
 						{
@@ -257,7 +280,9 @@ public class LampController
 					inUseLamps = lampsString;
 					inUseCount++;
 					logger.log(Logger.VERBOSITY_INTERMEDIATE,
-						   this.getClass().getName()+":setLampLock: acquired "+lampsString+
+						   this.getClass().getName()+":setLampLock(arm="+
+						   FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+lampsString+
+						   "): acquired "+lampsString+
 						   ": inUseCount now:"+inUseCount);
 				}// endif wrong lamp is in use
 			}// end if in use count > 0
@@ -267,8 +292,11 @@ public class LampController
 		    ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning lamps on:"+lampsString);
 		// we should turn all lamps off before turning the ones we want back on
 		// this resets all the lamp demand bits
-		lampUnit.turnAllLampsOff();
-		lampUnit.turnLampsOn(lampsString);
+		if(lampUnit != null)
+		{
+			lampUnit.turnAllLampsOff();
+			lampUnit.turnLampsOn(lampsString);
+		}
 	}
 
 	/**
@@ -289,14 +317,16 @@ public class LampController
 		{
 			inUseCount--;
 			logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				   ":clearLampLock: Acquired lamp lock:Decremented inUseCount ="+inUseCount);
+				   ":clearLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+				   "): Acquired lamp lock:Decremented inUseCount ="+inUseCount);
 			if(inUseCount == 0)
 			{
 				logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					   ":clearLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 					   ") turning lamps off:"+inUseLamps);
 				// actually turn all lamps off (this even works if lock was on NO_LAMP!)
-				lampUnit.turnAllLampsOff();
+				if(lampUnit != null)
+					lampUnit.turnAllLampsOff();
 				inUseLamps = null;
 				inUseLock.notify();
 			}
@@ -326,6 +356,9 @@ public class LampController
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2009/05/06 10:12:00  cjm
+// Better documentation.
+//
 // Revision 1.4  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
