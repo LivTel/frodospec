@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.10 2009-08-18 12:51:56 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.11 2009-08-20 11:23:33 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.10 $
+ * @version $Revision: 1.11 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.10 2009-08-18 12:51:56 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.11 2009-08-20 11:23:33 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -1363,7 +1363,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		}
 		catch(Exception e)
 		{
-			frodospec.error(this.getClass().getName()+":turnLampsOff:"+command+
+			frodospec.error(this.getClass().getName()+":turnLampsOff("+
+					FrodoSpecConstants.ARM_STRING_LIST[arm]+"):"+command+
 					":Switching off lamps failed:",e);
 			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+314);
 			done.setErrorString("Switching off lamps failed:"+e.toString());
@@ -1376,6 +1377,10 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2009/08/18 12:51:56  cjm
+// Added per-arm FITS values for DETECTOR, GAIN, READNOIS, EPERDN.
+// CCDRDOUT now set from amplifier config.
+//
 // Revision 1.9  2009/08/14 14:12:55  cjm
 // Amplifier/Deinterlace settings now per-arm.
 //
