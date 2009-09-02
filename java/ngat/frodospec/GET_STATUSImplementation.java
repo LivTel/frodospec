@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.3 2009-02-05 15:34:04 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.4 2009-09-02 16:38:36 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.3 2009-02-05 15:34:04 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.4 2009-09-02 16:38:36 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -861,6 +861,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * @see Plc#FAULT_STATUS_GRATING_POSITION_BLUE_LOW
 	 * @see Plc#FAULT_STATUS_SHUTTER_BLUE_OPEN
 	 * @see Plc#FAULT_STATUS_SHUTTER_BLUE_CLOSE
+	 * @see Plc#FAULT_STATUS_AIR_FLOW_HIGH
+	 * @see Plc#FAULT_STATUS_PANEL_WAS_IN_LOCAL
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
 	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS
 	 * @see ngat.message.ISS_INST.GET_STATUS_DONE#KEYWORD_INSTRUMENT_STATUS
@@ -882,7 +884,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		String plcInstrumentStatus;
 		String focusStageInstrumentStatus;
 		// fault status bits that set the _overall_ instrument status to fail
-		int plcFaultStatusFailMask = Plc.FAULT_STATUS_AIR_PRESSURE_LOW;
+		int plcFaultStatusFailMask = Plc.FAULT_STATUS_AIR_PRESSURE_LOW|Plc.FAULT_STATUS_PANEL_WAS_IN_LOCAL;
 		// fault status bits that set the _overall_ instrument status to warn
 		int plcFaultStatusWarnMask = Plc.FAULT_STATUS_AIR_PRESSURE_HIGH|
 			Plc.FAULT_STATUS_HUMIDITY_HIGH|Plc.FAULT_STATUS_COOLING|
@@ -1139,6 +1141,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/02/05 15:34:04  cjm
+// Changed log levels.
+//
 // Revision 1.2  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
