@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.3 2009-03-05 12:15:37 cjm Exp $
-# Version: $Revision: 1.3 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.4 2009-09-02 14:14:38 cjm Exp $
+# Version: $Revision: 1.4 $
 # By $Author: cjm $
 # Make a deployment tar file.
 # This contains:
@@ -235,7 +235,7 @@ echo "${dir_count} C test program directories copied, containg ${file_count} C t
 # Scripts
 #
 echo "Copying scripts..."
-set file_list = "frodospec/scripts/frodospec_get_status_cron frodospec/scripts/get_temperature frodospec/scripts/simple_image frodospec/scripts/arc_lamp frodospec/scripts/frodospec_single_config_multrun frodospec/scripts/frodospec_exercise_arm frodospec/scripts/frodospec_arm_flexer frodospec/scripts/frodospec_engineering_mode scripts/killhup.csh scripts/fuser_check ccs_gui/java/icsgui"
+set file_list = "frodospec/scripts/frodospec_get_status_cron frodospec/scripts/get_temperature frodospec/scripts/simple_image frodospec/scripts/arc_lamp frodospec/scripts/frodospec_single_config_multrun frodospec/scripts/frodospec_exercise_arm frodospec/scripts/frodospec_arm_flexer frodospec/scripts/frodospec_engineering_mode frodospec/scripts/ifbitset frodospec/scripts/frodospec_plc_fault_reset frodospec/scripts/frodospec_plc_fault_status frodospec/scripts/frodospec_plc_power_arcom_ethernet_serial frodospec/scripts/frodospec_plc_power_blue_focus_stage frodospec/scripts/frodospec_plc_power_blue_sdsu frodospec/scripts/frodospec_plc_power_maint_lights frodospec/scripts/frodospec_plc_power_red_focus_stage frodospec/scripts/frodospec_plc_power_red_sdsu scripts/killhup.csh scripts/fuser_check ccs_gui/java/icsgui"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -368,6 +368,9 @@ echo "Download ${deployment_tar}.gz frodospec_tar_install icc_cshrc icc_cshrc_ed
 echo "Deployment ready."
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.3  2009/03/05 12:15:37  cjm
+# Added test_ccd_redatum.properties.
+#
 # Revision 1.2  2008/12/15 14:44:05  cjm
 # Fixed deployment machine name.
 #
