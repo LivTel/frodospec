@@ -1,0 +1,100 @@
+#!/bin/csh
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_plc_fault_status,v 1.1 2009-09-02 14:07:16 cjm Exp $
+# PLC fault status
+# frodospec_plc_fault_status
+if( -x /icc/bin/eip/test/i386-linux/eip_test_read_integer ) then
+	alias read_integer '/icc/bin/eip/test/i386-linux/eip_test_read_integer'
+else
+	echo "Failed to find eip_test_read_integer."
+	exit 1
+endif
+if( -x /icc/bin/frodospec/scripts/ifbitset ) then
+	alias ifbitset '/icc/bin/frodospec/scripts/ifbitset'
+else
+	echo "Failed to find ifbitset."
+	exit 1
+endif
+# configuration
+set hostname = "frodospecplc"
+# Addresses from :Frodospec Instrument Control Computer to PLC Interface Control Document v0.5 (03/10/08)
+set fault_status_address = "N20:0"
+set fault_status = `read_integer -ip ${hostname} -a ${fault_status_address}`
+echo "Current Fault Status: ${fault_status}"
+# bit 0
+ifbitset ${fault_status} 0
+if( ${status} == 0 ) then
+    echo "bit 0:High Air Pressure Fault."
+endif
+# bit 1
+ifbitset ${fault_status} 1
+if( ${status} == 0 ) then
+    echo "bit 1:Low Air Pressure Fault."
+endif
+# bit 2
+ifbitset ${fault_status} 2
+if( ${status} == 0 ) then
+    echo "bit 2:High Humidity Fault."
+endif
+# bit 3
+ifbitset ${fault_status} 3
+if( ${status} == 0 ) then
+    echo "bit 3:Red VPH Movement Fault."
+endif
+# bit 4
+ifbitset ${fault_status} 4
+if( ${status} == 0 ) then
+    echo "bit 4:Red Grating Movement Fault."
+endif
+# bit 5
+ifbitset ${fault_status} 5
+if( ${status} == 0 ) then
+    echo "bit 5:Blue VPH Movement Fault."
+endif
+# bit 6
+ifbitset ${fault_status} 6
+if( ${status} == 0 ) then
+    echo "bit 6:Blue Grating Movement Fault."
+endif
+# bit 7
+ifbitset ${fault_status} 7
+if( ${status} == 0 ) then
+    echo "bit 7:Red Shutter Open Movement Fault."
+endif
+# bit 8
+ifbitset ${fault_status} 8
+if( ${status} == 0 ) then
+    echo "bit 8:Red Shutter Close Movement Fault."
+endif
+# bit 9
+ifbitset ${fault_status} 9
+if( ${status} == 0 ) then
+    echo "bit 9:Blue Shutter Open Movement Fault."
+endif
+# bit 10
+ifbitset ${fault_status} 10
+if( ${status} == 0 ) then
+    echo "bit 10:Blue Shutter Close Movement Fault."
+endif
+# bit 11
+ifbitset ${fault_status} 11
+if( ${status} == 0 ) then
+    echo "bit 11:Cooling Fault."
+endif
+# bit 12
+ifbitset ${fault_status} 12
+if( ${status} == 0 ) then
+    echo "bit 12:High Temperature Instrument Fault."
+endif
+# bit 13
+ifbitset ${fault_status} 13
+if( ${status} == 0 ) then
+    echo "bit 13:High Temperature Panel Fault."
+endif
+# bit 14
+ifbitset ${fault_status} 14
+if( ${status} == 0 ) then
+    echo "bit 14:Air Flow High Fault."
+endif
+#
+# $Log: not supported by cvs2svn $
+#

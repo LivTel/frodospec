@@ -1,0 +1,30 @@
+#!/bin/csh
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_plc_fault_reset,v 1.1 2009-09-02 14:07:16 cjm Exp $
+# PLC fault reset
+# frodospec_plc_fault_reset
+if( -x /icc/bin/eip/test/i386-linux/eip_test_write_boolean ) then
+	alias write_boolean '/icc/bin/eip/test/i386-linux/eip_test_write_boolean'
+else
+	echo "Failed to find eip_test_write_boolean."
+	exit 1
+endif
+if( -x /icc/bin/frodospec/scripts/frodospec_plc_fault_status ) then
+	alias frodospec_plc_fault_status '/icc/bin/frodospec/scripts/frodospec_plc_fault_status'
+else
+	echo "Failed to find frodospec_plc_fault_status."
+	exit 1
+endif
+# configuration
+set hostname = "frodospecplc"
+# Addresses from :Frodospec Instrument Control Computer to PLC Interface Control Document v0.5 (03/10/08)
+set fault_reset_demand_address = "N10:0/15"
+# get current fault status
+frodospec_plc_fault_status
+# reset fault
+echo "Setting Fault Reset Demand..."
+write_boolean -ip ${hostname} -a ${fault_reset_demand_address} -v true
+# get current fault status
+frodospec_plc_fault_status
+#
+# $Log: not supported by cvs2svn $
+#
