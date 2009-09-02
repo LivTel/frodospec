@@ -11,14 +11,14 @@ import ngat.util.logging.*;
 /**
  * An instance of this class is used to control the FrodoSpec Plc.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class Plc
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: Plc.java,v 1.3 2009-04-30 09:54:13 cjm Exp $");
+	public final static String RCSID = new String("$Id: Plc.java,v 1.4 2009-09-02 16:35:55 cjm Exp $");
 	/**
 	 * The number of temperature probes in FrodoSpec.
 	 */
@@ -131,6 +131,16 @@ public class Plc
 	 * Fault status bit.
 	 */
 	public final static int FAULT_STATUS_PANEL_TEMPERATURE_HIGH     = (1<<13);
+	/**
+	 * Fault status bit.
+	 */
+	public final static int FAULT_STATUS_AIR_FLOW_HIGH              = (1<<14);
+	/**
+	 * Fault status bit. This indicates the panel has been in local since the last
+	 * fault reset. Therefore power to the focus stages has been pulled (to stop them moving)
+	 * so a fault reset is needed as part of a reboot that will redatum/home the focus stages.
+	 */
+	public final static int FAULT_STATUS_PANEL_WAS_IN_LOCAL         = (1<<15);
 	/**
 	 * The EIPPLC instance used to communicate with the PLC.
 	 */
@@ -1803,6 +1813,9 @@ public class Plc
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/04/30 09:54:13  cjm
+// Added abortMovement and abort method to abort setGrating calls.
+//
 // Revision 1.2  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
