@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.11 2009-08-20 11:23:33 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.12 2009-09-02 09:50:30 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.11 $
+ * @version $Revision: 1.12 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.11 2009-08-20 11:23:33 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.12 2009-09-02 09:50:30 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -712,6 +712,11 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			focusStage = frodospec.getFocusStage(arm);
 			fvalue = (float)(focusStage.getPosition());
 			cardImage.setValue(new Float(fvalue)); 
+		// GRATID
+			cardImage = frodospecFitsHeaderList[arm].get("GRATID");
+			cardImage.setValue(frodospecFitsHeaderDefaultsList[arm].getValue("GRATID."+
+					   FrodoSpecConstants.ARM_STRING_LIST[arm])+
+					   "."+currentResolutionString);
 		// ENVTEMP[N]
 			for(int i = 0; i< Plc.TEMPERATURE_PROBE_COUNT; i++)
 			{
@@ -1377,6 +1382,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.11  2009/08/20 11:23:33  cjm
+// Added arm to error logging in turnLampsOff.
+//
 // Revision 1.10  2009/08/18 12:51:56  cjm
 // Added per-arm FITS values for DETECTOR, GAIN, READNOIS, EPERDN.
 // CCDRDOUT now set from amplifier config.
