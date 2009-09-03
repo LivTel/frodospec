@@ -1,5 +1,5 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_plc_fault_status,v 1.1 2009-09-02 14:07:16 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_plc_fault_status,v 1.2 2009-09-03 14:23:03 cjm Exp $
 # PLC fault status
 # frodospec_plc_fault_status
 if( -x /icc/bin/eip/test/i386-linux/eip_test_read_integer ) then
@@ -18,83 +18,92 @@ endif
 set hostname = "frodospecplc"
 # Addresses from :Frodospec Instrument Control Computer to PLC Interface Control Document v0.5 (03/10/08)
 set fault_status_address = "N20:0"
-set fault_status = `read_integer -ip ${hostname} -a ${fault_status_address}`
+set fault_status_string = `read_integer -ip ${hostname} -a ${fault_status_address} | grep "PLC Address"`
+set fault_status = `echo "${fault_status_string}" | sed "s/.*PLC Address .* containd value \(.*\)\..*/\1/"`
 echo "Current Fault Status: ${fault_status}"
 # bit 0
-ifbitset ${fault_status} 0
+ifbitset ${fault_status} 0 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 0:High Air Pressure Fault."
 endif
 # bit 1
-ifbitset ${fault_status} 1
+ifbitset ${fault_status} 1 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 1:Low Air Pressure Fault."
 endif
 # bit 2
-ifbitset ${fault_status} 2
+ifbitset ${fault_status} 2 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 2:High Humidity Fault."
 endif
 # bit 3
-ifbitset ${fault_status} 3
+ifbitset ${fault_status} 3 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 3:Red VPH Movement Fault."
 endif
 # bit 4
-ifbitset ${fault_status} 4
+ifbitset ${fault_status} 4 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 4:Red Grating Movement Fault."
 endif
 # bit 5
-ifbitset ${fault_status} 5
+ifbitset ${fault_status} 5 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 5:Blue VPH Movement Fault."
 endif
 # bit 6
-ifbitset ${fault_status} 6
+ifbitset ${fault_status} 6 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 6:Blue Grating Movement Fault."
 endif
 # bit 7
-ifbitset ${fault_status} 7
+ifbitset ${fault_status} 7 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 7:Red Shutter Open Movement Fault."
 endif
 # bit 8
-ifbitset ${fault_status} 8
+ifbitset ${fault_status} 8 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 8:Red Shutter Close Movement Fault."
 endif
 # bit 9
-ifbitset ${fault_status} 9
+ifbitset ${fault_status} 9 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 9:Blue Shutter Open Movement Fault."
 endif
 # bit 10
-ifbitset ${fault_status} 10
+ifbitset ${fault_status} 10 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 10:Blue Shutter Close Movement Fault."
 endif
 # bit 11
-ifbitset ${fault_status} 11
+ifbitset ${fault_status} 11 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 11:Cooling Fault."
 endif
 # bit 12
-ifbitset ${fault_status} 12
+ifbitset ${fault_status} 12 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 12:High Temperature Instrument Fault."
 endif
 # bit 13
-ifbitset ${fault_status} 13
+ifbitset ${fault_status} 13 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 13:High Temperature Panel Fault."
 endif
 # bit 14
-ifbitset ${fault_status} 14
+ifbitset ${fault_status} 14 > /dev/null
 if( ${status} == 0 ) then
     echo "bit 14:Air Flow High Fault."
 endif
+# bit 15
+ifbitset ${fault_status} 15 > /dev/null
+if( ${status} == 0 ) then
+    echo "bit 15:PLC was in local since last fault reset."
+endif
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2009/09/02 14:07:16  cjm
+# Initial revision
+#
 #
