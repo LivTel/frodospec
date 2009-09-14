@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.38 2009-08-17 14:42:43 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.39 2009-09-14 15:08:33 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.38 $
+ * @version $Revision: 0.39 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -90,6 +90,20 @@
 #define EXPOSURE_DEFAULT_START_EXPOSURE_OFFSET_TIME	(2)
 
 /* structure */
+/**
+ * Structure used to hold local data to ccd_exposure.
+ * <dl>
+ * <dt>FITS_Mutex</dt> <dd>Optionally compiled mutex locking around CFITSIO calls, as the current version of
+ *     CFITSIO we are using is not thread safe.</dd>
+ * </dl>
+ */
+struct Exposure_Struct
+{
+#ifdef CCD_CFITSIO_MUTEXED
+      pthread_mutex_t FITS_Mutex;
+#endif
+};
+
 
 /* external variables */
 
@@ -97,7 +111,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.38 2009-08-17 14:42:43 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.39 2009-09-14 15:08:33 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -107,6 +121,20 @@ static int Exposure_Error_Number = 0;
  * Local variable holding description of the last error that occured.
  */
 static char Exposure_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
+/**
+ * Data holding the current status of ccd_exposure. This is statically initialised to the following:
+ * <dl>
+ * <dt>FITS_Mutex</dt> <dd>If compiled in, PTHREAD_MUTEX_INITIALIZER</dd>
+ * </dl>
+ * @see #Exposure_Struct
+ */
+static struct Exposure_Struct Exposure_Data = 
+{
+#ifdef CCD_CFITSIO_MUTEXED
+      PTHREAD_MUTEX_INITIALIZER
+#endif
+};
+
 
 /* internal functions */
 static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int value);
@@ -128,6 +156,10 @@ static void Exposure_TimeSpec_To_Date_Obs_String(struct timespec time,char *time
 static void Exposure_TimeSpec_To_UtStart_String(struct timespec time,char *time_string);
 static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correction,double *mjd);
 static int Exposure_Expose_Delete_Fits_Images(char **filename_list,int filename_count);
+#ifdef CCD_CFITSIO_MUTEXED
+static int Exposure_FITS_Mutex_Lock(void);
+static int Exposure_FITS_Mutex_Unlock(void);
+#endif
 static int fexist(char *filename);
 
 /* external functions */
@@ -1689,6 +1721,9 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
 /**
  * This routine takes some image data and saves it in a file on disc. It also updates the 
  * DATE-OBS FITS keyword to the value saved just before the SEX command was sent to the controller.
+ * It currently uses Exposure_FITS_Mutex_Lock / Exposure_FITS_Mutex_UnLock to lock CFITSIO file writing,
+ * as the CFITSIO library we are currently using (3.006) does not appear to be thread safe and causes crashes/
+ * WRITE_ERROR errors when both arms try to write data at the same time.
  * @param filename The filename to save the data into.
  * @param exposure_data The data to save.
  * @param ncols The number of columns in the image data.
@@ -1699,6 +1734,8 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
  * @see #Exposure_TimeSpec_To_Date_Obs_String
  * @see #Exposure_TimeSpec_To_UtStart_String
  * @see #Exposure_TimeSpec_To_Mjd
+ * @see #Exposure_FITS_Mutex_Lock
+ * @see #Exposure_FITS_Mutex_UnLock
  */
 static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows,struct timespec start_time)
 {
@@ -1711,10 +1748,17 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 #if LOGGING > 4
 	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Started.");
 #endif
+#ifdef CCD_CFITSIO_MUTEXED
+	if(!Exposure_FITS_Mutex_Lock())
+		return FALSE;
+#endif
 	/* try to open file */
 	retval = fits_open_file(&fp,filename,READWRITE,&status);
 	if(retval)
 	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		Exposure_Error_Number = 53;
@@ -1725,6 +1769,9 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	retval = fits_write_img(fp,TUSHORT,1,ncols*nrows,exposure_data,&status);
 	if(retval)
 	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		fits_close_file(fp,&status);
@@ -1737,6 +1784,9 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	retval = fits_update_key(fp,TSTRING,"DATE",exposure_start_time_string,NULL,&status);
 	if(retval)
 	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		fits_close_file(fp,&status);
@@ -1749,6 +1799,9 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	retval = fits_update_key(fp,TSTRING,"DATE-OBS",exposure_start_time_string,NULL,&status);
 	if(retval)
 	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		fits_close_file(fp,&status);
@@ -1762,6 +1815,9 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	retval = fits_update_key(fp,TSTRING,"UTSTART",exposure_start_time_string,NULL,&status);
 	if(retval)
 	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		fits_close_file(fp,&status);
@@ -1773,10 +1829,18 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 /* update MJD keyword */
 /* note leap second correction not implemented yet (always FALSE). */
 	if(!Exposure_TimeSpec_To_Mjd(start_time,FALSE,&mjd))
+	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		return FALSE;
+	}
 	retval = fits_update_key_fixdbl(fp,"MJD",mjd,6,NULL,&status);
 	if(retval)
 	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		fits_close_file(fp,&status);
@@ -1789,12 +1853,20 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	retval = fits_close_file(fp,&status);
 	if(retval)
 	{
+#ifdef CCD_CFITSIO_MUTEXED
+		Exposure_FITS_Mutex_Unlock();
+#endif
 		fits_get_errstatus(status,buff);
 		fits_report_error(stderr,status);
 		Exposure_Error_Number = 59;
 		sprintf(Exposure_Error_String,"Exposure_Save: File close failed(%s,%d,%s).",filename,status,buff);
 		return FALSE;
 	}
+#ifdef CCD_CFITSIO_MUTEXED
+	if(!Exposure_FITS_Mutex_Unlock())
+		return FALSE;
+#endif
+
 #if LOGGING > 4
 	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Completed.");
 #endif
@@ -2041,6 +2113,49 @@ static int Exposure_Expose_Delete_Fits_Images(char **filename_list,int filename_
 	return TRUE;
 }
 
+#ifdef CCD_CFITSIO_MUTEXED
+/**
+ * Routine to lock the CFITSIO access mutex. This will block until the mutex has been acquired,
+ * unless an error occurs.
+ * Mutex locking is currently acheived against one statically initialised mutex in ccd_exposure. 
+ * @return Returns TRUE if the mutex has been  locked for access by this thread,
+ * 	FALSE if an error occured.
+ * @see #Exposure_Data
+ */
+static int Exposure_FITS_Mutex_Lock(void)
+{
+	int error_number;
+
+	error_number = pthread_mutex_lock(&(Exposure_Data.FITS_Mutex));
+	if(error_number != 0)
+	{
+		Exposure_Error_Number = 32;
+		sprintf(Exposure_Error_String,"Exposure_FITS_Mutex_Lock:Mutex lock failed '%d'.",error_number);
+		return FALSE;
+	}
+	return TRUE;
+}
+
+/**
+ * Routine to unlock the CFITSIO access mutex. 
+ * @return Returns TRUE if the mutex has been unlocked, FALSE if an error occured.
+ * @see #Exposure_Data
+ */
+static int Exposure_FITS_Mutex_Unlock(void)
+{
+	int error_number;
+
+	error_number = pthread_mutex_unlock(&(Exposure_Data.FITS_Mutex));
+	if(error_number != 0)
+	{
+		Exposure_Error_Number = 33;
+		sprintf(Exposure_Error_String,"Exposure_FITS_Mutex_Unlock:Mutex unlock failed '%d'.",error_number);
+		return FALSE;
+	}
+	return TRUE;
+}
+#endif
+
 /**
  * Return whether the specified filename exists or not.
  * @param filename A string representing the filename to test.
@@ -2059,6 +2174,9 @@ static int fexist(char *filename)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.38  2009/08/17 14:42:43  cjm
+** Added de-interlace debug.
+**
 ** Revision 0.37  2009/04/30 14:20:12  cjm
 ** Changed calls to CCD_DSP_Set_Abort / CCD_DSP_Get_Abort, they now require a handle.
 **
