@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.22 2009-04-30 14:18:26 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/ccd/c/Makefile,v 1.23 2009-09-14 15:10:31 cjm Exp $
 
 include			../../../Makefile.common
 include			../../Makefile.common
@@ -18,7 +18,7 @@ DOCSDIR = $(FRODOSPEC_CCD_DOC_HOME)/cdocs
 BYTESWAPCFLAGS = 
 
 # Do we wish to link with CFITSIO routines?
-FITSCFLAGS = -DCFITSIO=1 -I$(CFITSIOINCDIR) 
+FITSCFLAGS = -DCFITSIO=1 -DCCD_CFITSIO_MUTEXED=1 -I$(CFITSIOINCDIR) 
 CFITSIOLIB = -lcfitsio
 
 # FITSCFLAGS =
@@ -156,6 +156,10 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.22  2009/04/30 14:18:26  cjm
+# Added LOG_UDP_CFLAGS.
+# Added ccd_dsp_private.h.
+#
 # Revision 1.21  2008/12/11 14:40:59  cjm
 # Added private headers.
 #
@@ -184,14 +188,19 @@ ccd_interface.o: /usr/include/string.h /usr/include/signal.h
 ccd_interface.o: /usr/include/bits/sigset.h /usr/include/bits/signum.h
 ccd_interface.o: /usr/include/sys/time.h /usr/include/bits/time.h
 ccd_interface.o: /usr/include/sys/select.h /usr/include/bits/select.h
+ccd_interface.o: /home/dev/src/log_udp/include/log_udp.h
+ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
+ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_exposure.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_global.h
-ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_text.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_setup.h
-ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_interface_private.h
+ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_dsp_private.h
+ccd_interface.o: /usr/include/pthread.h /usr/include/sched.h
+ccd_interface.o: /usr/include/bits/sched.h /usr/include/bits/pthreadtypes.h
+ccd_interface.o: /usr/include/bits/initspin.h /usr/include/bits/sigthread.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_exposure_private.h
 ccd_interface.o: /home/dev/src/frodospec/ccd/include/ccd_setup_private.h
 ccd_pci.o: /usr/include/errno.h /usr/include/features.h
@@ -218,6 +227,10 @@ ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
 ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_text.h
 ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_interface_private.h
+ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_dsp_private.h
+ccd_pci.o: /usr/include/pthread.h /usr/include/sched.h
+ccd_pci.o: /usr/include/bits/sched.h /usr/include/bits/pthreadtypes.h
+ccd_pci.o: /usr/include/bits/initspin.h /usr/include/bits/sigthread.h
 ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_exposure_private.h
 ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_exposure.h
 ccd_pci.o: /home/dev/src/frodospec/ccd/include/ccd_setup_private.h
@@ -245,6 +258,12 @@ ccd_text.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
 ccd_text.o: /home/dev/src/frodospec/ccd/include/ccd_text.h
 ccd_text.o: /usr/include/sys/types.h
 ccd_text.o: /home/dev/src/frodospec/ccd/include/ccd_interface_private.h
+ccd_text.o: /home/dev/src/frodospec/ccd/include/ccd_dsp_private.h
+ccd_text.o: /usr/include/pthread.h /usr/include/sched.h
+ccd_text.o: /usr/include/bits/sched.h /usr/include/signal.h
+ccd_text.o: /usr/include/bits/sigset.h /usr/include/bits/signum.h
+ccd_text.o: /usr/include/bits/pthreadtypes.h /usr/include/bits/initspin.h
+ccd_text.o: /usr/include/bits/sigthread.h
 ccd_text.o: /home/dev/src/frodospec/ccd/include/ccd_exposure_private.h
 ccd_text.o: /home/dev/src/frodospec/ccd/include/ccd_setup_private.h
 ccd_text.o: /home/dev/src/frodospec/ccd/include/ccd_setup.h
@@ -264,6 +283,7 @@ ccd_global.o: /usr/lib/gcc-lib/i386-redhat-linux/3.2.2/include/limits.h
 ccd_global.o: /usr/include/sys/types.h /usr/include/time.h
 ccd_global.o: /usr/include/string.h /usr/include/unistd.h
 ccd_global.o: /usr/include/bits/posix_opt.h /usr/include/bits/confname.h
+ccd_global.o: /home/dev/src/log_udp/include/log_udp.h
 ccd_global.o: /home/dev/src/frodospec/ccd/include/ccd_global.h
 ccd_global.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_global.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
@@ -292,11 +312,18 @@ ccd_dsp.o: /usr/include/bits/posix_opt.h /usr/include/bits/confname.h
 ccd_dsp.o: /usr/include/pthread.h /usr/include/sched.h
 ccd_dsp.o: /usr/include/bits/sched.h /usr/include/bits/pthreadtypes.h
 ccd_dsp.o: /usr/include/bits/initspin.h /usr/include/bits/sigthread.h
+ccd_dsp.o: /home/dev/src/log_udp/include/log_udp.h
 ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_global.h
 ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
+ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_interface_private.h
 ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
-ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
+ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_text.h
+ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_dsp_private.h
+ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_exposure_private.h
 ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_exposure.h
+ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_setup_private.h
+ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
+ccd_dsp.o: /home/dev/src/frodospec/ccd/include/ccd_setup.h
 ccd_dsp_download.o: /usr/include/errno.h /usr/include/features.h
 ccd_dsp_download.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
 ccd_dsp_download.o: /usr/include/bits/errno.h /usr/include/linux/errno.h
@@ -316,6 +343,7 @@ ccd_dsp_download.o: /usr/include/bits/sys_errlist.h /usr/include/stdlib.h
 ccd_dsp_download.o: /usr/include/string.h /usr/include/unistd.h
 ccd_dsp_download.o: /usr/include/bits/posix_opt.h
 ccd_dsp_download.o: /usr/include/bits/confname.h
+ccd_dsp_download.o: /home/dev/src/log_udp/include/log_udp.h
 ccd_dsp_download.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_dsp_download.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
 ccd_dsp_download.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
@@ -333,6 +361,7 @@ ccd_temperature.o: /usr/include/bits/sys_errlist.h /usr/include/string.h
 ccd_temperature.o: /usr/include/math.h /usr/include/bits/huge_val.h
 ccd_temperature.o: /usr/include/bits/mathdef.h /usr/include/bits/mathcalls.h
 ccd_temperature.o: /usr/include/time.h
+ccd_temperature.o: /home/dev/src/log_udp/include/log_udp.h
 ccd_temperature.o: /home/dev/src/frodospec/ccd/include/ccd_global.h
 ccd_temperature.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_temperature.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
@@ -356,6 +385,7 @@ ccd_setup.o: /usr/include/math.h /usr/include/bits/huge_val.h
 ccd_setup.o: /usr/include/bits/mathdef.h /usr/include/bits/mathcalls.h
 ccd_setup.o: /usr/include/unistd.h /usr/include/bits/posix_opt.h
 ccd_setup.o: /usr/include/bits/confname.h
+ccd_setup.o: /home/dev/src/log_udp/include/log_udp.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_global.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
@@ -363,6 +393,10 @@ ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_dsp_download.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_interface_private.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_text.h
+ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_dsp_private.h
+ccd_setup.o: /usr/include/pthread.h /usr/include/sched.h
+ccd_setup.o: /usr/include/bits/sched.h /usr/include/bits/pthreadtypes.h
+ccd_setup.o: /usr/include/bits/initspin.h /usr/include/bits/sigthread.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_exposure_private.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_exposure.h
 ccd_setup.o: /home/dev/src/frodospec/ccd/include/ccd_setup_private.h
@@ -385,6 +419,7 @@ ccd_exposure.o: /usr/include/bits/signum.h /usr/include/errno.h
 ccd_exposure.o: /usr/include/bits/errno.h /usr/include/linux/errno.h
 ccd_exposure.o: /usr/include/asm/errno.h /usr/include/unistd.h
 ccd_exposure.o: /usr/include/bits/posix_opt.h /usr/include/bits/confname.h
+ccd_exposure.o: /home/dev/src/log_udp/include/log_udp.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_exposure.h
@@ -393,6 +428,10 @@ ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_exposure_private.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_interface_private.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_pci.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_text.h
+ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_dsp_private.h
+ccd_exposure.o: /usr/include/pthread.h /usr/include/sched.h
+ccd_exposure.o: /usr/include/bits/sched.h /usr/include/bits/pthreadtypes.h
+ccd_exposure.o: /usr/include/bits/initspin.h /usr/include/bits/sigthread.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_setup_private.h
 ccd_exposure.o: /home/dev/src/frodospec/ccd/include/ccd_setup.h
 ccd_exposure.o: /home/dev/src/cfitsio3.006/include/fitsio.h
@@ -420,11 +459,11 @@ ngat_frodospec_ccd_CCDLibrary.o: /usr/include/stdlib.h /usr/include/string.h
 ngat_frodospec_ccd_CCDLibrary.o: /usr/java/j2sdk1.4.2_06/include/jni.h
 ngat_frodospec_ccd_CCDLibrary.o: /usr/java/j2sdk1.4.2_06/include/linux/jni_md.h
 ngat_frodospec_ccd_CCDLibrary.o: /usr/include/time.h
+ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
+ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_exposure.h
 ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_global.h
-ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_interface.h
 ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_setup.h
-ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_dsp.h
 ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_temperature.h
 ngat_frodospec_ccd_CCDLibrary.o: /home/dev/src/frodospec/ccd/include/ccd_text.h
 ngat_frodospec_ccd_CCDLibrary.o: /usr/include/sys/types.h
