@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/Makefile,v 1.2 2008-11-21 11:09:17 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/Makefile,v 1.3 2009-09-17 10:45:25 cjm Exp $
 include ../Makefile.common
 include ../../Makefile.common
 
@@ -11,9 +11,9 @@ JARLIBDIR	= $(LT_BIN_HOME)/javalib
 
 DOCSDIR 	= $(FRODOSPEC_DOC_HOME)/javadocs/
 DOCFLAGS 	= -version -author -private
-JAVASRCS 	= ngat/frodospec/*.java ngat/frodospec/ccd/*.java \
+JAVASRCS 	= ngat/frodospec/*.java ngat/frodospec/test/*.java ngat/frodospec/ccd/*.java \
 		ngat/frodospec/newmark/*.java ngat/frodospec/newmark/test/*.java 
-#ngat/frodospec/test/*.java  ngat/frodospec/ccd/test/*.java
+#ngat/frodospec/ccd/test/*.java
 #ngat/frodospec/df1/*.java ngat/frodospec/df1/test/*.java
 JAVAPKGS	= ngat.frodospec ngat.frodospec.test ngat.frodospec.ccd ngat.frodospec.ccd.test \
 		ngat.frodospec.newmark ngat.frodospec.newmark.test
@@ -82,6 +82,9 @@ backup: checkin
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.2  2008/11/21 11:09:17  cjm
+# Tried to fix jar make rule.
+#
 # Revision 1.1  2008/11/20 11:34:46  cjm
 # Initial revision
 #
