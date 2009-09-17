@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/Makefile,v 1.2 2009-08-20 11:22:58 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/Makefile,v 1.3 2009-09-17 09:56:27 cjm Exp $ 
 include ../../../../../Makefile.common
 include	../../../../Makefile.common
 
@@ -9,7 +9,8 @@ DOCSDIR 	= $(FRODOSPEC_DOC_HOME)/javadocs/$(PACKAGEDIR)
 DOCFLAGS 	= -version -author -private
 
 SRCS 		= SicfTCPClientConnectionThread.java SicfTCPServerConnectionThread.java SicfTCPServer.java \
-		 SendConfigCommand.java SendMultrunCommand.java TestPlc.java TestLampController.java
+		 SendConfigCommand.java SendMultrunCommand.java SendBiasCommand.java SendDarkCommand.java \
+		 TestPlc.java TestLampController.java
 OBJS 		= $(SRCS:%.java=$(BINDIR)/%.class)
 DOCS 		= $(SRCS:%.java=$(DOCSDIR)/%.html)
 
@@ -34,6 +35,9 @@ tidy:
 backup: tidy
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.2  2009/08/20 11:22:58  cjm
+# Added TestLampController.java.
+#
 # Revision 1.1  2008/11/20 11:34:44  cjm
 # Initial revision
 #
