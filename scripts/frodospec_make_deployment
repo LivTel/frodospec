@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.4 2009-09-02 14:14:38 cjm Exp $
-# Version: $Revision: 1.4 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.5 2009-09-18 15:15:16 cjm Exp $
+# Version: $Revision: 1.5 $
 # By $Author: cjm $
 # Make a deployment tar file.
 # This contains:
@@ -268,7 +268,7 @@ foreach file ( ${file_list} )
     @ file_count ++
 end
 # in config directory.
-set file_list = "config/${machine_name}.day_calibrate_state.properties config/${machine_name}.twilight_calibrate_state.properties"
+set file_list = "config/${machine_name}.day_calibrate_state.red.properties config/${machine_name}.day_calibrate_state.blue.properties config/${machine_name}.twilight_calibrate_state.properties"
 cd ${dev_dir}
 foreach file ( ${file_list} )
     set new_file = `echo ${file} | sed "s#${machine_name}.##"`
@@ -368,6 +368,9 @@ echo "Download ${deployment_tar}.gz frodospec_tar_install icc_cshrc icc_cshrc_ed
 echo "Deployment ready."
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.4  2009/09/02 14:14:38  cjm
+# Added frodospec plc power scripts, and fault status/reset scripts.
+#
 # Revision 1.3  2009/03/05 12:15:37  cjm
 # Added test_ccd_redatum.properties.
 #
