@@ -1,5 +1,5 @@
 // DAY_CALIBRATEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.3 2009-08-14 14:12:30 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.4 2009-09-18 15:20:46 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -19,14 +19,14 @@ import ngat.util.logging.*;
  * Java Message System. It performs a series of BIAS and DARK frames from a configurable list,
  * taking into account frames done in previous invocations of this command (it saves it's state).
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.3 2009-08-14 14:12:30 cjm Exp $");
+	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.4 2009-09-18 15:20:46 cjm Exp $");
 	/**
 	 * Initial part of a key string, used to create a list of potential day calibrations to
 	 * perform from a Java property file.
@@ -70,10 +70,6 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	 * @see DAY_CALIBRATESavedState
 	 */
 	private DAY_CALIBRATESavedState dayCalibrateState = null;
-	/**
-	 * The filename holding the saved state data.
-	 */
-	private String stateFilename = null;
 	/**
 	 * The list of calibrations to select from.
 	 * Each item in the list is an instance of DAY_CALIBRATECalibration.
@@ -184,7 +180,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 		implementationStartTime = System.currentTimeMillis();
 		if(loadCalibrationList(dayCalibrateCommand,dayCalibrateDone) == false)
 			return dayCalibrateDone;
-		if(initialiseState(dayCalibrateCommand,dayCalibrateDone) == false)
+		if(initialiseState(dayCalibrateCommand,dayCalibrateDone,arm) == false)
 			return dayCalibrateDone;
 	// Get the amount of time to readout and save a full frame
 		try
@@ -362,42 +358,28 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	}
 
 	/**
-	 * Method to initialse dayCalibrateState and stateFilename.
+	 * Method to initialse dayCalibrateState.
 	 * @param dayCalibrateCommand The instance of FRODOSPEC_DAY_CALIBRATE we are currently running.
 	 * @param dayCalibrateDone The instance of FRODOSPEC_DAY_CALIBRATE_DONE to fill in with errors we receive.
+	 * @param arm Which arm to retrieve the day calibration state for, either RED_ARM or BLUE_ARM.
 	 * @return The method returns true if it succeeds, false if it fails. If false is returned the error
 	 * 	data in dayCalibrateDone is filled in.
 	 * @see #dayCalibrateState
-	 * @see #stateFilename
 	 */
 	protected boolean initialiseState(FRODOSPEC_DAY_CALIBRATE dayCalibrateCommand,
-					  FRODOSPEC_DAY_CALIBRATE_DONE dayCalibrateDone)
+					  FRODOSPEC_DAY_CALIBRATE_DONE dayCalibrateDone,int arm)
 	{
-	// get stateFilename from properties
-		try
-		{
-			stateFilename = status.getProperty("frodospec.day_calibrate.state_filename");
-		}
-		catch (Exception e)
-		{
-			String errorString = new String(dayCalibrateCommand.getId()+
-				":initialiseState:Failed to get state filename.");
-			frodospec.error(this.getClass().getName()+":"+errorString,e);
-			dayCalibrateDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2201);
-			dayCalibrateDone.setErrorString(errorString);
-			dayCalibrateDone.setSuccessful(false);
-			return false;
-		}
 	// initialise and load dayCalibrateState instance
 		dayCalibrateState = new DAY_CALIBRATESavedState();
 		try
 		{
-			dayCalibrateState.load(stateFilename);
+			dayCalibrateState.load(arm);
 		}
 		catch (Exception e)
 		{
 			String errorString = new String(dayCalibrateCommand.getId()+
-				":initialiseState:Failed to load state filename:"+stateFilename);
+				":initialiseState:Failed to load state filename for arm "+
+							FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
 			frodospec.error(this.getClass().getName()+":"+errorString,e);
 			dayCalibrateDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2202);
 			dayCalibrateDone.setErrorString(errorString);
@@ -559,7 +541,6 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	 * @see #doConfig
 	 * @see #doFrames
 	 * @see #sendBasicAck
-	 * @see #stateFilename
 	 * @see ngat.frodospec.FrodoSpecConstants#ARM_STRING_LIST
 	 */
 	protected boolean doCalibration(FRODOSPEC_DAY_CALIBRATE dayCalibrateCommand,
@@ -596,12 +577,13 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 		dayCalibrateState.setLastTime(arm,type,bin,exposureTime,count);
 		try
 		{
-			dayCalibrateState.save(stateFilename);
+			dayCalibrateState.save();
 		}
 		catch(IOException e)
 		{
 			String errorString = new String(dayCalibrateCommand.getId()+
-				":doCalibration:Failed to save state filename:"+stateFilename);
+				":doCalibration:Failed to save state filename for arm "+
+							FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
 			frodospec.error(this.getClass().getName()+":"+errorString,e);
 			dayCalibrateDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2206);
 			dayCalibrateDone.setErrorString(errorString);
@@ -1009,6 +991,13 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	 */
 	private class DAY_CALIBRATESavedState
 	{
+		/**
+		 * The properties filename.
+		 */
+		private String filename = null;
+		/**
+		 * The properties containing the saved state.
+		 */
 		private NGATProperties properties = null;
 
 		/**
@@ -1023,25 +1012,32 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 		/**
 	 	 * Load method, that retrieves the saved state from file.
 		 * Calls the <b>properties</b> load method.
-		 * @param filename The filename to load the saved state from.
+		 * The filename is retrieved from "frodospec.day_calibrate.state_filename."+arm.
+		 * There is separate saved state filenames for each arm, so two instances of DAY_CALIBRATE can run 
+		 * on each arm at the same time without state writes overwriting each other.
+		 * @param arm The arm to load the saved state for.
 		 * @exception FileNotFoundException Thrown if the file described by filename does not exist.
 		 * @exception IOException Thrown if an IO error occurs whilst reading the file.
+		 * @exception Exception Thrown if getProperty fails.
 		 * @see #properties
+		 * @see #filename
+		 * @see #status
+		 * @see FrodoSpecConstants#ARM_STRING_LIST
 	 	 */
-		public void load(String filename) throws FileNotFoundException, IOException
+		public void load(int arm) throws FileNotFoundException, IOException, Exception
 		{
+			filename = status.getProperty("frodospec.day_calibrate.state_filename."+
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			properties.load(filename);
 		}
 
 		/**
 	 	 * Save method, that stores the saved state into a file.
-		 * Calls the <b>properties</b> load method.
-		 * @param filename The filename to save the saved state to.
-		 * @exception FileNotFoundException Thrown if the file described by filename does not exist.
+		 * Calls the <b>properties</b> save method.
 		 * @exception IOException Thrown if an IO error occurs whilst writing the file.
 		 * @see #properties
 	 	 */
-		public void save(String filename) throws IOException
+		public void save() throws IOException
 		{
 			Date now = null;
 
@@ -1060,6 +1056,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 		 * @return The number of milliseconds since the EPOCH, the last time a calibration with these
 		 * 	parameters was completed. If this calibraion has not been performed before, zero
 		 * 	is returned.
+		 * @see #typeToString
 		 * @see DAY_CALIBRATEImplementation.DAY_CALIBRATECalibration#TYPE_BIAS
 		 * @see DAY_CALIBRATEImplementation.DAY_CALIBRATECalibration#TYPE_DARK
 		 * @see #LIST_KEY_STRING
@@ -1076,7 +1073,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 			{
 				time = properties.getLong(LIST_KEY_STRING+LIST_KEY_LAST_TIME_STRING+
 							  FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
-							  type+"."+bin+"."+exposureTime+"."+count);
+							  typeToString(type)+"."+bin+"."+exposureTime+"."+count);
 			}
 			catch(NGATPropertyException e)/* assume failure due to key not existing */
 			{
@@ -1094,6 +1091,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 		 * @param bin The binning factor used for this calibration.
 		 * @param exposureTime The length of exposure for a DARK, always zero for a BIAS.
 		 * @param count The number of frames.
+		 * @see #typeToString
 		 * @see DAY_CALIBRATEImplementation.DAY_CALIBRATECalibration#TYPE_BIAS
 		 * @see DAY_CALIBRATEImplementation.DAY_CALIBRATECalibration#TYPE_DARK
 		 * @see #LIST_KEY_STRING
@@ -1108,8 +1106,24 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 
 			now = System.currentTimeMillis();
 			properties.setProperty(LIST_KEY_STRING+LIST_KEY_LAST_TIME_STRING+
-					       FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+type+"."+bin+"."+
-					       exposureTime+"."+count,new String(""+now));
+					       FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+typeToString(type)
+					       +"."+bin+"."+exposureTime+"."+count,new String(""+now));
+		}
+
+		/**
+		 * Method to convert a type number to a string.
+		 * @param type The type number, either TYPE_DARK or TYPE_BIAS.
+		 * @return A String, either "dark" or "bias".
+		 * @see DAY_CALIBRATEImplementation.DAY_CALIBRATECalibration#TYPE_BIAS
+		 * @see DAY_CALIBRATEImplementation.DAY_CALIBRATECalibration#TYPE_DARK
+		 */
+		protected String typeToString(int type)
+		{
+			if(type == DAY_CALIBRATECalibration.TYPE_DARK)
+				return "dark";
+			else if(type == DAY_CALIBRATECalibration.TYPE_BIAS)
+				return "bias";
+			return null;
 		}
 	}
 
@@ -1354,6 +1368,9 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/08/14 14:12:30  cjm
+// Amplifier setting now per-arm.
+//
 // Revision 1.2  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
