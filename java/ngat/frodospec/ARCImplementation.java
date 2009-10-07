@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.5 2009-08-05 14:42:19 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.6 2009-10-07 11:25:43 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.5 2009-08-05 14:42:19 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.6 2009-10-07 11:25:43 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -99,6 +99,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		FRODOSPEC_ARC arcCommand = null;
 		FRODOSPEC_ARC_DONE arcDone = new FRODOSPEC_ARC_DONE(command.getId());
 		FILENAME_ACK arcAck = null;
+		ACK acknowledge = null;
 		FitsHeaderCardImage objectCardImage = null;
 		CCDLibrary ccd = null;
 		Plc plc = null;		
@@ -257,6 +258,24 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 			turnLampsOff(arm,arcCommand,arcDone);
 			return arcDone;
 		}
+        // send ack of exposurelength + readout before starting exposure
+		acknowledge = new ACK(command.getId());
+		acknowledge.setTimeToComplete(exposureLength+serverConnectionThread.getDefaultAcknowledgeTime());
+		try
+		{
+			serverConnectionThread.sendAcknowledge(acknowledge);
+		}
+		catch(IOException e)
+		{
+			// switch lamp off
+			turnLampsOff(arm,arcCommand,arcDone);
+			frodospec.error(this.getClass().getName()+
+					":processCommand:"+command+":"+e.toString());
+			arcDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1508);
+			arcDone.setErrorString(e.toString());
+			arcDone.setSuccessful(false);
+			return arcDone;
+		}
 	// do arc
 		status.setExposureFilename(arm,filename);
 		if(ccdEnable)
@@ -319,6 +338,10 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2009/08/05 14:42:19  cjm
+// Moved setLampLock before stowFold, so fold is not stowed until lamp lock is acquired
+// (and therefore any MULTRUNs on the other arm are finished).
+//
 // Revision 1.4  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
