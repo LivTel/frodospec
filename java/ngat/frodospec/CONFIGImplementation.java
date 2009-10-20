@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.6 2009-08-14 14:12:41 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.7 2009-10-20 18:15:16 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.6 2009-08-14 14:12:41 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.7 2009-10-20 18:15:16 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -113,6 +113,8 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		int numberColumns,numberRows,amplifier,deInterlaceSetting,arm;
 		boolean ccdEnable,calibrateBefore,calibrateAfter;
 
+		frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":Command:"+
+			     command.getClass().getName()+":processCommand:started.");
 	// test contents of command.
 		configCommand = (CONFIG)command;
 		configDone = new CONFIG_DONE(command.getId());
@@ -245,8 +247,12 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		{
 			if(ccdEnable)
 			{
+				frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+					      ":processCommand:Calling setupDimensions.");
 				ccd.setupDimensions(numberColumns,numberRows,detector.getXBin(),detector.getYBin(),
 						    amplifier,deInterlaceSetting,detector.getWindowFlags(),windowList);
+				frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+					      ":processCommand:Finished setupDimensions.");
 			}
 			else
 			{
@@ -267,8 +273,15 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
        // send grating configuration to the PLC
 		try
 		{
+			frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				      ":processCommand:Finding PLC.");
 			plc = frodospec.getPLC();
+			frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				      ":processCommand:Setting arm "+arm+" to resolution "+
+				      frodospecConfig.getResolution()+".");
 			plc.setGrating(arm,frodospecConfig.getResolution());
+			frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				      ":processCommand:Grating set.");
 		}
 		catch(Exception e)
 		{
@@ -282,12 +295,16 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		if(testAbort(configCommand,configDone) == true)
 			return configDone;
 	// Issue ISS OFFSET_FOCUS commmand
+		frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			      ":processCommand:Setting focus Offset.");
 		if(setFocusOffset(configCommand.getId(),frodospecConfig,status,configDone) == false)
 			return configDone;
 	// Increment unique config ID.
 	// This is queried when saving FITS headers to get the CONFIGID value.
 		try
 		{
+			frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				      ":processCommand:Incrementing Config Id.");
 			status.incConfigId(arm);
 		}
 		catch(Exception e)
@@ -299,6 +316,8 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			configDone.setSuccessful(false);
 			return configDone;
 		}
+		frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			      ":processCommand:Setting cached status details.");
 	// Store name of configuration used in status object.
 	// This is queried when saving FITS headers to get the CONFNAME value.
 		status.setConfigName(arm,frodospecConfig.getId());
@@ -309,6 +328,8 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		configDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_NO_ERROR);
 		configDone.setErrorString("");
 		configDone.setSuccessful(true);
+		frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			      ":processCommand:Finished.");
 	// return done object.
 		return configDone;
 	}
@@ -377,6 +398,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2009/08/14 14:12:41  cjm
+// Amplifier setting now per-arm.
+//
 // Revision 1.5  2009/08/06 13:41:45  cjm
 // Added focousOffsetLock to setFocusOffset, to stop both arms calling setFocusOffset at the same time,
 // which can cause the TCS to return an error to the first one.
