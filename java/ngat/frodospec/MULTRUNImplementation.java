@@ -1,5 +1,5 @@
 // MULTRUNImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.4 2009-08-20 11:24:46 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.5 2010-02-08 11:09:08 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the MULTRUN command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.4 2009-08-20 11:24:46 cjm Exp $");
+	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.5 2010-02-08 11:09:08 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -87,6 +87,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * 	<li>It generates some FITS headers from the CCD setup and the ISS. 
 	 * 	<li>Sets the time of exposure and saves the Fits headers.
 	 * 	<li>It performs an exposure and saves the data from this to disc.
+	 *      <li>Removes FITS file locks created by saving the FITS headers.
 	 * 	<li>Keeps track of the generated filenames in the list.
 	 * 	</ul>
 	 * <li>It releases the "no lamp lock" using clearLampLock.
@@ -105,6 +106,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#unLockFiles
 	 * @see FrodoSpecStatus#setExposureCount
 	 * @see FrodoSpecStatus#setExposureNumber
 	 * @see ngat.frodospec.ccd.CCDLibrary#expose
@@ -302,6 +304,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				// actually removing NO_LAMP lock
 				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
 				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
+				unLockFiles(frodospecMultRunCommand,frodospecMultRunDone,filenameList);
 				return frodospecMultRunDone;
 			}
 		// do exposure.
@@ -326,6 +329,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					// actually removing NO_LAMP lock
 					turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
 					autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
+					unLockFiles(frodospecMultRunCommand,frodospecMultRunDone,filenameList);
 					return frodospecMultRunDone;
 				}
 			}// end if ccdEnable
@@ -334,6 +338,14 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				frodospec.log(Logger.VERBOSITY_VERY_TERSE,
 					      this.getClass().getName()+
 					      ":processCommand:Did not do multrun exposure, ccd enable was false.");
+			}
+			// unlock FITS file locks created by saveFitsHeaders
+			if(unLockFiles(frodospecMultRunCommand,frodospecMultRunDone,filenameList) == false)
+			{
+				// actually removing NO_LAMP lock
+				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
+				return frodospecMultRunDone;
 			}
 		// send acknowledge to say frame is completed.
 			multRunAck = new MULTRUN_ACK(command.getId());
@@ -464,6 +476,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/08/20 11:24:46  cjm
+// Added extra loggin to setNoLampLock exception handling, so stack trace is printed.
+//
 // Revision 1.3  2009/08/05 14:42:17  cjm
 // Moved setLampLock before moveFold, so fold is not moved until lamp lock is acquired
 // (and therefore any ARC/LAMPFLATs on the other arm are finished).
