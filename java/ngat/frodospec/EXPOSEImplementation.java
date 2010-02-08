@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.5 2009-08-19 13:54:48 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.6 2010-02-08 11:09:26 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.5 2009-08-19 13:54:48 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.6 2010-02-08 11:09:26 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -155,6 +155,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see #frodospecFitsHeaderList
 	 * @see FITSImplementation#clearFitsHeaders
 	 * @see FITSImplementation#setFitsHeaders
+	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#unLockFile
 	 * @see FitsHeaderDefaults#OBSTYPE_VALUE_DARK
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#testAbort
@@ -224,7 +226,10 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		objectCardImage.setValue(new String("DARK for "+objectName));
 		// save FITS headers
 		if(saveFitsHeaders(exposeCommand,exposeDone,arm,filename) == false)
+		{
+			unLockFile(exposeCommand,exposeDone,filename);
 			return false;
+		}
 		// do dark exposure.
 		status.setExposureFilename(arm,filename);
 		if(ccdEnable)
@@ -240,6 +245,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 				exposeDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+601);
 				exposeDone.setErrorString("doCalibrationDark:"+e.toString());
 				exposeDone.setSuccessful(false);
+				unLockFile(exposeCommand,exposeDone,filename);
 				return false;
 			}
 		}// end if ccdEnable
@@ -248,6 +254,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 			frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				      ":doCalibrationDark:Did not do dark, ccd enable was false.");
 		}
+		if(unLockFile(exposeCommand,exposeDone,filename) == false)
+			return false;			
 		// send acknowledge to say frame is completed.
 		// Note, should really be MULTRUN_ACK/RUNAT_ACK.
 		filenameAck = new FILENAME_ACK(exposeCommand.getId());
@@ -292,6 +300,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see #turnLampsOn
 	 * @see FITSImplementation#clearFitsHeaders
 	 * @see FITSImplementation#setFitsHeaders
+	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#unLockFile
 	 * @see FitsHeaderDefaults#OBSTYPE_VALUE_ARC
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#testAbort
@@ -431,6 +441,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		if(saveFitsHeaders(exposeCommand,exposeDone,arm,filename) == false)
 		{
 			turnLampsOff(arm,exposeCommand,exposeDone);
+			unLockFile(exposeCommand,exposeDone,filename);
 			return false;
 		}
 		// do arc.
@@ -449,6 +460,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 				exposeDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+611);
 				exposeDone.setErrorString("doCalibrationArc:"+e.toString());
 				exposeDone.setSuccessful(false);
+				unLockFile(exposeCommand,exposeDone,filename);
 				return false;
 			}
 		}// end if ccdEnable
@@ -460,6 +472,9 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		}
 		// switch lamp off
 		turnLampsOff(arm,exposeCommand,exposeDone);
+		// unlock FITS file lock created by saveFitsHeaders
+		if(unLockFile(exposeCommand,exposeDone,filename) == false)
+			return false;
 		// send acknowledge to say frame is completed.
 		// Note, should really be MULTRUN_ACK/RUNAT_ACK.
 		filenameAck = new FILENAME_ACK(exposeCommand.getId());
@@ -542,6 +557,10 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2009/08/19 13:54:48  cjm
+// Moved stowFold in doCalibrationArc inside LampController lock code,
+// to stop fold being moved whilst the other arm is doing an exposure.
+//
 // Revision 1.4  2009/05/07 15:32:07  cjm
 // Fixed comments.
 //

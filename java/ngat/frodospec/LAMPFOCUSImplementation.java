@@ -1,5 +1,5 @@
 // LAMPFOCUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.1 2009-05-07 16:05:47 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.2 2010-02-08 11:09:30 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFOCUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.1 2009-05-07 16:05:47 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.2 2010-02-08 11:09:30 cjm Exp $");
 	/**
 	 * A small number. Used to prevent a division by zero.
 	 */	 
@@ -458,6 +458,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * 	(clearFitsHeaders, setFitsHeaders, getFitsHeadersFromISS).
 	 * <li>The FITS headers for this frame are saved using the saveFitsHeaders method.
 	 * <li>The exposure is performed and saved in the filename, using CCDExposureExpose.
+	 * <li>The FITS lock file created by saveFitsHeaders is deleted using unLockFile.
 	 * <li>The frameParameters filename field is set to the saved filename.
 	 * </ul>
 	 * testAbort is called during this method to see if the command has been aborted.
@@ -477,6 +478,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#unLockFile
 	 * @see #testAbort
 	 * @see CCDLibrary#expose
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
@@ -515,9 +517,15 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 		objectCardImage.setValue(new String("LAMPFOCUS: "+lampsString));
 	// save FITS headers
 		if(saveFitsHeaders(lampFocusCommand,lampFocusDone,arm,filename) == false)
+		{
+			unLockFile(lampFocusCommand,lampFocusDone,filename);
 			return false;
+		}
 		if(testAbort(lampFocusCommand,lampFocusDone) == true)
+		{
+			unLockFile(lampFocusCommand,lampFocusDone,filename);
 			return false;
+		}
 	// do exposure
 		status.setExposureFilename(arm,filename);
 		if(ccdEnable)
@@ -528,6 +536,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 			}
 			catch(CCDLibraryNativeException e)
 			{
+				unLockFile(lampFocusCommand,lampFocusDone,filename);
 				frodospec.error(this.getClass().getName()+
 						":processCommand:"+lampFocusCommand+":expose failed:"+e.toString());
 				lampFocusDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2807);
@@ -541,7 +550,9 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 			frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				      ":processCommand:Did not do lamp focus exposure, ccd enable was false.");
 		}
-
+		// unlock FITS file lock created by saveFitsHeaders
+		if(unLockFile(lampFocusCommand,lampFocusDone,filename) == false)
+			return false;
 		if(testAbort(lampFocusCommand,lampFocusDone) == true)
 			return false;
 		frameParameters.setFilename(filename);
@@ -775,4 +786,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2009/05/07 16:05:47  cjm
+// Initial revision
+//
 //

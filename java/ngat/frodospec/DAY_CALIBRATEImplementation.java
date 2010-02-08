@@ -1,5 +1,5 @@
 // DAY_CALIBRATEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.4 2009-09-18 15:20:46 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.5 2010-02-08 11:09:43 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -19,14 +19,14 @@ import ngat.util.logging.*;
  * Java Message System. It performs a series of BIAS and DARK frames from a configurable list,
  * taking into account frames done in previous invocations of this command (it saves it's state).
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.4 2009-09-18 15:20:46 cjm Exp $");
+	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.5 2010-02-08 11:09:43 cjm Exp $");
 	/**
 	 * Initial part of a key string, used to create a list of potential day calibrations to
 	 * perform from a Java property file.
@@ -728,6 +728,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	 * <li>The FITS headers are saved using saveFitsHeaders.
 	 * <li>The frame is taken, using libccd. If the <b>type</b> is BIAS, CCDLibrary's bias
 	 * 	method is called, otherwise expose is used.
+	 * <li>The FITS file lock craeted by saveFitsHeaders is removed using unLockFile.
 	 * <li>testAbort is called to see if this command implementation has been aborted.
 	 * <li>reduceCalibrate is called to pass the frame to the Real Time Data Pipeline for processing.
 	 * </ul>
@@ -744,6 +745,7 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#unLockFile
 	 * @see FITSImplementation#frodospecFilenameList
 	 * @see ngat.frodospec.ccd.CCDLibrary#bias
 	 * @see ngat.frodospec.ccd.CCDLibrary#expose
@@ -820,7 +822,10 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 			frodospecFilenameList[arm].nextRunNumber();
 			filename = frodospecFilenameList[arm].getFilename();
 			if(saveFitsHeaders(dayCalibrateCommand,dayCalibrateDone,arm,filename) == false)
+			{
+				unLockFile(dayCalibrateCommand,dayCalibrateDone,filename);
 				return false;
+			}
 			status.setExposureFilename(arm,filename);
 		// do exposure
 			try
@@ -843,8 +848,12 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 				dayCalibrateDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2210);
 				dayCalibrateDone.setErrorString(errorString+e);
 				dayCalibrateDone.setSuccessful(false);
+				unLockFile(dayCalibrateCommand,dayCalibrateDone,filename);
 				return false;
 			}
+			// unlock FITS file lock created by saveFitsHeaders
+			if(unLockFile(dayCalibrateCommand,dayCalibrateDone,filename) == false)
+				return false;
 		// send with filename back to client
 		// time to complete is reduction time, we will send another ACK after reduceCalibrate
 			if(sendDayCalibrateAck(dayCalibrateCommand,dayCalibrateDone,readoutOverhead,filename) == false)
@@ -1368,6 +1377,11 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/09/18 15:20:46  cjm
+// Day calibration state now held in per-arm filenames, so saving state does not overwrite
+// state changes being done in a potenitally concurrent run on the other arm.
+// typeToString added so saved state BIAS/DARK type is more readable.
+//
 // Revision 1.3  2009/08/14 14:12:30  cjm
 // Amplifier setting now per-arm.
 //

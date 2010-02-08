@@ -1,5 +1,5 @@
 // DARKImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DARKImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DARKImplementation.java,v 1.3 2010-02-08 11:09:54 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the DARK command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class DARKImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: DARKImplementation.java,v 1.2 2009-02-05 11:38:59 cjm Exp $");
+	public final static String RCSID = new String("$Id: DARKImplementation.java,v 1.3 2010-02-08 11:09:54 cjm Exp $");
 
 	/**
 	 * Constructor.
@@ -75,6 +75,7 @@ public class DARKImplementation extends CALIBRATEImplementation implements JMSCo
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#unLockFile
 	 * @see ngat.frodospec.ccd.CCDLibrary#expose
 	 * @see CALIBRATEImplementation#reduceCalibrate
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
@@ -142,7 +143,10 @@ public class DARKImplementation extends CALIBRATEImplementation implements JMSCo
 		frodospecFilenameList[arm].nextRunNumber();
 		filename = frodospecFilenameList[arm].getFilename();
 		if(saveFitsHeaders(command,darkDone,arm,filename) == false)
+		{
+			unLockFile(command,darkDone,filename);
 			return darkDone;
+		}
 	// do exposure
 		status.setExposureFilename(arm,filename);
 		if(ccdEnable)
@@ -159,6 +163,7 @@ public class DARKImplementation extends CALIBRATEImplementation implements JMSCo
 				darkDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+900);
 				darkDone.setErrorString(e.toString());
 				darkDone.setSuccessful(false);
+				unLockFile(command,darkDone,filename);
 				return darkDone;
 			}
 		}// end if ccdEnable
@@ -167,6 +172,9 @@ public class DARKImplementation extends CALIBRATEImplementation implements JMSCo
 			frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				      ":processCommand:Did not do dark, ccd enable was false.");
 		}
+		// unlock FITS file lock created by saveFitsHeaders
+		if(unLockFile(command,darkDone,filename) == false)
+			return darkDone;
 	// Test abort status.
 		if(testAbort(command,darkDone) == true)
 			return darkDone;
@@ -184,6 +192,9 @@ public class DARKImplementation extends CALIBRATEImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2009/02/05 11:38:59  cjm
+// Swapped Bitwise for Absolute logging levels.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //

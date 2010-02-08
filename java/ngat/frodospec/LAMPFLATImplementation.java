@@ -1,5 +1,5 @@
 // LAMPFLATImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.3 2009-08-05 14:42:20 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.4 2010-02-08 11:09:19 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFLAT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class LAMPFLATImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.3 2009-08-05 14:42:20 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.4 2010-02-08 11:09:19 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -82,6 +82,7 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#saveFitsHeaders
+	 * @see FITSImplementation#unLockFile
 	 * @see FITSImplementation#objectName
 	 * @see FITSImplementation#getArcExposureLength
 	 * @see FrodoSpec#getLampUnit
@@ -258,6 +259,7 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		{
 			// switch lamp off
 			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			unLockFile(lampFlatCommand,lampFlatDone,filename);
 			return lampFlatDone;
 		}
 	// do lampFlat
@@ -273,6 +275,7 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 			{
 				// switch lamp off
 				turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+				unLockFile(lampFlatCommand,lampFlatDone,filename);
 				frodospec.error(this.getClass().getName()+
 						":processCommand:"+command+":"+e.toString());
 				lampFlatDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2706);
@@ -289,6 +292,9 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		}
 		// switch lamp off
 		if(turnLampsOff(arm,lampFlatCommand,lampFlatDone) == false)
+			return lampFlatDone;
+		// unlock FITS file lock created by saveFitsHeaders
+		if(unLockFile(lampFlatCommand,lampFlatDone,filename)  == false)
 			return lampFlatDone;
 		status.setExposureNumber(arm,1);
 		// send acknowledge to say frame is completed.
@@ -322,6 +328,10 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/08/05 14:42:20  cjm
+// Moved setLampLock before stowFold, so fold is not stowed until lamp lock is acquired
+// (and therefore any MULTRUNs on the other arm are finished).
+//
 // Revision 1.2  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
