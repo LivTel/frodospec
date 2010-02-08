@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.13 2009-09-03 14:43:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.14 2010-02-08 11:08:37 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -14,6 +14,7 @@ import ngat.eip.*;
 import ngat.fits.*;
 import ngat.frodospec.ccd.*;
 import ngat.lamp.*;
+import ngat.util.*;
 import ngat.util.logging.*;
 
 /**
@@ -21,14 +22,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.13 $
+ * @version $Revision: 1.14 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.13 2009-09-03 14:43:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.14 2010-02-08 11:08:37 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -842,7 +843,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		{
 			frodospec.error(this.getClass().getName()+":getFitsHeadersFromISS:"+
 				command.getClass().getName()+":"+instToISSDone.getErrorString());
-			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+305);
+			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+308);
 			done.setErrorString(instToISSDone.getErrorString());
 			done.setSuccessful(false);
 			return false;
@@ -872,6 +873,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * This routine uses the Fits Header object, stored in the frodospec object, to save the headers to disc.
 	 * This method also updates the RUNNUM and EXPNUM keywords with the current multRun and runNumber values
 	 * in the frodospecFilenameList object, as they must be correct when the file is saved.
+	 * A lock file is created before the FITS header is written, this allows synchronisation with the
+	 * data transfer software.
 	 * @param command The command being implemented that made this call to the ISS. This is used
 	 * 	for error logging.
 	 * @param done A COMMAND_DONE subclass specific to the command being implemented. If an
@@ -885,9 +888,13 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see #frodospecFilenameList
 	 * @see ngat.fits.FitsFilename#getMultRunNumber
 	 * @see ngat.fits.FitsFilename#getRunNumber
+	 * @see ngat.util.LockFile2
 	 */
-	public boolean saveFitsHeaders(COMMAND command,COMMAND_DONE done,int arm,String filename) throws IllegalArgumentException
+	public boolean saveFitsHeaders(COMMAND command,COMMAND_DONE done,int arm,String filename) 
+		throws IllegalArgumentException
 	{
+		LockFile2 lockFile = null;
+
 		if((arm != FrodoSpecConfig.RED_ARM)&&(arm != FrodoSpecConfig.BLUE_ARM))
 		{
 			throw new IllegalArgumentException(this.getClass().getName()+":saveFitsHeaders:Arm "+arm+
@@ -921,6 +928,22 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			done.setErrorString(s);
 			done.setSuccessful(false);
 			return false;
+		}
+		// create lock file
+		try
+		{
+			lockFile = new LockFile2(filename);
+			lockFile.lock();
+		}
+		catch(Exception e)
+		{
+			String s = new String("Command "+command.getClass().getName()+
+					":saveFitsHeaders:Creating lock file failed for file:"+filename+":"+e);
+			frodospec.error(s,e);
+			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+314);
+			done.setErrorString(s);
+			done.setSuccessful(false);
+			return false;			
 		}
 		try
 		{
@@ -962,13 +985,16 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see ngat.fits.FitsFilename#getRunNumber
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
+	 * @see ngat.util.LockFile2
 	 */
-	public boolean saveFitsHeaders(COMMAND command,COMMAND_DONE done,int arm,List filenameList) throws IllegalArgumentException
+	public boolean saveFitsHeaders(COMMAND command,COMMAND_DONE done,int arm,List filenameList) 
+		throws IllegalArgumentException
 	{
 		FitsHeaderCardImage cardImage = null;
 		CCDLibrarySetupWindow window = null;
 		CCDLibrary ccd = null;
 		List windowIndexList = null;
+		LockFile2 lockFile = null;
 		String filename = null;
 		int windowIndex,windowFlags,ncols,nrows,xbin,ybin;
 
@@ -1101,6 +1127,22 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				done.setSuccessful(false);
 				return false;
 			}
+			// create lock file
+			try
+			{
+				lockFile = new LockFile2(filename);
+				lockFile.lock();
+			}
+			catch(Exception e)
+			{
+				String s = new String("Command "+command.getClass().getName()+
+					      ":saveFitsHeaders:Creating lock file failed for file:"+filename+":"+e);
+				frodospec.error(s,e);
+				done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+309);
+				done.setErrorString(s);
+				done.setSuccessful(false);
+				return false;
+			}
 			try
 			{
 				frodospecFitsHeaderList[arm].writeFitsHeader(filename);
@@ -1117,6 +1159,81 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 				return false;
 			}
 		}// end for
+		return true;
+	}
+
+	/**
+	 * This method tries to unlock the FITS filename.
+	 * It first checks the lock file exists and only attempts to unlock locked files. This is because
+	 * this method can be called after a partial failure, where the specified FITS file may or may not have been
+	 * locked.
+	 * @param command The command being implemented. This is used for error logging.
+	 * @param done A COMMAND_DONE subclass specific to the command being implemented. If an
+	 * 	error occurs the relevant fields are filled in with the error.
+	 * @param filename The FITS filename which should have an associated lock file.
+	 * @return true if the method succeeds, false if a failure occurs.
+	 * @see ngat.util.LockFile2
+	 */
+	public boolean unLockFile(COMMAND command,COMMAND_DONE done,String filename)
+	{
+		LockFile2 lockFile = null;
+
+		try
+		{
+			lockFile = new LockFile2(filename);
+			if(lockFile.isLocked())
+				lockFile.unLock();
+		}
+		catch(Exception e)
+		{
+			String s = new String("Command "+command.getClass().getName()+
+					      ":unLockFile:Unlocking lock file failed for file:"+filename+":"+e);
+			frodospec.error(s,e);
+			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+315);
+			done.setErrorString(s);
+			done.setSuccessful(false);
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * This method tries to unlock files associated with the FITS filename in filenameList.
+	 * It first checks the lock file exists and only attempts to unlocked locked files. This is because
+	 * this method can be called after a partial failure, where only some of the specified FITS files had been
+	 * locked.
+	 * @param command The command being implemented. This is used for error logging.
+	 * @param done A COMMAND_DONE subclass specific to the command being implemented. If an
+	 * 	error occurs the relevant fields are filled in with the error.
+	 * @param filenameList A list containing FITS filenames which should have associated lock files.
+	 * @return true if the method succeeds, false if a failure occurs
+	 * @see ngat.util.LockFile2
+	 */
+	public boolean unLockFiles(COMMAND command,COMMAND_DONE done,List filenameList)
+	{
+		LockFile2 lockFile = null;
+		String filename = null;
+
+		for(int i = 0; i < filenameList.size(); i++)
+		{
+			try
+			{
+				filename = (String)(filenameList.get(i));
+				lockFile = new LockFile2(filename);
+				if(lockFile.isLocked())
+					lockFile.unLock();
+			}
+			catch(Exception e)
+			{
+				String s = new String("Command "+command.getClass().getName()+
+						":unLockFiles:Unlocking lock file failed for file:"+filename+":"+e);
+				frodospec.error(s,e);
+				done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+316);
+				done.setErrorString(s);
+				done.setSuccessful(false);
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -1370,7 +1487,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			frodospec.error(this.getClass().getName()+":turnLampsOff("+
 					FrodoSpecConstants.ARM_STRING_LIST[arm]+"):"+command+
 					":Switching off lamps failed:",e);
-			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+314);
+			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+317);
 			done.setErrorString("Switching off lamps failed:"+e.toString());
 			done.setSuccessful(false);
 			return false;
@@ -1381,6 +1498,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.13  2009/09/03 14:43:40  cjm
+// Fixed GRATID value.
+//
 // Revision 1.12  2009/09/02 09:50:30  cjm
 // Added GRATID setting on a per arm/resolution basis.
 //
