@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.6 2009-08-20 12:10:05 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.7 2010-03-15 16:46:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.6 2009-08-20 12:10:05 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.7 2010-03-15 16:46:10 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -93,6 +93,7 @@ public class LampController
 
 	/**
 	 * Set the lamp lock to NO_LAMP (i.e. we want to do a MULTRUN). And actually turn all the lamps off.
+	 * Stow the calibration mirror.
 	 * @param arm The arm to set the lock for.
 	 * @param serverConnectionThread The servers connection thread. Used to send ACKs whilst waiting for the
 	 *                               light (or lack thereof) to become available.
@@ -104,6 +105,7 @@ public class LampController
 	 * @see #lampUnit
 	 * @see #waitLength
 	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
+	 * @see ngat.lamp.LTAGLampUnit#stowMirror
 	 */
 	public void setNoLampLock(int arm,FrodoSpecTCPServerConnectionThread serverConnectionThread) 
 		throws IOException, Exception
@@ -192,11 +194,16 @@ public class LampController
 			   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning off all lamps.");
 		if(lampUnit != null)
 			lampUnit.turnAllLampsOff();
+		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+			   ") stowing calibration mirror.");
+		if(lampUnit != null)
+			lampUnit.stowMirror();
 	}
 
 	/**
 	 * Set the lamp lock to lampsString (i.e. we want to do an ARC of some sort).
-	 * Then turn all the lamps off, and then turn on the specified lamps.
+	 * Then turn all the lamps off, and then turn on the specified lamps. Then move the calibration mirror inline.
 	 * @param arm The arm to set the lock for.
 	 * @param lampsString Which set of lamps we want to use.
 	 * @param serverConnectionThread The servers connection thread. Used to send ACKs whilst waiting for the
@@ -209,6 +216,7 @@ public class LampController
 	 * @see #lampUnit
 	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
 	 * @see ngat.lamp.LTAGLampUnit#turnLampsOn
+	 * @see ngat.lamp.LTAGLampUnit#moveMirrorInline
 	 */
 	public void setLampLock(int arm,String lampsString,FrodoSpecTCPServerConnectionThread serverConnectionThread)
 		throws IOException, Exception
@@ -296,17 +304,22 @@ public class LampController
 		{
 			lampUnit.turnAllLampsOff();
 			lampUnit.turnLampsOn(lampsString);
+			logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+				   ") moving mirror inline.");
+			lampUnit.moveMirrorInline();
 		}
 	}
 
 	/**
-	 * Clear the previously specified lock. Then turn all the lamps off.
+	 * Clear the previously specified lock. Then turn all the lamps off. Then stow the calibration mirror.
 	 * @exception Exception Thrown if a problem with the lamp unit occurs.
 	 * @see #inUseLock
 	 * @see #inUseCount
 	 * @see #inUseLamps
 	 * @see #lampUnit
 	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
+	 * @see ngat.lamp.LTAGLampUnit#stowMirror
 	 */
 	public void clearLampLock(int arm) throws Exception
 	{
@@ -326,7 +339,11 @@ public class LampController
 					   ") turning lamps off:"+inUseLamps);
 				// actually turn all lamps off (this even works if lock was on NO_LAMP!)
 				if(lampUnit != null)
+				{
 					lampUnit.turnAllLampsOff();
+					// make sure calibration mirror is stowed
+					lampUnit.stowMirror();
+				}
 				inUseLamps = null;
 				inUseLock.notify();
 			}
@@ -352,10 +369,32 @@ public class LampController
 		}
 		return s;
 	}
+
+	/**
+	 * Method to get the fault status from the lamp unit.
+	 * Note this can be called from a thread other than the one controlling the lights, as the
+	 * ngat.lamp.PLCConnection class in synchronised.
+	 * @return The method returns true if the underlying lamp controller has a fault, false if it does not
+	 *         have a fault.
+	 * @exception Exception Thrown if there is a comms problem with the lamp unit.
+	 * @see #lampUnit
+	 * @see ngat.lamp.LTAGLampUnit#getFaultStatus
+	 */
+	public boolean getFaultStatus() throws Exception
+	{
+		return lampUnit.getFaultStatus();
+	}
 }
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2009/08/20 12:10:05  cjm
+// Added extra arm logging.
+// setNoLampLock now has while loop short circuit evaluation the right way around,
+// hopefully stopping NullPointerExceptions.
+// Added if null tests on serverConnectionThread and lampUnit, so lam controller
+// can be tested from TestLampController without an actual lamp or connection thread running.
+//
 // Revision 1.5  2009/05/06 10:12:00  cjm
 // Better documentation.
 //
