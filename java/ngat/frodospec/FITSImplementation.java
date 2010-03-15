@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.14 2010-02-08 11:08:37 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.15 2010-03-15 16:46:51 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.14 $
+ * @version $Revision: 1.15 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.14 2010-02-08 11:08:37 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.15 2010-03-15 16:46:51 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -123,8 +123,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 	/**
 	 * This routine tries to move the mirror fold to the stowed location, by issuing a MOVE_FOLD command
-	 * to the ISS. The position to move the fold to is specified by the scs property file 
-	 * (frodospec.mirror_fold.stow). This is done to move the fold mirror out of the way for ARC calibration etc...
+	 * to the ISS. The position to move the fold to is specified by the property file 
+	 * (frodospec.mirror_fold.stow). 
 	 * If an error occurs the done objects field's are set accordingly.
 	 * @param command The command being implemented that made this call to the ISS. This is used
 	 * 	for error logging.
@@ -1498,6 +1498,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.14  2010/02/08 11:08:37  cjm
+// Added FITS file locking to saveFitsHeaders and unlockFile(s).
+//
 // Revision 1.13  2009/09/03 14:43:40  cjm
 // Fixed GRATID value.
 //
