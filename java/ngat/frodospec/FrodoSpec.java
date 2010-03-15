@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.8 2009-05-01 14:27:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.9 2010-03-15 16:52:05 cjm Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.8 2009-05-01 14:27:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.9 2010-03-15 16:52:05 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1114,6 +1114,7 @@ public class FrodoSpec
 	 * @see Plc#destroyHandle
 	 * @see #lampUnit
 	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
+	 * @see ngat.lamp.LTAGLampUnit#stowMirror
 	 */
 	public void shutdownHardware() throws CCDLibraryNativeException, EIPNativeException, Exception
 	{
@@ -1122,6 +1123,7 @@ public class FrodoSpec
 		// focus stage is now closed at the end of each individual operation, no need to close here
 		// ensure all lamps are turned off
 		lampUnit.turnAllLampsOff();
+		lampUnit.stowMirror();
 	}
 
 	/**
@@ -1957,6 +1959,10 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2009/05/01 14:27:40  cjm
+// Changed copyLogHandlers calls in initLoggers to use Logging.ALL as the logLevel rather than
+// status.getLogLevel(), which caused no CCD/focus stage/PLC/lamp logs to be written.
+//
 // Revision 1.7  2009/02/09 15:08:20  cjm
 // Fixed comment.
 //
