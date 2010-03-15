@@ -1,5 +1,5 @@
 // LAMPFLATImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.4 2010-02-08 11:09:19 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.5 2010-03-15 16:47:47 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFLAT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class LAMPFLATImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.4 2010-02-08 11:09:19 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.5 2010-03-15 16:47:47 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -181,7 +181,6 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		status.clearPauseResumeTimes();
 	// switch lamp on
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
-	// Before moving fold, so fold is not moved until lamp lock acquired.
 		try
 		{
 			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
@@ -193,13 +192,6 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 			lampFlatDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2704);
 			lampFlatDone.setErrorString("Failed to turn on lamps:"+lampsString+":"+e);
 			lampFlatDone.setSuccessful(false);
-			return lampFlatDone;
-		}
-	// move the fold mirror to the stowed location
-		if(stowFold(lampFlatCommand,lampFlatDone) == false)
-		{
-			// turn lamps off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
 			return lampFlatDone;
 		}
 		if(testAbort(lampFlatCommand,lampFlatDone) == true)
@@ -328,6 +320,9 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2010/02/08 11:09:19  cjm
+// Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
+//
 // Revision 1.3  2009/08/05 14:42:20  cjm
 // Moved setLampLock before stowFold, so fold is not stowed until lamp lock is acquired
 // (and therefore any MULTRUNs on the other arm are finished).

@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.6 2010-02-08 11:09:26 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.7 2010-03-15 16:48:40 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.6 2010-02-08 11:09:26 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.7 2010-03-15 16:48:40 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -294,7 +294,6 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see #frodospecFilenameList
 	 * @see #frodospecFitsHeaderList
 	 * @see #getArcExposureLength
-	 * @see #stowFold
 	 * @see #testAbort
 	 * @see #turnLampsOff
 	 * @see #turnLampsOn
@@ -395,8 +394,6 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
 	// Turn all lamps off before turning them back on again. This resets any on demand bits that have
 	// subsequently timed out and been turned off by the PLC.
-	// Must be done before stowing fold, so lock protects against the fold moving whilst
-	// the other arm is still exposing.
 		try
 		{
 			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
@@ -410,9 +407,6 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 			exposeDone.setSuccessful(false);
 			return false;
 		}
-	// move the fold mirror to the stowed location
-		if(stowFold(exposeCommand,exposeDone) == false)
-			return false;
 		if(testAbort(exposeCommand,exposeDone) == true)
 			return false;
 		// get fits headers
@@ -557,6 +551,9 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2010/02/08 11:09:26  cjm
+// Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
+//
 // Revision 1.5  2009/08/19 13:54:48  cjm
 // Moved stowFold in doCalibrationArc inside LampController lock code,
 // to stop fold being moved whilst the other arm is doing an exposure.

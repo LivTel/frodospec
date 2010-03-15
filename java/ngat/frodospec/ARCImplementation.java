@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.7 2010-02-08 11:09:48 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.8 2010-03-15 16:48:04 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.7 2010-02-08 11:09:48 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.8 2010-03-15 16:48:04 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -180,7 +180,6 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		status.clearPauseResumeTimes();
 	// switch lamp on
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
-	// Before moving fold, so fold is not moved until lamp lock acquired.
 		try
 		{
 			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
@@ -192,13 +191,6 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 			arcDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1507);
 			arcDone.setErrorString("Failed to turn on lamps:"+lampsString+":"+e);
 			arcDone.setSuccessful(false);
-			return arcDone;
-		}
-	// move the fold mirror to the stowed location
-		if(stowFold(arcCommand,arcDone) == false)
-		{
-			// turn lamps off
-			turnLampsOff(arm,arcCommand,arcDone);
 			return arcDone;
 		}
 		if(testAbort(arcCommand,arcDone) == true)
@@ -345,6 +337,9 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2010/02/08 11:09:48  cjm
+// Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
+//
 // Revision 1.6  2009/10/07 11:25:43  cjm
 // Added ACK before exposure start, to stop command timing out if computed arc exposure length
 // > default ack time - readout.

@@ -1,5 +1,5 @@
 // LAMPFOCUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.2 2010-02-08 11:09:30 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.3 2010-03-15 16:48:22 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFOCUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.2 2010-02-08 11:09:30 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.3 2010-03-15 16:48:22 cjm Exp $");
 	/**
 	 * A small number. Used to prevent a division by zero.
 	 */	 
@@ -160,7 +160,6 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * <li>The PLC is queried to get the current resolution for the arm.
 	 * <li>getArcExposureLength is called to get the exposure length from lamp/arm/resolution.
 	 * <li>We initialise  status's exposure count/exposure number etc.
-	 * <li>We call stowFold to move the fold mirror out of the way of the arc lamps.
 	 * <li>We call setLampLock to turn on the specified lamps and get hold of the lock.
 	 * <li>We enter a loop through the focus settings to use:
 	 *     <ul>
@@ -191,7 +190,6 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * @see FITSImplementation#objectName
 	 * @see FITSImplementation#getArcExposureLength
 	 * @see FITSImplementation#turnLampsOff
-	 * @see FITSImplementation#stowFold
 	 * @see FrodoSpec#getLampUnit
 	 * @see FrodoSpec#getLampController
 	 * @see FrodoSpec#getPLC
@@ -310,15 +308,10 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 		status.clearPauseResumeTimes();
 		exposureNumber = 0;
 		list = new Vector();
-	// move the fold mirror to the stowed location
-		if(stowFold(lampFocusCommand,lampFocusDone) == false)
-			return lampFocusDone;
 		if(testAbort(lampFocusCommand,lampFocusDone) == true)
 			return lampFocusDone;
 	// switch lamp on
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
-	// Turn all lamps off before turning them back on again. This resets any on demand bits that have
-	// subsequently timed out and been turned off by the PLC.
 		try
 		{
 			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
@@ -786,6 +779,9 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2010/02/08 11:09:30  cjm
+// Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
+//
 // Revision 1.1  2009/05/07 16:05:47  cjm
 // Initial revision
 //
