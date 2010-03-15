@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.4 2009-09-02 16:38:36 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.5 2010-03-15 16:51:20 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.4 2009-09-02 16:38:36 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.5 2010-03-15 16:51:20 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -429,6 +429,12 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 *       from reading the demand position boolean in the PLC, using the 
 	 *       plc address derived from <i>frodospec.config.grating.&lt;arm&gt;.plc_address</i> config.
 	 * </ul>
+	 * If the <i>frodospec.get_status.lamp_controller</i> boolean property is TRUE, 
+	 * the following data is put into the hashTable:
+	 * <ul>
+	 * <li><b>Lamp.Controller.Status.Fault</b> The lamp controller fault status (whether an internal
+	 *        lamp controller fault has occured).
+	 * </ul>
 	 * Finally, <i>setInstrumentStatus</i> is called to set the hashTable's arm and overall instrument status,
 	 * in the KEYWORD_INSTRUMENT_STATUS.
 	 * @see #ccdList
@@ -477,7 +483,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		int elapsedExposureTime,adu,ivalue,index,plcFaultStatus = 0,plcMechanismStatus = 0, currentMode;
 		double dvalue;
 		float fvalue;
-		boolean bvalue,done;
+		boolean bvalue,done,lampControllerFaultStatus;
 
 		for(int arm = FrodoSpecConfig.RED_ARM; arm <= FrodoSpecConfig.BLUE_ARM; arm++)
 		{
@@ -589,7 +595,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 					catch(CCDLibraryNativeException e)
 					{
 						frodospec.error(this.getClass().getName()+
-								":getIntermediateStatus:Get supply voltage ADU failed.",e);
+							  ":getIntermediateStatus:Get supply voltage ADU failed.",e);
 					}// end catch
 				}// end if get supply voltage status
 			}// end if mode is suitable for talking to the utility board
@@ -746,6 +752,26 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 						":getIntermediateStatus:Get mechanism data failed.",e);
 			}// end catch
 		}// end if get enviromental temperature
+		// lamp controller fault status
+		if(status.getPropertyBoolean("frodospec.get_status.lamp_controller"))
+		{
+			try
+			{
+				lampControllerFaultStatus = frodospec.getLampController().getFaultStatus();
+				frodospec.log(Logger.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
+					      ":getIntermediateStatus:Lamp Controller Status:"+
+					      lampControllerFaultStatus);
+				hashTable.put("Lamp.Controller.Status.Fault",new Boolean(lampControllerFaultStatus));
+			}
+			catch(Exception e)
+			{
+				frodospec.error(this.getClass().getName()+
+						":getIntermediateStatus:Get Lamp Controller Fault status failed.",e);
+				lampControllerFaultStatus = false;
+			}
+		}// end if
+		else
+			lampControllerFaultStatus = false;	
 	// Standard status
 		setInstrumentStatus(plcFaultStatus,focusStageInstrumentStatusString);
 	}
@@ -1141,6 +1167,13 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/09/02 16:38:36  cjm
+// Added Plc.FAULT_STATUS_PANEL_WAS_IN_LOCAL to plcFaultStatusFailMask in setInstrumentStatus.
+// This will set the overall instrument health to FAIL after the Frodospec PLC panel has been in local.
+// The instrument software will have to be restarted to fix the fault. This is necessary now,
+// because the PLC will kill power to the focus stage microlynx when in local (to stop the focus stage moving
+// when pumping the dewar), so the microlynx will have to be rehomed after the panel has been in local.
+//
 // Revision 1.3  2009/02/05 15:34:04  cjm
 // Changed log levels.
 //
