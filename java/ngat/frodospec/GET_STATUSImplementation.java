@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.5 2010-03-15 16:51:20 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.6 2010-03-16 14:38:05 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.5 2010-03-15 16:51:20 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.6 2010-03-16 14:38:05 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -876,7 +876,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * @see Plc#FAULT_STATUS_AIR_PRESSURE_HIGH
 	 * @see Plc#FAULT_STATUS_AIR_PRESSURE_LOW
 	 * @see Plc#FAULT_STATUS_HUMIDITY_HIGH
-	 * @see Plc#FAULT_STATUS_COOLING
+	 * @see Plc#FAULT_STATUS_PLC
 	 * @see Plc#FAULT_STATUS_INST_TEMPERATURE_HIGH
 	 * @see Plc#FAULT_STATUS_PANEL_TEMPERATURE_HIGH
 	 * @see Plc#FAULT_STATUS_GRATING_POSITION_RED_HIGH
@@ -913,7 +913,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		int plcFaultStatusFailMask = Plc.FAULT_STATUS_AIR_PRESSURE_LOW|Plc.FAULT_STATUS_PANEL_WAS_IN_LOCAL;
 		// fault status bits that set the _overall_ instrument status to warn
 		int plcFaultStatusWarnMask = Plc.FAULT_STATUS_AIR_PRESSURE_HIGH|
-			Plc.FAULT_STATUS_HUMIDITY_HIGH|Plc.FAULT_STATUS_COOLING|
+			Plc.FAULT_STATUS_HUMIDITY_HIGH|Plc.FAULT_STATUS_PLC|
 			Plc.FAULT_STATUS_INST_TEMPERATURE_HIGH|Plc.FAULT_STATUS_PANEL_TEMPERATURE_HIGH;
 		// fault status bits that set the _per arm_ (and therefore also overall) instrument status to warn
 		int plcFaultStatusArmWarnMask[] = {0,
@@ -1167,6 +1167,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2010/03/15 16:51:20  cjm
+// Added lamp unit fault status.
+//
 // Revision 1.4  2009/09/02 16:38:36  cjm
 // Added Plc.FAULT_STATUS_PANEL_WAS_IN_LOCAL to plcFaultStatusFailMask in setInstrumentStatus.
 // This will set the overall instrument health to FAIL after the Frodospec PLC panel has been in local.

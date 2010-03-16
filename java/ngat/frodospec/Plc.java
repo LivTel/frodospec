@@ -11,14 +11,14 @@ import ngat.util.logging.*;
 /**
  * An instance of this class is used to control the FrodoSpec Plc.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class Plc
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: Plc.java,v 1.4 2009-09-02 16:35:55 cjm Exp $");
+	public final static String RCSID = new String("$Id: Plc.java,v 1.5 2010-03-16 14:38:06 cjm Exp $");
 	/**
 	 * The number of temperature probes in FrodoSpec.
 	 */
@@ -120,9 +120,9 @@ public class Plc
 	 */
 	public final static int FAULT_STATUS_SHUTTER_BLUE_CLOSE         = (1<<10);
 	/**
-	 * Fault status bit.
+	 * Fault status bit. This bit is set when there is an internal (major/battery) fault in the PLC.
 	 */
-	public final static int FAULT_STATUS_COOLING                    = (1<<11);
+	public final static int FAULT_STATUS_PLC                        = (1<<11);
 	/**
 	 * Fault status bit.
 	 */
@@ -649,7 +649,7 @@ public class Plc
 	 *        FAULT_STATUS_GRATING_POSITION_RED_HIGH, FAULT_STATUS_GRATING_POSITION_RED_LOW,
 	 *        FAULT_STATUS_GRATING_POSITION_BLUE_HIGH, FAULT_STATUS_GRATING_POSITION_BLUE_LOW,
 	 *        FAULT_STATUS_SHUTTER_POSITION_RED, FAULT_STATUS_SHUTTER_POSITION_BLUE, 
-	 *        FAULT_STATUS_COOLING, FAULT_STATUS_TEMPERATURE_HIGH.
+	 *        FAULT_STATUS_PLC, FAULT_STATUS_TEMPERATURE_HIGH.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
 	 * @see #logger
@@ -670,7 +670,7 @@ public class Plc
 	 * @see #FAULT_STATUS_SHUTTER_RED_CLOSE
 	 * @see #FAULT_STATUS_SHUTTER_BLUE_OPEN
 	 * @see #FAULT_STATUS_SHUTTER_BLUE_CLOSE
-	 * @see #FAULT_STATUS_COOLING
+	 * @see #FAULT_STATUS_PLC
 	 * @see #FAULT_STATUS_INST_TEMPERATURE_HIGH
 	 * @see #FAULT_STATUS_PANEL_TEMPERATURE_HIGH
 	 */
@@ -678,8 +678,7 @@ public class Plc
 	{
 		int faultStatus;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
-			   ":getFaultStatus:Started.");
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":getFaultStatus:Started.");
 		if(enable)
 		{
 			// ensure connection is opened correctly
@@ -783,8 +782,7 @@ public class Plc
 		boolean demandValue,done;
 		int mechStatus,transitBit=0,inPositionBit=0,faultStatus,faultBit=0;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
-			   ":setGrating:Started.");
+		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":setGrating:Started.");
 		if(enable)
 		{
 			// explicity open a session/connection, to stop many individual open/closes
@@ -1813,6 +1811,10 @@ public class Plc
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/09/02 16:35:55  cjm
+// Added FAULT_STATUS_AIR_FLOW_HIGH and
+// FAULT_STATUS_PANEL_WAS_IN_LOCAL.
+//
 // Revision 1.3  2009/04/30 09:54:13  cjm
 // Added abortMovement and abort method to abort setGrating calls.
 //
