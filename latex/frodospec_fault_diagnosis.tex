@@ -1,0 +1,543 @@
+\documentclass[10pt,a4paper]{article}
+\pagestyle{plain}
+\textwidth 16cm
+\textheight 21cm
+\oddsidemargin -0.5cm
+\topmargin 0cm
+
+\title{Frodospec Fault Diagnosis}
+\author{C. J. Mottram}
+\date{}
+\begin{document}
+\pagenumbering{arabic}
+\thispagestyle{empty}
+\maketitle
+\begin{abstract}
+This document describes how to diagnose Frodospec faults.
+\end{abstract}
+
+\centerline{\Large History}
+\begin{center}
+\begin{tabular}{|l|l|l|p{15em}|}
+\hline
+{\bf Version} & {\bf Author} & {\bf Date} & {\bf Notes} \\
+\hline
+0.1 & C. J. Mottram & 17/03/10 & First draft \\
+\hline
+\end{tabular}
+\end{center}
+
+\newpage
+\tableofcontents
+\listoffigures
+\listoftables
+\newpage
+
+\section{Introduction}
+This document describes how to diagnose Frodospec faults. It assumes you have an internet connection on the
+internal telescope LAN, and access to the telescope wiki and development documentation, and
+an {\em icsgui} pointing at frodospec (for instance on {\em lttmc}.
+
+\section{Basic Fault Diagnosis}
+\label{sec:basicfaultdiagnosis}
+
+\begin{itemize}
+\item Bring up the {\em icsgui} (See \ref{fig:icsguimainscreen}).
+\item Attempt to Get Status from the instrument. (See \ref{sec:icsguigetstatus}).
+\end{itemize}
+
+
+\setlength{\unitlength}{1in}
+\begin{figure}[!h]
+	\begin{center}
+		\begin{picture}(3.0,3.0)(0.0,0.0)
+			\put(0,0){\special{psfile=frodospec_icsgui_connection_refused.eps hscale=50 vscale=50}}
+		\end{picture}
+	\end{center}
+	\caption{\em The Frodospec IcsGUI main screen showing ``Connection Refused'' error.}
+	\label{fig:icsguimainscreen} 
+\end{figure}
+
+The results of the command should appear in the {\bf Log} panel at the bottom of the icsgui. Also important
+is the colour of the icsgui border.
+
+Now follow Figure \ref{fig:basicfaultdiagnosis1flowchart}. Based on the colour of the {\em icsgui} border,
+we can determine the basic {\em health and wellbeing} of the instrument. This colour
+is actually set from the {\bf ``Instrument.Status''} property returned by the instrument. The colour is also set to red
+if a reply is not returned from the instrument for some reason. The same property  {\bf ``Instrument.Status''} is used
+by the {\em RCS} to determine whether to schedule the instrument for observations, so the {\em icsgui} border
+colour should directly reflect the schedulability of the instrument.
+
+
+\setlength{\unitlength}{1in}
+\begin{figure}[!h]
+	\begin{center}
+		\begin{picture}(2.5,6.0)(0.0,0.0)
+			\put(0,0){\special{psfile=frodospec_basic_fault_diagnosis1.eps hscale=5 vscale=5}}
+		\end{picture}
+	\end{center}
+	\caption{\em Basic Fault Diagnosis (border) flowchart.}
+	\label{fig:basicfaultdiagnosis1flowchart} 
+\end{figure}
+
+You can get one of 5 results:
+
+\begin{itemize}
+\item {\bf Result 1} The instrument is operating correctly.
+\item {\bf Result 2} The instrument has a problem, but is still available for robotic scheduled observations. 
+  Go to Section \ref{sec:instrumentstatuswarn}.
+\item {\bf Result 3} The instrument has a problem, and is {\bf not} available for robotic scheduled observations.
+  Go to Section \ref{sec:instrumentstatusfail} .
+\item {\bf Result 4} or {\bf Result 5}. This should be impossible, and the next step is outside the scope
+  of this document.
+\end{itemize}
+
+\section{Instrument Status FAIL}
+\label{sec:instrumentstatusfail}
+
+You should have entered this section because the border of the {\em icsgui} is {\bf red} after issuing a {\bf GET\_STATUS} command to the instrument. Now follow Figure \ref{fig:instrumentstatusfail1flowchart}:
+
+\newpage
+\setlength{\unitlength}{1in}
+\begin{figure}[!h]
+	\begin{center}
+		\begin{picture}(5.0,7.0)(0.0,0.0)
+			\put(0,0){\special{psfile=frodospec_instrument_status_fail1.eps hscale=4 vscale=4}}
+		\end{picture}
+	\end{center}
+	\caption{\em Instrument Status Fail flowchart 1.}
+	\label{fig:instrumentstatusfail1flowchart} 
+\end{figure}
+
+You can get the following results from Figure \ref{fig:instrumentstatusfail1flowchart}:
+
+\begin{itemize}
+\item {\bf Result 1} The IcsGUI cannot contact the instrument control system. Go to Section \ref{sec:instrumentcontrolsystemuncontactable}.
+\item {\bf Result 2} The IcsGUI border should not be {\bf red}. Something weird is going on beyond the scope of this document. 
+\item {\bf Result 3} The instrument control system cannot contact the Red arm SDSU CCD controller. Go to Section \ref{sec:sdsucommsproblem} and follow procedure for the {\bf red} arm.
+\item {\bf Result 4} The instrument control system cannot contact the Blue arm SDSU CCD controller. Go to Section \ref{sec:sdsucommsproblem} and follow procedure for the {\bf blue} arm.
+\item {\bf Result 5} The Red arm CCD temperature is too warm. Go to Section \ref{sec:ccdtempwarm} and follow procedure for the {\bf red} arm.
+\item {\bf Result 6} The Blue arm CCD temperature is too warm. Go to Section \ref{sec:ccdtempwarm} and follow procedure for the {\bf blue} arm.
+\item {\bf Result 7} The instrument has passed all the tests so far. Continue onto the next flow-chart (Figure \ref{fig:instrumentstatusfail2flowchart}).
+\end{itemize}
+
+\setlength{\unitlength}{1in}
+\begin{figure}[!h]
+	\begin{center}
+		\begin{picture}(4.0,4.0)(0.0,0.0)
+			\put(0,0){\special{psfile=frodospec_instrument_status_fail2.eps hscale=5 vscale=5}}
+		\end{picture}
+	\end{center}
+	\caption{\em Instrument Status Fail flowchart 2.}
+	\label{fig:instrumentstatusfail2flowchart} 
+\end{figure}
+
+You can get the following results from Figure \ref{fig:instrumentstatusfail2flowchart}:
+
+\begin{itemize}
+\item {\bf Result 1} The Frodospec Instrument PLC is reporting a problem. Go to Section \ref{sec:frodospecplcproblem}.
+\item {\bf Result 2} The Focus stages are reporting a problem.  Go to Section \ref{sec:focusstageproblem}.
+\item {\bf Result 3} This result shouldn't be possible. Basically there is a problem outside the scope of this document.
+\end{itemize}
+
+\section{Instrument Status WARN}
+\label{sec:instrumentstatuswarn}
+
+You should have entered this section because the border of the {\em icsgui} is {\bf yellow} after issuing a {\bf GET\_STATUS} command to the instrument. The instrument has a problem, but is still available for robotic scheduled observations.  
+
+The easiest way of diagnosing the problem is to follow the flowcharts, but look for an instrument health status of {\bf WARN} rather than {\bf FAIL}. This should indicate the area of the problem.
+
+If the property {\bf $<$arm$>$.Instrument.Status.Detector.Temperature} is showing warn then either the CCD temperature
+is too warm or too cold (if the SDSU controller has not had the heater turned on).
+
+If the property {\bf Instrument.Status.Plc} is showing their is a fault in the PLC, but one considered to be transient. For instance a movement fault might do this to show the last move failed, but the next move might work. This can mean the instrument spends all night attempting to move a mechanism and failing, so it is worth testing the mechanism several times to determine how reliably it is operating.
+
+The extra instrument status that can only trigger a {\bf WARN} rather than {\bf FAIL} state is the Lamp Controller PLC
+status. Look at the {\bf Lamp.Controller.Plc.Comms.Status} which will be {\bf FAIL} if the frodospec robotic software cannot contact the Lamp PLC, however this propagates up to the overall status as a {\bf WARN}, as at least in theory it
+does not stop the instrument taking spectra (just lamp calibrations).
+
+\section{Instrument Control System is uncontactable}
+\label{sec:instrumentcontrolsystemuncontactable}
+
+You have reached this section because the {\em icsgui} cannot contact the FrodoSpec control system software to
+obtain status for it. This is usually due to a network problem, the frodospec1 control computer hanging, or
+the robotic control software failing to start (usually due to an underlying hardware problem).
+Follow the steps in Figure \ref{fig:uncontactable1flowchart} to diagnose the problem.
+
+\setlength{\unitlength}{1in}
+\begin{figure}[!h]
+	\begin{center}
+		\begin{picture}(5.0,7.0)(0.0,0.0)
+			\put(0,0){\special{psfile=frodospec_uncontactable1.eps hscale=4 vscale=4}}
+		\end{picture}
+	\end{center}
+	\caption{\em Frodospec uncontactable flowchart 1.}
+	\label{fig:uncontactable1flowchart} 
+\end{figure}
+
+You can get the following results from Figure \ref{fig:uncontactable1flowchart}:
+
+\begin{itemize}
+\item {\bf Result 1} There is a network problem. You cannot contact the machines in the LT IT room. This could be
+a problem with your VPN setup, a known ORM network downtime, or an internet problem between yourself and the telescope.
+Resolution is outside the scope of this document. It's also possible ping is disabled over your internet setup?
+\item {\bf Result 2} You can ping machines in the LT IT room, but not frodospec1. The frodospec1 control computer
+either has no power to it, or has power to it but is 'locked up'. This cannot be fixed without on-site presence at the present time (the frodospec1 control computer is not connected to a switchable UPS)? With an on-site presence, you can see what lights are on on the control computer, check the KVM screen for useful messages, and then get on-site staff to power cycle the machine. The only ``known'' cause for computer 'lock-ups' is the SDSU (CCD) device driver can occasionally
+get confused (especially during readout).
+\item {\bf Result 3} You can ping, but not log into frodospec1. Most likely the frodospec1 control computer is ``locked up'', the ssh daemon getting confused is another remote possibility. This cannot be fixed without on-site presence at the present time. Follow {\bf Result 2} for resolution.
+\item {\bf Result 4} The frodospec1 control computer is running, but the robotic control software {\em java ngat.frodospec.FrodoSpec} is not running. Either the software has died/crashed, or it failed to start at the last machine reboot (usually because of an underlying hardware problem.  Go to Section \ref{sec:rebootcontrolcomputer} to reboot the control
+computer, and then return to Section \ref{sec:basicfaultdiagnosis} (after waiting for the control computer to restart) to see whether a reboot worked. If you end up back here, go to Section \ref{sec:errorlogdiagnosis} to try and find out why the robotic software is not starting.
+\item {\bf Result 5} The frodospec1 control computer is running, the robotic control software {\em java ngat.frodospec.FrodoSpec} is running, but is not listening on the server port. This shouldn't be possible! Is the robotic control software continually changing ( the Autobooter software is continually restarting the software which is failing to start)? If so treat as {\bf Result 4}. Otherwise no known solution exists.
+\item {\bf Result 6} The frodospec1 control computer is running, the robotic control software {\em java ngat.frodospec.FrodoSpec} is running, and listening on the server port, but your local {\em icsgui} cannot contact it. The only reason I can think this can occur is some sort of Java versioning problem with the {\em ngat.net.*} command/reply classes. You could try using a vncserver on frodospec1 and running a local {\em icsgui} to see if that works. Otherwise no known solution exists.
+\end{itemize}
+
+\section{SDSU CCD Controller communication Problem}
+\label{sec:sdsucommsproblem}
+
+You have probably entered this section because the {\bf GET\_STATUS} properties {\bf red.Instrument.Status.SDSU.Comms} or  {\bf blue.Instrument.Status.SDSU.Comms} did not have the value {\bf OK}.
+
+These properties are set as a result of querying the CCD temperature. If the property value was {\bf FAIL} then a read from the SDSU timing board returned {\bf TOUT}, if it was {\bf UNKNOWN} this might indicate failure, or it might just be you tried to read the temperature whilst the CCD is reading out which can't be done.
+
+If the value was {\bf UNKNOWN} and you believe the SDSU controller was reading out at the time the CCD controller was queried, I suggest you return to the flowchart you came from and proceed as if the property value was  {\bf OK}.
+
+The first thing to try is a level two reboot of the robotic control software, which will try to re-datum the SDSU controllers and reload their on-board programs. Follow instructions in Section \ref{sec:level2instrumentreboot}. Then
+restart fault diagnosis by going to \ref{sec:basicfaultdiagnosis}.
+
+If you end up back here after trying a level two reboot of the robotic control software, try rebooting
+the frodospec1 control computer, which will also restart the SDSU device driver software loaded into the computers kernel. Follow instruction in Section \ref{sec:rebootcontrolcomputer}. 
+
+If that doesn't work, on-site presence may be required. The first thing to look at are the lights on the back of the
+SDSU controller boxes inside the Frodospec enclosure. Consult the SDSU manual for further details.
+
+\section{CCD Temperature is too warm}
+\label{sec:ccdtempwarm}
+
+You have probably entered this section because the {\bf GET\_STATUS} properties {\bf red.Instrument.Status.Detector.Temperature} or {\bf  blue.Instrument.Status.Detector.Temperature} did not have the value {\bf OK}.
+
+These properties are set as a result of querying the CCD temperature. The relevant arm probably returned a temperature
+that was outside the nominal operating range of the CCD (both too warm and too cold in actual fact). The actual
+temperature of each CCD should be in the {\em CCD Temperature:} part of the {\em icsgui}, and also available by looking at the {\bf $<$arm$>$.Temperature} property (where {\bf $<$arm$>$} is {\bf red} or {\bf blue} as appropriate. The {\bf $<$arm$>$.Temperature} property's value is in Kelvin.
+
+You can check the SDSU dewar heaters are stuck on by looking at the {\bf $<$arm$>$.Heater ADU} properties (the value
+are in Analogue to digital units, where 0 is off).
+
+If the heater is not stuck on, then if the instrument was in {\bf FAIL} status the instrument requires on-site presence to pump the dewar or recharge the Cryotiger gas. If the instrument was in {\bf WARN} state it is recommended a pump/recharge is scheduled in the near future.
+
+\section{Frodospec PLC Problem}
+\label{sec:frodospecplcproblem}
+
+
+You have probably entered this section because the {\bf GET\_STATUS} property {\bf Instrument.Status.Plc} 
+does not have the value {\bf OK}.
+
+This is either because the frodospec robotic control software cannot contact the FrodoSpec PLC, or the PLC has
+some bits set in it's fault status mask. The Frodospec PLC is used to control the grating resolution for each arm,
+the shutter for each arm (usually via the SDSU controller), and the power to various systems. It is also used
+to monitor environmental conditions (air pressure/flow, temperature, humidity).
+
+ Follow the steps in Figure \ref{fig:plcproblem1flowchart} to diagnose the problem.
+
+\setlength{\unitlength}{1in}
+\begin{figure}[!h]
+	\begin{center}
+		\begin{picture}(4.0,5.0)(0.0,0.0)
+			\put(0,0){\special{psfile=frodospec_plc_problem1.eps hscale=5 vscale=5}}
+		\end{picture}
+	\end{center}
+	\caption{\em Frodospec PLC problem flowchart 1.}
+	\label{fig:plcproblem1flowchart} 
+\end{figure}
+
+You can get the following results from Figure \ref{fig:plcproblem1flowchart}:
+
+\begin{itemize}
+\item {\bf Result 1} The Frodospec PLC is not contactable on the network. On-site presence is required, to check
+the PLC is on and the network cable plugged in. You may have to power cycle the PLC. If this succeeds reboot the 
+FrodoSpec control computer using Section \ref{sec:rebootcontrolcomputer}, 
+and start from Section \ref{sec:basicfaultdiagnosis}.
+\item {\bf Result 2} Read on for how to decode the PLC fault status.
+\item {\bf Result 3} The Frodospec PLC is ping-able, but is not talking to the robotic software. Try rebooting the 
+FrodoSpec control computer using Section \ref{sec:rebootcontrolcomputer}, if this fails to clear the problem further
+on-site diagnosis is necessary.
+\end{itemize}
+
+\subsection{Frodospec PLC fault status}
+
+The FrodoSpec PLC fault status is returned by the robotic software as two {\bf GET\_STATUS} properties, {\bf Plc.Fault.Status} and {\bf Plc.Fault.Status.String}. It is held as an integer on the PLC and this number is the value of {\bf Plc.Fault.Status}. Each bit, when set, indicates a different fault so the value is printed bitwise as the value in {\bf Plc.Fault.Status.String} e.g.:
+
+\begin{verbatim}
+Plc.Fault.Status 2
+Plc.Fault.Status.String 00000000 00000010
+\end{verbatim}
+
+The string is printed in the order: \verb'[15][14][13][12][11][10][9][8] [7][6][5][4][3][2][1][0]', so in the
+above case bit 1 is set.
+
+The fault status is currently held in variable {\bf N20:0} in the PLC, and the bits are documented in the {\bf Frodospec Instrument Control Computer to PLC Interface Control Document} \cite{bib:frodospeciccfplcicd}. See Table \ref{tab:frodospecplcfaultbits} for a copy of the fault bits documented in that document, be warned this copy might not be up to date, please refer to the original documentation.
+
+\begin{table}[!h]
+\begin{center}
+\begin{tabular}{|l|l|p{15em}|}
+\hline
+{\bf Fault} & {\bf PLC address} & {\bf Bit} \\ \hline
+No Faults	                        & N20:0=0    & N/A \\ 
+High Air Pressure Fault		        & N20:0/0=1  & 0  \\
+Low Air Pressure Fault			& N20:0/1=1  & 1  \\
+High Humidity				& N20:0/2=1  & 2  \\
+RED VPH movement fault			& N20:0/3=1  & 3  \\
+Red Grating movement fault		& N20:0/4=1  & 4  \\
+Blue VPH movement fault			& N20:0/5=1  & 5  \\
+Blue Grating movement fault		& N20:0/6=1  & 6  \\
+Red Shutter Open Movement fault		& N20:0/7=1  & 7  \\
+Red Shutter Close Movement fault	& N20;0/8=1  & 8  \\
+Blue Shutter Open Movement fault	& N20:0/9=1  & 9  \\
+Blue Shutter Close Movement fault	& N20:0/10=1 & 10 \\
+PLC Fault				& N20:0/11=1 & 11 \\
+High Temperature Instrument		& N20:0/12=1 & 12 \\
+High Temperature Panel			& N20:0/13=1 & 13 \\
+Air Flow High Fault			& N20:0/14=1 & 14 \\
+Panel Has been in Local			& N20:0/15=1 & 15 \\ \hline
+\end{tabular}
+\end{center}
+\caption{\em Frodospec PLC Fault Bits.}
+\label{tab:frodospecplcfaultbits}
+\end{table}
+
+The faults can come from a variety of problems and their resolution depends on this. Some can be 'transient',
+for instance the movement faults relate to the last movement attempted.
+
+You can issue a fault reset to the PLC to try and clear any set faults. A level 2 robotic software reboot is the best
+way to do this, see  Section \ref{sec:level2instrumentreboot}. Any problems that still occur (i.e. low air pressure)
+will still be set after a fault reset and will require on-site presence to correct.
+
+
+\section{Frodospec Focus Stages Problem}
+\label{sec:focusstageproblem}
+
+You have probably entered this section as the focus stage property ``Instrument.Status.Focus.Stage'' is not ``OK''.
+
+The Frodospec focus stages are, at the time of writing this document, no longer normally used, as we leave the
+focus in a fixed position. Therefore, any fault resolution is outside the scope of this document.
+
+Note the property could be reporting ``UNKNOWN'' if power/comms to the focus stage is turned off. 
+This is probably OK and can be ignored in most cases. The FrodoSpec configuration property {\bf frodospec.focus.$<$arm$>$.enable} controls whether to communicate with the focus stage for the specified arm.
+
+\section{Frodospec Robotic software Error Log diagnosis}
+\label{sec:errorlogdiagnosis}
+
+You have arrived at this section because you want to diagnose an error in the robotic control software. Most likely
+the robotic control software is failing to start.
+
+Go to Section \ref{sec:findlasterrorlog} and find the last error and log files the robotic software produced.
+
+Look for a useful error message near the end of the last error file.
+
+Here are a few examples:
+
+\begin{verbatim}
+2009-08-21 T 00:53:18.827 UTC : - : - : ngat.frodospec.GET_STATUSImplementation:getIntermediateStatus:Get PLC fault status failed:Setting internally to 16383 (bits 0..13 set).
+2009-08-21 T 00:53:18.837 UTC : - : - : ngat.eip.EIPNativeException: 
+21/08/2009 00:53:18 EIP:Error(103) : EIP_Read_Integer : plc_data was NULL(N20:0,-41,Receive TimeOut).
+
+	at ngat.eip.EIPPLC.EIP_Read_Integer(Native Method)
+	at ngat.eip.EIPPLC.getInteger(EIPPLC.java:313)
+	at ngat.frodospec.Plc.getFaultStatus(Plc.java:684)
+	at ngat.frodospec.GET_STATUSImplementation.getIntermediateStatus(GET_STATUSImplementation.java:637)
+	at ngat.frodospec.GET_STATUSImplementation.processCommand(GET_STATUSImplementation.java:280)
+	at ngat.frodospec.FrodoSpecTCPServerConnectionThread.processCommand(FrodoSpecTCPServerConnectionThread.java:268)
+	at ngat.net.TCPServerConnectionThread.run(TCPServerConnectionThread.java:188)
+\end{verbatim}
+
+This is a PLC comms failure (EIP is the protocol used for communication with the PLC.
+
+\begin{verbatim}
+2009-10-06 T 09:48:43.177 UTC : - : - : main:startupHardware failed:
+2009-10-06 T 09:48:43.189 UTC : - : - : ngat.frodospec.newmark.NewmarkNativeException: 
+06/10/2009 09:48:43 Newmark:Error(105) : Command_Read_Until_Prompt:Readout timed out(100).
+
+	at ngat.frodospec.newmark.Newmark.Newmark_Command_Move(Native Method)
+	at ngat.frodospec.newmark.Newmark.move(Newmark.java:150)
+	at ngat.frodospec.FocusStage.moveToSetPoint(FocusStage.java:282)
+	at ngat.frodospec.FocusStage.init(FocusStage.java:150)
+	at ngat.frodospec.FrodoSpec.startupFocusStage(FrodoSpec.java:1103)
+	at ngat.frodospec.FrodoSpec.startupHardware(FrodoSpec.java:933)
+	at ngat.frodospec.FrodoSpec.main(FrodoSpec.java:1943)
+\end{verbatim}
+
+Here is a failure to start the robotic software, the Newmark focus stage is not contactable.
+
+Here is an example you might find quite often:
+
+\begin{verbatim}
+2009-08-18 T 23:37:39.862 UTC : - : - : ngat.frodospec.GET_STATUSImplementation:getIntermediateStatus:Get Temperature failed.
+2009-08-18 T 23:37:39.873 UTC : - : - : ngat.frodospec.ccd.CCDLibraryNativeException: 
+	18/08/2009 23:37:39 CCD_Temperature:Error(3) : CCD_Temperature_Get:Read temperature (23) failed
+	18/08/2009 23:37:39 CCD_DSP:Error(64) : CCD_DSP_Command_RDM failed:Illegal Exposure Status (3) when reading from the utility board.
+
+	at ngat.frodospec.ccd.CCDLibrary.CCD_Temperature_Get(Native Method)
+	at ngat.frodospec.ccd.CCDLibrary.temperatureGet(CCDLibrary.java:1081)
+	at ngat.frodospec.GET_STATUSImplementation.getIntermediateStatus(GET_STATUSImplementation.java:520)
+	at ngat.frodospec.GET_STATUSImplementation.processCommand(GET_STATUSImplementation.java:280)
+	at ngat.frodospec.FrodoSpecTCPServerConnectionThread.processCommand(FrodoSpecTCPServerConnectionThread.java:268)
+	at ngat.net.TCPServerConnectionThread.run(TCPServerConnectionThread.java:188)
+\end{verbatim}
+
+This looks like a serious error, where a {\bf GET\_STATUS} command has failed to read the CCD temperature because the exposure status is wrong. In fact this particular error is usually benign, it sometimes occurs just as the SDSU timing board is changing from exposure to readout mode (you can't read timing/utility board location when the CCD is reading out, which is what is needed to read the temperature).
+
+
+\section{Procedures}
+
+\subsection{Get Status from the icsgui}
+\label{sec:icsguigetstatus}
+
+From the icsgui screen (See \ref{fig:icsguimainscreen}) you can either:
+
+\begin{itemize}
+\item Click the {\bf Auto-Update} tick box, which sends a {\bf GET\_STATUS} command to the instrument at regular
+  intervals.
+\item Select from the menu {\bf Send$\rightarrow$Interrupt$\rightarrow$Get Status}. In the {\bf GET\_STATUS Dialog}, set the level
+  (to at least {\bf 1} for Frodospec fault diagnosis) and click {\bf Ok} to send the command to the instrument.
+\end{itemize}
+
+The results of the command should appear in the {\bf Log} panel at the bottom of the icsgui.
+
+\subsection{Level 2 instrument reboot}
+\label{sec:level2instrumentreboot}
+
+From the icsgui screen (See \ref{fig:icsguimainscreen}) you can either:
+
+\begin{itemize}
+\item Select from the menu {\bf Send$\rightarrow$Interrupt$\rightarrow$Reboot}.
+\item For the level parameter, specify {\bf 2}.
+\item Click {\bf Ok} to send the command to the instrument.
+\item Refer to Section \ref{sec:icsguigetstatus} to get instrument status. The instrument should return an
+  connection error for a short period of time before the instrument control system restarts itself.
+\end{itemize}
+
+\subsection{Reboot the control computer}
+\label{sec:rebootcontrolcomputer}
+
+From a terminal on the internal LT LAN (192.168.1.xxx):
+
+\begin{itemize}
+\item {\em ssh eng$@$frodospec1}
+\item {\em su}
+\item {\em reboot}
+\end{itemize}
+
+{\bf frodospec1} has the IP address 192.168.1.26.
+The control computer will disappear off the network for a few minutes before reappearing.
+
+
+\subsection{Find the last error log file}
+\label{sec:findlasterrorlog}
+From a terminal on the internal LT LAN (192.168.1.xxx):
+
+\begin{itemize}
+\item {\em ssh eng$@$frodospec1}
+\item {\em cd /icc/log}
+\item {\em ls -lrt}
+\item Look for the last occurrence of a {\em frodospec\_error\_*.txt} log file in the listing.
+\item You may also need the last equivalent log file, of the form {\em frodospec\_log\_*.txt}.
+\item If no error/log file appears in the listing, you may wish to check the autobooter logs or {\em frodospec\_output.txt} which may give details why the FrodoSpec software is not getting as far as starting a log file.
+\end{itemize}
+
+{\bf frodospec1} has the IP address 192.168.1.26.
+
+\section{Example GET\_STATUS output}
+
+Here is an example of the statii returned from a FrodoSpec GET\_STATUS. NB This is out of date, we need
+a new one including lamp controller comms status and PLC comms status.
+
+\begin{verbatim}
+Auto-update sending command:ngat.message.ISS_INST.GET_STATUS:level=1
+About to send ngat.message.ISS_INST.GET_STATUS to frodospec1:7083
+Acknowledgment received for command:ngat.message.ISS_INST.GET_STATUS with time to complete:60000.
+Done message received for:ngat.message.ISS_INST.GET_STATUS:successful:true
+The current mode:0.
+Air.Flow:-1.2681761
+Air.Pressure:5.5238867
+blue.Current Mode:0
+blue.currentCommand:
+blue.DeInterlace Type:0
+blue.Elapsed Exposure Time:9999
+blue.Exposure Count:0
+blue.Exposure Length:0
+blue.Exposure Number:0
+blue.Exposure Start Time:0
+blue.Focus.Stage.Linear.Encoder.Position:0.0
+blue.Grating Position String:high
+blue.Heater ADU:1624
+blue.High Voltage Supply ADU:3291
+blue.Instrument.Status:OK
+blue.Instrument.Status.Detector.Temperature:OK
+blue.Instrument.Status.Focus.Stage:UNKNOWN
+blue.Instrument.Status.Plc:OK
+blue.Instrument.Status.SDSU.Comms:OK
+blue.Low Voltage Supply ADU:3540
+blue.Minus Low Voltage Supply ADU:580
+blue.NCols:0
+blue.NPBin:0
+blue.NRows:0
+blue.NSBin:0
+blue.Setup Status:false
+blue.Temperature:173.70284881591795
+blue.Utility Board Temperature ADU:2819
+blue.Window Flags:0
+Cooling.Time:0.0
+Environment.Humidity:22.199455
+Environment.Temperature.0:10.674831
+Environment.Temperature.1:16.574585
+Environment.Temperature.2:15.714888
+Environment.Temperature.3:16.417297
+Environment.Temperature.4:23.097157
+Environment.Temperature.Instrument:16.515366
+Environment.Temperature.Panel:16.417297
+Instrument:FrodoSpec
+Instrument.Status:OK
+Instrument.Status.Detector.Temperature:OK
+Instrument.Status.Focus.Stage:OK
+Instrument.Status.Plc:OK
+Lamp.Controller.Status:In Use Lamps:null In Use Count:0
+Plc.Fault.Status:0
+Plc.Fault.Status.String: 00000000 00000000
+Plc.Mechanism.Status:2640
+Plc.Mechanism.Status.String: 00001010 01010000
+red.Current Mode:0
+red.currentCommand:
+red.DeInterlace Type:0
+red.Elapsed Exposure Time:999
+red.Exposure Count:0
+red.Exposure Length:0
+red.Exposure Number:0
+red.Exposure Start Time:0
+red.Focus.Stage.Linear.Encoder.Position:0.0
+red.Grating Position String:high
+red.Heater ADU:2266
+red.High Voltage Supply ADU:3298
+red.Instrument.Status:OK
+red.Instrument.Status.Detector.Temperature:OK
+red.Instrument.Status.Focus.Stage:UNKNOWN
+red.Instrument.Status.Plc:OK
+red.Instrument.Status.SDSU.Comms:OK
+red.Low Voltage Supply ADU:3536
+red.Minus Low Voltage Supply ADU:590
+red.NCols:0
+red.NPBin:0
+red.NRows:0
+red.NSBin:0
+red.Setup Status:false
+red.Temperature:173.70284881591795
+red.Utility Board Temperature ADU:2812
+red.Window Flags:0
+\end{verbatim}
+
+\begin{thebibliography}{99}
+\addcontentsline{toc}{section}{Bibliography}
+
+\bibitem{bib:frodospeciccfplcicd} {\bf Frodospec Instrument Control Computer to PLC Interface Control Document}
+Liverpool John Moores University \newline{\em http://ltdevsrv.livjm.ac.uk/\verb'~'dev/frodospec/latex/Frodospec\_ICC\_to\_FPLC\_ICDV07.doc}
+
+\end{thebibliography}
+
+\end{document}
