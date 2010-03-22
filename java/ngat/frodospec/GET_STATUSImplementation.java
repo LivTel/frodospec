@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.6 2010-03-16 14:38:05 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.7 2010-03-22 19:02:47 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.6 2010-03-16 14:38:05 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.7 2010-03-22 19:02:47 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -420,20 +420,50 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * <li><b>&lt;arm&gt;.Minus Low Voltage Supply ADU</b> The SDSU Negative Voltage supply ADU count, 
 	 * 	this is read from the utility board.
 	 * </ul>
-	 * If the <i>frodospec.get_status.gratings</i> boolean property is TRUE, 
+	 * If the <i>frodospec.get_status.focus_stage.position</i> boolean property is TRUE, 
+	 * and focus stages are enabled, the following data is put into the hashTable:
+	 * <ul>
+	 * <li><b>&lt;arm&gt;.Focus Stage Position</b> The absolute position of the focus stage.
+	 * </ul>
+	 * The following status is always queried from the Frodospec PLC:
+	 * <ul>
+	 * <li><b>Plc.Fault.Status</b> The frodospec PLC fault status as an integer.
+	 * <li><b>Plc.Fault.Status.String</b> The frodospec PLC fault status as a string.
+	 * <li><b>Plc.Comms.Status</b> Whether we can talk to the Frodospec PLC (could we get the fault status).
+	 *     As a string, either "OK" or "FAIL".
+	 * <li><b>Plc.Mechanism.Status</b> The mechanism status bits from the PLC, as an integer.
+	 * <li><b>Plc.Mechanism.Status.String</b> The mechanism status bits from the PLC, as a String.
+	 * </ul>
+	 * If the <i>frodospec.get_status.plc.gratings</i> boolean property is TRUE, 
 	 * the following data is put into the hashTable:
 	 * <ul>
 	 * <li><b>&lt;arm&gt;.Grating Position String</b> This is either "High" or "Low", and is derived
 	 *       from reading the demand position boolean in the PLC, using <b>getGratingPositionString</b>.
-	 * <li><b>&lt;arm&gt;.Grating Position</b> This is  a boolean, true for High and false for Low, and is derived
-	 *       from reading the demand position boolean in the PLC, using the 
-	 *       plc address derived from <i>frodospec.config.grating.&lt;arm&gt;.plc_address</i> config.
+	 * </ul>
+	 * If the <i>frodospec.get_status.plc.environment</i> boolean property is TRUE, 
+	 * the following data is put into the hashTable:
+	 * <ul>
+	 * <li><b>Environment.Temperature.&lt;probe number&gt;</b> The environment temperature from the relevant probe.
+	 * <li><b>Environment.Humidity</b> The humidity.
+	 * <li><b>Environment.Temperature.Instrument</b> The instrument environment temperature.
+	 * <li><b>Environment.Temperature.Panel</b>The Frodospec panel temperature.
+	 * </ul>
+	 * If the <i>frodospec.get_status.plc.mechanism</i> boolean property is TRUE, 
+	 * the following data is put into the hashTable:
+	 * <ul>
+	 * <li><b>Air.Flow</b> The air flow.
+	 * <li><b>Air.Pressure</b> The air pressure.
+	 * <li><b>Cooling.Time</b> The length of time the cooling has been on (not used).
+	 * <li><b>&lt;arm&gt;.Focus.Stage.Linear.Encoder.Position</b> The linear encoder position of the
+	 *        focus stage.
 	 * </ul>
 	 * If the <i>frodospec.get_status.lamp_controller</i> boolean property is TRUE, 
 	 * the following data is put into the hashTable:
 	 * <ul>
 	 * <li><b>Lamp.Controller.Status.Fault</b> The lamp controller fault status (whether an internal
 	 *        lamp controller fault has occured).
+	 * <li><b>Lamp.Controller.Plc.Comms.Status</b> Whether we can talk to the lamp controller,
+	 *        (i.e. whether we successfully retrieved the controller fault status boolean).
 	 * </ul>
 	 * Finally, <i>setInstrumentStatus</i> is called to set the hashTable's arm and overall instrument status,
 	 * in the KEYWORD_INSTRUMENT_STATUS.
@@ -480,6 +510,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		Plc plc = null;
 		String focusStageInstrumentStatusString[] = {GET_STATUS_DONE.VALUE_STATUS_UNKNOWN,
 				  GET_STATUS_DONE.VALUE_STATUS_UNKNOWN,GET_STATUS_DONE.VALUE_STATUS_UNKNOWN};
+		String plcCommsStatus = null;
+		String lampControllerPLCCommsStatus = null;
 		int elapsedExposureTime,adu,ivalue,index,plcFaultStatus = 0,plcMechanismStatus = 0, currentMode;
 		double dvalue;
 		float fvalue;
@@ -641,6 +673,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		try
 		{
 			plcFaultStatus = plc.getFaultStatus();
+			plcCommsStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
 		}
 		catch(EIPNativeException e)
 		{
@@ -648,9 +681,11 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		":getIntermediateStatus:Get PLC fault status failed:Setting internally to 16383 (bits 0..13 set).",e);
 			// set bits 0..13 - this should propogate into the instrument status
 			plcFaultStatus = 16383;
+			plcCommsStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
 		}// end catch
 		hashTable.put("Plc.Fault.Status",new Integer(plcFaultStatus));
 		hashTable.put("Plc.Fault.Status.String",new String(Plc.printBits(plcFaultStatus)));
+		hashTable.put("Plc.Comms.Status",new String(plcCommsStatus));
 		// mechanism status
 		try
 		{
@@ -761,19 +796,22 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				frodospec.log(Logger.VERBOSITY_VERY_VERBOSE,this.getClass().getName()+
 					      ":getIntermediateStatus:Lamp Controller Status:"+
 					      lampControllerFaultStatus);
-				hashTable.put("Lamp.Controller.Status.Fault",new Boolean(lampControllerFaultStatus));
+				lampControllerPLCCommsStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
 			}
 			catch(Exception e)
 			{
 				frodospec.error(this.getClass().getName()+
 						":getIntermediateStatus:Get Lamp Controller Fault status failed.",e);
 				lampControllerFaultStatus = false;
+				lampControllerPLCCommsStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
 			}
+			hashTable.put("Lamp.Controller.Status.Fault",new Boolean(lampControllerFaultStatus));
+			hashTable.put("Lamp.Controller.Plc.Comms.Status",new String(lampControllerPLCCommsStatus));
 		}// end if
 		else
-			lampControllerFaultStatus = false;	
+			lampControllerFaultStatus = true; // fake everything is OK	
 	// Standard status
-		setInstrumentStatus(plcFaultStatus,focusStageInstrumentStatusString);
+		setInstrumentStatus(plcFaultStatus,lampControllerFaultStatus,focusStageInstrumentStatusString);
 	}
 
 	/**
@@ -781,10 +819,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * current temperature.
 	 * Reads the folowing config:
 	 * <ul>
-	 * <li>frodospec.get_status.ccd.<arm>.temperature.warm.warn
-	 * <li>frodospec.get_status.ccd.<arm>.temperature.warm.fail
-	 * <li>frodospec.get_status.ccd.<arm>.temperature.cold.warn
-	 * <li>frodospec.get_status.ccd.<arm>.temperature.cold.fail
+	 * <li>frodospec.get_status.ccd.&lt;arm&gt;.temperature.warm.warn
+	 * <li>frodospec.get_status.ccd.&lt;arm&gt;.temperature.warm.fail
+	 * <li>frodospec.get_status.ccd.&lt;arm&gt;.temperature.cold.warn
+	 * <li>frodospec.get_status.ccd.&lt;arm&gt;.temperature.cold.fail
 	 * </ul>
 	 * @param arm Which arm, one of RED_ARM or BLUE_ARM, 0 is an illegal index.
 	 * @param currentTemperature The current temperature in degrees C.
@@ -855,14 +893,17 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * <li>Overall Focus Stage status in <i>KEYWORD_FOCUS_STAGE_INSTRUMENT_STATUS</i>, 
 	 *     based on focusStageInstrumentStatusString.
 	 * <li>Overall per-arm status <i>&lt;arm&gt;.KEYWORD_INSTRUMENT_STATUS</i>, based on
-	 *     armDetectorTemperatureInstrumentStatus, the per-arm PLC status and per-arm focus stage status.
+	 *     armDetectorTemperatureInstrumentStatus, the per-arm PLC status, per-arm focus stage status,
+	 *     and lamp controller fault status.
 	 * <li>the overall instrument status keyword <i>KEYWORD_INSTRUMENT_STATUS</i> in the hashtable. 
 	 *     This is derived from sub-system keyword values armDetectorTemperatureInstrumentStatus, 
-	 *     the overall PLC status and focus stage status.
+	 *     the overall PLC status, focus stage status, and lamp controller fault status.
 	 * </ul>
 	 * Each is set to the worst of OK/WARN/FAIL. If sub-systems are UNKNOWN, OK is returned.
 	 * @param plcFaultStatus The Fault status bits from the PLC. Depending on the fault bits
 	 *        instrument status may change.
+	 * @param lampControllerFaultStatus A boolean. If true the lamp controller has the PLC error bit set
+	 *        (the lamp controller PLC has a fault).
 	 * @param focusStageInstrumentStatusString An array of three strings, the status value strings for each
 	 *        arm's focus stage. The first index is VALUE_STATUS_UNKNOWN.
 	 * @see #hashTable
@@ -901,7 +942,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	// diddly rewrite as per-arm-hardware and per hardware status written in separate methods are per detector
 	// temperature
 	// this method to agregate into per-arm and overall status
-	protected void setInstrumentStatus(int plcFaultStatus,String focusStageInstrumentStatusString[])
+	protected void setInstrumentStatus(int plcFaultStatus,boolean lampControllerFaultStatus,
+					   String focusStageInstrumentStatusString[])
 	{
 		String armInstrumentStatus;
 		String detectorTemperatureInstrumentStatus;
@@ -1020,6 +1062,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			// check focus stage
 			if(focusStageInstrumentStatusString[arm].equals(GET_STATUS_DONE.VALUE_STATUS_WARN))
 				armInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_WARN;
+			// check lamp controller which effects both arms
+			if(lampControllerFaultStatus)
+				armInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_WARN;
 			//
 			// check fails
 			//
@@ -1060,6 +1105,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				instrumentStatus = GET_STATUS_DONE.VALUE_STATUS_WARN;
 			if(focusStageInstrumentStatusString[arm].equals(GET_STATUS_DONE.VALUE_STATUS_WARN)&&
 			   instrumentStatus.equals(GET_STATUS_DONE.VALUE_STATUS_OK))
+				instrumentStatus = GET_STATUS_DONE.VALUE_STATUS_WARN;
+			if(lampControllerFaultStatus&&instrumentStatus.equals(GET_STATUS_DONE.VALUE_STATUS_OK))
 				instrumentStatus = GET_STATUS_DONE.VALUE_STATUS_WARN;
 			//
 			// check fails
@@ -1167,6 +1214,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2010/03/16 14:38:05  cjm
+// FAULT_STATUS_COOLING bit is now FAULT_STATUS_PLC bit.
+//
 // Revision 1.5  2010/03/15 16:51:20  cjm
 // Added lamp unit fault status.
 //
