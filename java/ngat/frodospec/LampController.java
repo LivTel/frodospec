@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.7 2010-03-15 16:46:10 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.8 2010-04-07 15:11:53 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.7 2010-03-15 16:46:10 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.8 2010-04-07 15:11:53 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -262,13 +262,15 @@ public class LampController
 							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ",lamps="+lampsString+"): Sending ACK:"+waitLength);
 						// send ACK to command client to stop timeout
+						// don't save ack in server connection thread, so we can retrieve
+						// the original ack time at the end of this loop.
 						ack = new ACK(this.getClass().getName()+":setLampLock(arm="+
 							      FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+
 							      lampsString+"):inUseLamps="+
 							      inUseLamps+":inUseCount="+inUseCount);
 						ack.setTimeToComplete((waitLength * 2));
 						if(serverConnectionThread != null)
-							serverConnectionThread.sendAcknowledge(ack);
+							serverConnectionThread.sendAcknowledge(ack,false);
 						logger.log(Logger.VERBOSITY_INTERMEDIATE,
 							   this.getClass().getName()+
 							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
@@ -295,6 +297,16 @@ public class LampController
 				}// endif wrong lamp is in use
 			}// end if in use count > 0
 		}// end synchronized on inUseLock
+		// reset acknowledge time to last ack time set before wait ACKs
+		if(serverConnectionThread != null)
+		{
+			ack = new ACK(this.getClass().getName()+":setLampLock(arm="+
+				      FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+
+				      lampsString+"):inUseLamps="+
+				      inUseLamps+":inUseCount="+inUseCount);
+			ack.setTimeToComplete(serverConnectionThread.getAcknowledgeTime());
+			serverConnectionThread.sendAcknowledge(ack,true);
+		}
 		// actually turn lamp on
 		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 		    ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning lamps on:"+lampsString);
@@ -388,6 +400,10 @@ public class LampController
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2010/03/15 16:46:10  cjm
+// Now stows and move in line the calibration mirror.
+// Added getFaultStatus method.
+//
 // Revision 1.6  2009/08/20 12:10:05  cjm
 // Added extra arm logging.
 // setNoLampLock now has while loop short circuit evaluation the right way around,
