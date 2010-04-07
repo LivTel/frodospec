@@ -1,5 +1,5 @@
 // DAY_CALIBRATEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.5 2010-02-08 11:09:43 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.6 2010-04-07 15:09:52 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -19,14 +19,14 @@ import ngat.util.logging.*;
  * Java Message System. It performs a series of BIAS and DARK frames from a configurable list,
  * taking into account frames done in previous invocations of this command (it saves it's state).
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.5 2010-02-08 11:09:43 cjm Exp $");
+	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.6 2010-04-07 15:09:52 cjm Exp $");
 	/**
 	 * Initial part of a key string, used to create a list of potential day calibrations to
 	 * perform from a Java property file.
@@ -875,42 +875,6 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 	}
 
 	/**
-	 * Method to send an instance of ACK back to the client. This stops the client timing out, whilst we
-	 * work out what calibration to attempt next.
-	 * @param dayCalibrateCommand The instance of FRODOSPEC_DAY_CALIBRATE we are currently running.
-	 * @param dayCalibrateDone The instance of FRODOSPEC_DAY_CALIBRATE_DONE to fill in with errors we receive.
-	 * @param timeToComplete The time it will take to complete the next set of operations
-	 *	before the next ACK or DONE is sent to the client. The time is in milliseconds. 
-	 * 	The server connection thread's default acknowledge time is added to the value before it
-	 * 	is sent to the client, to allow for network delay etc.
-	 * @return The method returns true if the ACK was sent successfully, false if an error occured.
-	 */
-	protected boolean sendBasicAck(FRODOSPEC_DAY_CALIBRATE dayCalibrateCommand,
-				       FRODOSPEC_DAY_CALIBRATE_DONE dayCalibrateDone,
-		int timeToComplete)
-	{
-		ACK acknowledge = null;
-
-		acknowledge = new ACK(dayCalibrateCommand.getId());
-		acknowledge.setTimeToComplete(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
-		try
-		{
-			serverConnectionThread.sendAcknowledge(acknowledge,true);
-		}
-		catch(IOException e)
-		{
-			String errorString = new String(dayCalibrateCommand.getId()+
-				":sendBasicAck:Sending ACK failed:");
-			frodospec.error(this.getClass().getName()+":"+errorString,e);
-			dayCalibrateDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2213);
-			dayCalibrateDone.setErrorString(errorString+e);
-			dayCalibrateDone.setSuccessful(false);
-			return false;
-		}
-		return true;
-	}
-
-	/**
 	 * Method to send an instance of DAY_CALIBRATE_ACK back to the client. This tells the client about
 	 * a FITS frame that has been produced, and also stops the client timing out.
 	 * @param dayCalibrateCommand The instance of FRODOSPEC_DAY_CALIBRATE we are currently running.
@@ -1377,6 +1341,9 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2010/02/08 11:09:43  cjm
+// Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
+//
 // Revision 1.4  2009/09/18 15:20:46  cjm
 // Day calibration state now held in per-arm filenames, so saving state does not overwrite
 // state changes being done in a potenitally concurrent run on the other arm.
