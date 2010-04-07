@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.8 2010-03-15 16:48:04 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.9 2010-04-07 15:13:16 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.8 2010-03-15 16:48:04 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.9 2010-04-07 15:13:16 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -73,9 +73,24 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 	/**
 	 * This method implements the FRODOSPEC_ARC command. 
 	 * <ul>
-	 * <li>It generates some FITS headers from the CCD setup and
-	 * the ISS and saves this to disc. 
-	 * <li>It performs an exposure and saves the data from this to disc.
+	 * <li>The arm is extracted from the command.
+	 * <li>The PLC's getGratingResolution is called on the relevant arm to find the selected resolution.
+	 * <li>We call getArcExposureLength to get the exposure length for that arm/resolution combination.
+	 * <li>sendBasicAck sends an Ack back to the client, to stop the connection timing out before the exposure
+	 *     is finished.
+	 * <li>The setLampLock method in LampController is called. This waits in a loop until the lamp
+	 *     can be switched on (synchronised in theory with operations on the other arm), 
+	 *     acquires a lock for the specified lamp and then turns it on.
+	 * <li>FITS headers for the specified arm are setup with calls to setFitsHeaders and getFitsHeadersFromISS.
+	 * <li>The OBJECT FITS header is set to indicate the fact that this is an ARC.
+	 * <li>The exposure code, multrun number and run number are set, and a new FITS filename generated.
+	 * <li>We resend another ACK to the client to ensure the connection is kept alive 
+	 *     whilst we actually take the exposure.
+	 * <li>The exposure is taken and saved to the FITS filename.
+	 * <li>turnLampsOff is called to turn the Arc lamp off.
+	 * <li>unLockFile is called to remove the FITS file lock created by saveFitsHeaders.
+	 * <li>A FILENAME_ACK is sent back to the client with the new filename.
+	 * <li>reduceCalibrate is called to reduce the arc.
 	 * </ul>
 	 * @see #getArcExposureLength
 	 * @see CommandImplementation#testAbort
@@ -85,6 +100,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 	 * @see FITSImplementation#saveFitsHeaders
 	 * @see FITSImplementation#unLockFile
 	 * @see FITSImplementation#objectName
+	 * @see CALIBRATEImplementation#sendBasicAck
 	 * @see FrodoSpec#getLampUnit
 	 * @see FrodoSpec#getLampController
 	 * @see FrodoSpec#getPLC
@@ -171,6 +187,10 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 			arcDone.setSuccessful(false);
 			return arcDone;
 		}
+		// send a basic Ack to keep the connection alive whilst we do an exposure
+		if(sendBasicAck(arcCommand,arcDone,
+				exposureLength+serverConnectionThread.getDefaultAcknowledgeTime()) == false)
+			return arcDone;
 		// are we actually talking to the CCD
 		ccdEnable = status.getPropertyBoolean("frodospec.ccd."+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 						      ".enable");
@@ -253,22 +273,12 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 			return arcDone;
 		}
         // send ack of exposurelength + readout before starting exposure
-		acknowledge = new ACK(command.getId());
-		acknowledge.setTimeToComplete(exposureLength+serverConnectionThread.getDefaultAcknowledgeTime());
-		try
-		{
-			serverConnectionThread.sendAcknowledge(acknowledge);
-		}
-		catch(IOException e)
+		if(sendBasicAck(arcCommand,arcDone,
+				exposureLength+serverConnectionThread.getDefaultAcknowledgeTime()) == false)
 		{
 			// switch lamp off
 			turnLampsOff(arm,arcCommand,arcDone);
 			unLockFile(arcCommand,arcDone,filename);
-			frodospec.error(this.getClass().getName()+
-					":processCommand:"+command+":"+e.toString());
-			arcDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1508);
-			arcDone.setErrorString(e.toString());
-			arcDone.setSuccessful(false);
 			return arcDone;
 		}
 	// do arc
@@ -337,6 +347,9 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2010/03/15 16:48:04  cjm
+// Removed stowFold call - now lamp unit has it's own mirror.
+//
 // Revision 1.7  2010/02/08 11:09:48  cjm
 // Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
 //

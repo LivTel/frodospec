@@ -1,5 +1,5 @@
 // LAMPFLATImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.5 2010-03-15 16:47:47 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.6 2010-04-07 15:13:15 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFLAT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class LAMPFLATImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.5 2010-03-15 16:47:47 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.6 2010-04-07 15:13:15 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -73,11 +73,28 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 	/**
 	 * This method implements the FRODOSPEC_LAMPFLAT command. 
 	 * <ul>
-	 * <li>It generates some FITS headers from the CCD setup and
-	 * the ISS and saves this to disc. 
+	 * <li>The arm is extracted from the command.
+	 * <li>The currently configured resolution for the specified arm is queried from the Plc.
+	 * <li>getArcExposureLength is used to determine the exposure length needed.
+	 * <li>sendBasicAck sends an Ack back to the client, to stop the connection timing out before the exposure
+	 *     is finished.
+	 * <li>We use the setLampLock LampController method to wait and acquire the rights to use the arc lamp,
+	 *     and then to turn the lamp on.
+	 * <li>We generate some FITS headers from the CCD setup and the ISS 
+	 *     (setFitsHeaders and getFitsHeadersFromISS). 
+	 * <li>We change the OBJECT FITS header to indicate this is a LAMPFLAT.
+	 * <li>We increment the relevant arm's Multrun number and run number.
+	 * <li>We save the FITS headers to the generated filename.
+	 * <li>We resend another ACK to the client to ensure the connection is kept alive 
+	 *     whilst we actually take the exposure.
 	 * <li>It performs an exposure and saves the data from this to disc.
+	 * <li>turnLampsOff is called to turn the lamp off.
+	 * <li>unLockFile is called to remove the file lock created by saveFitsHeaders.
+	 * <li>A FILENAME_ACK is sent back to the client with the new filename.
+	 * <li>reduceCalibrate is called to reduce the LAMP flat.
 	 * </ul>
 	 * @see CommandImplementation#testAbort
+	 * @see #frodospecFilenameList
 	 * @see FITSImplementation#clearFitsHeaders
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
@@ -85,6 +102,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 	 * @see FITSImplementation#unLockFile
 	 * @see FITSImplementation#objectName
 	 * @see FITSImplementation#getArcExposureLength
+	 * @see CALIBRATEImplementation#sendBasicAck
+	 * @see CALIBRATEImplementation#reduceCalibrate
 	 * @see FrodoSpec#getLampUnit
 	 * @see FrodoSpec#getLampController
 	 * @see FrodoSpec#getPLC
@@ -172,6 +191,10 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 			lampFlatDone.setSuccessful(false);
 			return lampFlatDone;
 		}
+		// send a basic Ack to keep the connection alive whilst we do an exposure
+		if(sendBasicAck(lampFlatCommand,lampFlatDone,
+				exposureLength+serverConnectionThread.getDefaultAcknowledgeTime()) == false)
+			return lampFlatDone;
 		// are we actually talking to the CCD
 		ccdEnable = status.getPropertyBoolean("frodospec.ccd."+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 						      ".enable");
@@ -254,6 +277,15 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 			unLockFile(lampFlatCommand,lampFlatDone,filename);
 			return lampFlatDone;
 		}
+        // send ack of exposurelength + readout before starting exposure
+		if(sendBasicAck(lampFlatCommand,lampFlatDone,
+				exposureLength+serverConnectionThread.getDefaultAcknowledgeTime()) == false)
+		{
+			// switch lamp off
+			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			unLockFile(lampFlatCommand,lampFlatDone,filename);
+			return lampFlatDone;
+		}
 	// do lampFlat
 		status.setExposureFilename(arm,filename);
 		if(ccdEnable)
@@ -320,6 +352,9 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2010/03/15 16:47:47  cjm
+// Removed stowFold call - now lamp unit has it's own mirror.
+//
 // Revision 1.4  2010/02/08 11:09:19  cjm
 // Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
 //
