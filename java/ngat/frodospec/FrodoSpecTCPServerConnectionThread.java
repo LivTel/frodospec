@@ -1,5 +1,5 @@
 // FrodoSpecTCPServerConnectionThread.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.4 2009-04-30 09:58:38 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecTCPServerConnectionThread.java,v 1.5 2010-04-07 15:10:29 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
 /**
  * This class extends the TCPServerConnectionThread class for the FrodoSpec application.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThread
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.4 2009-04-30 09:58:38 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecTCPServerConnectionThread.java,v 1.5 2010-04-07 15:10:29 cjm Exp $");
 	/**
 	 * Default time taken to respond to a command. This is a class-wide field.
 	 */
@@ -298,11 +298,15 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 	 * 	with the acknowledge object's time to complete.
 	 * @exception NullPointerException If the acknowledge object is null this exception is thrown.
 	 * @exception IOException If the acknowledge object fails to be sent an IOException results.
+	 * @see #frodospec
 	 * @see #acknowledgeTime
 	 * @see ngat.net.TCPServerConnectionThread#sendAcknowledge
 	 */
 	public void sendAcknowledge(ACK acknowledge,boolean setThreadAckTime) throws IOException
 	{
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"Command:"+command.getClass().getName()+
+			      ":sendAcknowledge(timeToComplete="+acknowledge.getTimeToComplete()+
+			      ",setThreadAckTime="+setThreadAckTime+").");
 		if(setThreadAckTime)
 			acknowledgeTime = acknowledge.getTimeToComplete();
 		super.sendAcknowledge(acknowledge);
@@ -322,6 +326,10 @@ public class FrodoSpecTCPServerConnectionThread extends TCPServerConnectionThrea
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2009/04/30 09:58:38  cjm
+// Now calls setCurrentThread to keep track of what thread is running on each arm -
+// this is used in the ABORT implementation.
+//
 // Revision 1.3  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
