@@ -1,5 +1,5 @@
 // LAMPFOCUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.3 2010-03-15 16:48:22 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.4 2010-06-14 16:29:22 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFOCUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.3 2010-03-15 16:48:22 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.4 2010-06-14 16:29:22 cjm Exp $");
 	/**
 	 * A small number. Used to prevent a division by zero.
 	 */	 
@@ -450,6 +450,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * <li>The FITS headers are generated from FrodoSpec status data and ISS GET_FITS command 
 	 * 	(clearFitsHeaders, setFitsHeaders, getFitsHeadersFromISS).
 	 * <li>The FITS headers for this frame are saved using the saveFitsHeaders method.
+	 * <li>sendBasicAck is called to ensure the client connection does not time out.
 	 * <li>The exposure is performed and saved in the filename, using CCDExposureExpose.
 	 * <li>The FITS lock file created by saveFitsHeaders is deleted using unLockFile.
 	 * <li>The frameParameters filename field is set to the saved filename.
@@ -467,11 +468,13 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * @see #arm
 	 * @see #exposureLength
 	 * @see #ccd
+	 * @see #perExposureOverhead
 	 * @see FITSImplementation#clearFitsHeaders
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#getFitsHeadersFromISS
 	 * @see FITSImplementation#saveFitsHeaders
 	 * @see FITSImplementation#unLockFile
+	 * @see FITSImplementation#sendBasicAck
 	 * @see #testAbort
 	 * @see CCDLibrary#expose
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
@@ -503,7 +506,6 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 			return false;
 		if(testAbort(lampFocusCommand,lampFocusDone) == true)
 			return false;
-
 	// Modify "OBJECT" FITS header value to distinguish between spectra of the OBJECT
         // and calibration LAMPFLATs taken for that observation.
 		objectCardImage = frodospecFitsHeaderList[arm].get("OBJECT");
@@ -515,6 +517,12 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 			return false;
 		}
 		if(testAbort(lampFocusCommand,lampFocusDone) == true)
+		{
+			unLockFile(lampFocusCommand,lampFocusDone,filename);
+			return false;
+		}
+		// send ACK so connection does not time out
+		if(sendBasicAck(lampFocusCommand,lampFocusDone,exposureLength+perExposureOverhead) == false)
 		{
 			unLockFile(lampFocusCommand,lampFocusDone,filename);
 			return false;
@@ -779,6 +787,9 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2010/03/15 16:48:22  cjm
+// Removed stowFold call - now lamp unit has it's own mirror.
+//
 // Revision 1.2  2010/02/08 11:09:30  cjm
 // Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
 //
