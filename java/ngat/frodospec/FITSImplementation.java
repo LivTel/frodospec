@@ -1,8 +1,9 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.15 2010-03-15 16:46:51 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.16 2010-06-14 16:28:23 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
+import java.io.*;
 import java.util.Date;
 import java.util.List;
 import java.util.Vector;
@@ -22,14 +23,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.15 $
+ * @version $Revision: 1.16 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.15 2010-03-15 16:46:51 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.16 2010-06-14 16:28:23 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -119,6 +120,42 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	public COMMAND_DONE processCommand(COMMAND command)
 	{
 		return super.processCommand(command);
+	}
+
+	/**
+	 * Method to send an instance of ACK back to the client. This stops the client timing out, whilst we
+	 * work out what to attempt next.
+	 * @param command The instance of COMMAND we are currently running.
+	 * @param done The instance of COMMAND_DONE to fill in with errors we receive.
+	 * @param timeToComplete The time it will take to complete the next set of operations
+	 *	before the next ACK or DONE is sent to the client. The time is in milliseconds. 
+	 * 	The server connection thread's default acknowledge time is added to the value before it
+	 * 	is sent to the client, to allow for network delay etc.
+	 * @return The method returns true if the ACK was sent successfully, false if an error occured.
+	 * @see #serverConnectionThread
+	 * @see ngat.message.ISS_INST.ACK
+	 * @see FrodoSpecTCPServerConnectionThread#sendAcknowledge
+	 */
+	protected boolean sendBasicAck(COMMAND command,COMMAND_DONE done,int timeToComplete)
+	{
+		ACK acknowledge = null;
+
+		acknowledge = new ACK(command.getId());
+		acknowledge.setTimeToComplete(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
+		try
+		{
+			serverConnectionThread.sendAcknowledge(acknowledge,true);
+		}
+		catch(IOException e)
+		{
+			String errorString = new String(command.getId()+":sendBasicAck:Sending ACK failed:");
+			frodospec.error(this.getClass().getName()+":"+errorString,e);
+			done.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+318);
+			done.setErrorString(errorString+e);
+			done.setSuccessful(false);
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -1498,6 +1535,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.15  2010/03/15 16:46:51  cjm
+// Comment changes.
+//
 // Revision 1.14  2010/02/08 11:08:37  cjm
 // Added FITS file locking to saveFitsHeaders and unlockFile(s).
 //
