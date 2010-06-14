@@ -1,5 +1,5 @@
 // CALIBRATEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CALIBRATEImplementation.java,v 1.2 2010-04-07 15:09:15 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CALIBRATEImplementation.java,v 1.3 2010-06-14 16:28:05 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -14,14 +14,14 @@ import ngat.message.INST_DP.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class CALIBRATEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CALIBRATEImplementation.java,v 1.2 2010-04-07 15:09:15 cjm Exp $");
+	public final static String RCSID = new String("$Id: CALIBRATEImplementation.java,v 1.3 2010-06-14 16:28:05 cjm Exp $");
 
 	/**
 	 * This method gets the CALIBRATE command's acknowledge time. It returns the server connection 
@@ -52,43 +52,6 @@ public class CALIBRATEImplementation extends FITSImplementation implements JMSCo
 		calibrateDone.setErrorString("");
 		calibrateDone.setSuccessful(true);
 		return calibrateDone;
-	}
-
-	/**
-	 * Method to send an instance of ACK back to the client. This stops the client timing out, whilst we
-	 * work out what calibration to attempt next.
-	 * @param calibrateCommand The instance of CALIBRATE we are currently running.
-	 * @param calibrateDone The instance of CALIBRATE_DONE to fill in with errors we receive.
-	 * @param timeToComplete The time it will take to complete the next set of operations
-	 *	before the next ACK or DONE is sent to the client. The time is in milliseconds. 
-	 * 	The server connection thread's default acknowledge time is added to the value before it
-	 * 	is sent to the client, to allow for network delay etc.
-	 * @return The method returns true if the ACK was sent successfully, false if an error occured.
-	 * @see #serverConnectionThread
-	 * @see ngat.message.ISS_INST.ACK
-	 * @see FrodoSpecTCPServerConnectionThread#sendAcknowledge
-	 */
-	protected boolean sendBasicAck(CALIBRATE calibrateCommand,CALIBRATE_DONE calibrateDone,
-				       int timeToComplete)
-	{
-		ACK acknowledge = null;
-
-		acknowledge = new ACK(calibrateCommand.getId());
-		acknowledge.setTimeToComplete(timeToComplete+serverConnectionThread.getDefaultAcknowledgeTime());
-		try
-		{
-			serverConnectionThread.sendAcknowledge(acknowledge,true);
-		}
-		catch(IOException e)
-		{
-			String errorString = new String(calibrateCommand.getId()+":sendBasicAck:Sending ACK failed:");
-			frodospec.error(this.getClass().getName()+":"+errorString,e);
-			calibrateDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+503);
-			calibrateDone.setErrorString(errorString+e);
-			calibrateDone.setSuccessful(false);
-			return false;
-		}
-		return true;
 	}
 
 	/**
@@ -211,6 +174,9 @@ public class CALIBRATEImplementation extends FITSImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2010/04/07 15:09:15  cjm
+// Added sendBasicAck method.
+//
 // Revision 1.1  2008/11/20 11:33:35  cjm
 // Initial revision
 //
