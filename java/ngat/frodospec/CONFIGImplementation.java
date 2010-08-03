@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.7 2009-10-20 18:15:16 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.8 2010-08-03 09:24:20 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.7 2009-10-20 18:15:16 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.8 2010-08-03 09:24:20 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -110,6 +110,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		CCDLibrary ccd = null;
 		CCDLibrarySetupWindow windowList[] = new CCDLibrarySetupWindow[CCDLibrary.SETUP_WINDOW_COUNT];
 		Plc plc = null;
+		FocusStage focusStage = null;
 		int numberColumns,numberRows,amplifier,deInterlaceSetting,arm;
 		boolean ccdEnable,calibrateBefore,calibrateAfter;
 
@@ -287,7 +288,28 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		{
 			frodospec.error(this.getClass().getName()+":processCommand:"+command+":",e);
 			configDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+810);
-			configDone.setErrorString(":processCommand:"+command+":"+e);
+			configDone.setErrorString(":processCommand:Set grating position:"+command+":"+e);
+			configDone.setSuccessful(false);
+			return configDone;
+		}
+		// set focus stage dependant on resolution
+		try
+		{
+			frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				      ":processCommand:Getting focus stage for arm "+
+				      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
+			focusStage = frodospec.getFocusStage(arm);
+			frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				      ":processCommand:Moving focus stage for arm "+
+				      FrodoSpecConstants.ARM_STRING_LIST[arm]+" and resolution "+
+				      FrodoSpecConstants.RESOLUTION_STRING_LIST[frodospecConfig.getResolution()]+".");
+			focusStage.moveToSetPoint(frodospecConfig.getResolution());
+		}
+		catch(Exception e)
+		{
+			frodospec.error(this.getClass().getName()+":processCommand:"+command+":",e);
+			configDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+811);
+			configDone.setErrorString(":processCommand:Set focus stage:"+command+":"+e);
 			configDone.setSuccessful(false);
 			return configDone;
 		}
@@ -398,6 +420,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2009/10/20 18:15:16  cjm
+// Added logging.
+//
 // Revision 1.6  2009/08/14 14:12:41  cjm
 // Amplifier setting now per-arm.
 //
