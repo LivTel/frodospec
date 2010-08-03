@@ -1,5 +1,5 @@
 // FocusStage.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.3 2009-05-07 15:55:48 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.4 2010-08-03 09:27:02 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -13,14 +13,14 @@ import ngat.frodospec.newmark.*;
 /**
  * An instance of this class is used to control a focus stage.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class FocusStage
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FocusStage.java,v 1.3 2009-05-07 15:55:48 cjm Exp $");
+	public final static String RCSID = new String("$Id: FocusStage.java,v 1.4 2010-08-03 09:27:02 cjm Exp $");
 	/**
 	 * FrodoSpec status object.
 	 */
@@ -42,9 +42,12 @@ public class FocusStage
 	 */
 	protected boolean moveEnable = false;
 	/**
-	 * The initial position we should move the focus stage to.
+	 * The position we should move the focus stage to.
+	 * The position is per-arm (as is this class) and per resolution, hence the array.
+	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_LOW
+	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_HIGH
 	 */
-	protected double moveValue = 0.0;
+	protected double moveSetPoint[] = {0.0,0.0,0.0};
 	/**
 	 * The position tolerance in mm:- 
 	 * how close the reported stage position has to be to the requested stage position
@@ -140,14 +143,13 @@ public class FocusStage
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":init:Loading configuration for "+armString+" arm.");
 		loadConfig();
-		// home and move focus stage for 
+		// home focus stage
 		if(enable)
 		{
 			setPositionTolerance();
 			if(moveEnable)
 			{
 				home();
-				moveToSetPoint();
 			}
 		}
 		else
@@ -256,20 +258,30 @@ public class FocusStage
 	/**
 	 * Method to move the focus stage, if the device is enabled and movement is enabled.
 	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param resolution Whether to use the low or high resolution focus position.
 	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
 	 * @exception NewmarkNativeException Thrown if the focus stage failed.
+	 * @exception IllegalArgumentException Thrown if the resolution was not legal.
+	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_HIGH
+	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_LOW
 	 * @see #enable
 	 * @see #moveEnable
 	 * @see #newmark
-	 * @see #moveValue
+	 * @see #moveSetPoint
 	 * @see #open
 	 * @see #close
 	 * @see ngat.frodospec.newmark.Newmark#move
 	 */
-	public void moveToSetPoint() throws NewmarkNativeException, ArcomESSNativeException
+	public void moveToSetPoint(int resolution) throws NewmarkNativeException, ArcomESSNativeException, 
+							  IllegalArgumentException
 	{
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":moveToSetPoint:Started for arm "+armString+".");
+		if((resolution != FrodoSpecConfig.RESOLUTION_HIGH)&&(resolution != FrodoSpecConfig.RESOLUTION_LOW))
+		{
+			throw new IllegalArgumentException(this.getClass().getName()+
+							   ":moveToSetPoint:Illegal resolution:"+resolution);
+		}
 		if(enable)
 		{
 			if(moveEnable)
@@ -279,7 +291,7 @@ public class FocusStage
 					try
 					{
 						open();
-						newmark.move(moveValue);
+						newmark.move(moveSetPoint[resolution]);
 					}
 					finally
 					{
@@ -361,8 +373,11 @@ public class FocusStage
 	 * @see #deviceName
 	 * @see #devicePortNumber
 	 * @see #moveEnable
-	 * @see #moveValue
+	 * @see #moveSetPoint
 	 * @see #positionTolerance
+	 * @see FrodoSpecConstants#RESOLUTION_STRING_LIST
+	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_LOW
+	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_HIGH
 	 */
 	protected void loadConfig()
 	{
@@ -389,7 +404,12 @@ public class FocusStage
 									     ".port_number");
 			}
 			moveEnable = status.getPropertyBoolean("frodospec.focus."+armString+".move");
-			moveValue = status.getPropertyDouble("frodospec.focus."+armString+".value");
+
+			for(int i = FrodoSpecConfig.RESOLUTION_LOW; i <= FrodoSpecConfig.RESOLUTION_HIGH; i++)
+			{
+				moveSetPoint[i] = status.getPropertyDouble("frodospec.focus."+armString+"."+
+							 FrodoSpecConstants.RESOLUTION_STRING_LIST[i]+".value");
+			}
 			// note this one value applies to both arms
 			// we will set this value twice in FrodoSpec...
 			positionTolerance = status.getPropertyDouble("frodospec.focus.position.tolerance");
@@ -505,6 +525,10 @@ public class FocusStage
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2009/05/07 15:55:48  cjm
+// moveToSetPoint now public so LAMPFOCUS implementation can call it.
+// moveToPosition added for LAMPFOCUS implementation.
+//
 // Revision 1.2  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
