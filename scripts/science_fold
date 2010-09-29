@@ -1,0 +1,68 @@
+#!/bin/csh
+# $Header: /home/cjm/cvs/frodospec/scripts/science_fold,v 1.1 2010-09-29 13:08:13 cjm Exp $
+# Stow or inline the science fold
+# science_fold <stow | inline>
+# From ias's second email:
+#N55:1/0   set to 1 will STOW
+#N55:1/0   set to 0 will DEPLOY
+#N55:2/0 signal indicating STOWED
+#N55:2/1 signal indicated DEPLOYED
+if ( $#argv < 1 ) then
+	echo "science_fold <stow|deploy>"
+	exit 1
+endif
+set onoff = $1
+if ( "${onoff}" == "deploy" ) then
+	set truefalse = "false"
+	set status_address = "N55:2/1"
+else if ( "${onoff}" == "stow" ) then
+	set truefalse = "true"
+	set status_address = "N55:2/0"
+else
+	echo "science_fold <stow|deploy>"
+	exit 1
+endif
+if( -x /icc/bin/eip/test/i386-linux/eip_test_write_boolean ) then
+	alias write_boolean '/icc/bin/eip/test/i386-linux/eip_test_write_boolean'
+else
+	echo "Failed to find eip_test_write_boolean."
+	exit 1
+endif
+if( -x /icc/bin/eip/test/i386-linux/eip_test_read_boolean ) then
+	alias read_boolean '/icc/bin/eip/test/i386-linux/eip_test_read_boolean'
+else
+	echo "Failed to find eip_test_read_boolean."
+	exit 1
+endif
+# configuration
+set hostname = "ltlampplc"
+# Science fold control address
+set address = "N55:1/0"
+write_boolean -ip ${hostname} -a ${address} -v ${truefalse}
+#
+# Enter a loop until the fold is in position or a timeout occurs
+#
+set timeout_count = 60
+set timeout_index = 0
+set done = 0
+while ( "${done}" == "0" )
+    set fold_status_string = `read_boolean -ip ${hostname} -a ${status_address} | grep "PLC Address"`
+    set fold_status = `echo "${fold_status_string}" | sed "s/.*PLC Address .* contained value \(.*\)\..*/\1/"`
+    echo "Fold Status: ${fold_status}"
+    # check if move has completed
+    if( "${fold_status}" == "1" ) then
+	echo "Science fold is ${onoff}ed."
+    endif
+    # check if timed out
+    @ timeout_index ++
+    if( ${timeout_index} > ${timeout_count} ) then
+	echo "Science fold move timed out."
+	set done = 1
+	exit 1
+    endif
+    # wait a bit
+    /bin/sleep 1
+end
+#
+# $Log: not supported by cvs2svn $
+#
