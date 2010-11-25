@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.8 2010-08-03 09:24:20 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.9 2010-11-25 14:08:35 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.8 2010-08-03 09:24:20 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.9 2010-11-25 14:08:35 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -188,8 +188,10 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 	// test abort
 		if(testAbort(configCommand,configDone) == true)
 			return configDone;
-	// check xbin and ybin: greater than zero (hardware restriction), xbin == ybin (pipeline restriction)
-		if((detector.getXBin()<1)||(detector.getYBin()<1)||(detector.getXBin()!=detector.getYBin()))
+	// check xbin and ybin: greater than zero (hardware restriction), 
+	// xbin == ybin (pipeline restriction) - commented out for testing for now
+		if((detector.getXBin()<1)||(detector.getYBin()<1))
+			// ||(detector.getXBin()!=detector.getYBin())
 		{
 			String errorString = null;
 
@@ -201,8 +203,8 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 			configDone.setSuccessful(false);
 			return configDone;
 		}
-	// We can either bin, or window, but not both at once. We only check one binning direction - see above
-		if((detector.getWindowFlags() > 0) && (detector.getXBin() > 1))
+	// We can either bin, or window, but not both at once. 
+		if((detector.getWindowFlags() > 0) && ((detector.getXBin() > 1)||(detector.getYBin() > 1)))
 		{
 			String errorString = null;
 
@@ -420,6 +422,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2010/08/03 09:24:20  cjm
+// Added calls to move focus stage to per-resolution based setpoint.
+//
 // Revision 1.7  2009/10/20 18:15:16  cjm
 // Added logging.
 //
