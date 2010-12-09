@@ -1,11 +1,11 @@
 /* newmark_command.c
 ** Newmark Motion Controller library.
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.2 2009-02-05 11:41:03 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.3 2010-12-09 14:48:48 cjm Exp $
 */
 /**
  * Command routines for the Newmark Motion Controller.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -70,7 +70,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: newmark_command.c,v 1.2 2009-02-05 11:41:03 cjm Exp $";
+static char rcsid[] = "$Id: newmark_command.c,v 1.3 2010-12-09 14:48:48 cjm Exp $";
 /**
  * How close the reported position has to be to the requested position before the stage
  * is deemed to be at the requested position. In millimetres.
@@ -644,8 +644,10 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 		sprintf(Newmark_Error_String,"Newmark_Command_Err_Get:Arcom_ESS_Interface_Write failed.");
 		return FALSE;	       
 	}
-	/* read reply */
-	if(!Command_Read_Until_Prompt(handle,100,TRUE,&reply_string))
+	/* read reply 
+	** If the loop timeout count is 100 (100*10 = 1000ms), this sometimes times out.
+	** Increased timeout to 1000*10 = 10000ms. */
+	if(!Command_Read_Until_Prompt(handle,1000,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -1162,6 +1164,9 @@ static char *Newmark_Command_Fix_String(char *string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2009/02/05 11:41:03  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 1.1  2008/11/20 11:35:45  cjm
 ** Initial revision
 **
