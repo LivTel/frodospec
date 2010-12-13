@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.8 2010-04-07 15:11:53 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.9 2010-12-13 11:18:45 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.8 2010-04-07 15:11:53 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.9 2010-12-13 11:18:45 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -349,15 +349,24 @@ public class LampController
 				logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
 					   ":clearLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 					   ") turning lamps off:"+inUseLamps);
-				// actually turn all lamps off (this even works if lock was on NO_LAMP!)
-				if(lampUnit != null)
+				try
 				{
-					lampUnit.turnAllLampsOff();
-					// make sure calibration mirror is stowed
-					lampUnit.stowMirror();
+					// actually turn all lamps off (this even works if lock was on NO_LAMP!)
+					if(lampUnit != null)
+					{
+						lampUnit.turnAllLampsOff();
+						// make sure calibration mirror is stowed
+						lampUnit.stowMirror();
+					}
 				}
-				inUseLamps = null;
-				inUseLock.notify();
+				// even if the stow mirror or turn all lamps off fails,
+				// we want to release the inUseLamps and Lock, otherwise
+				// the lamps get stuck in the locked position until the next reboot.
+				finally
+				{
+					inUseLamps = null;
+					inUseLock.notify();
+				}
 			}
 		}
 		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
@@ -400,6 +409,11 @@ public class LampController
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2010/04/07 15:11:53  cjm
+// The ACKs now sent whilst waiting for a lamp to become available are not saved in the
+// server connection thread.
+// The original ACK length is then sent back to the client after the lamp has been successfully acquired.
+//
 // Revision 1.7  2010/03/15 16:46:10  cjm
 // Now stows and move in line the calibration mirror.
 // Added getFaultStatus method.
