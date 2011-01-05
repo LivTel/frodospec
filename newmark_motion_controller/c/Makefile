@@ -1,4 +1,4 @@
-# $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/Makefile,v 1.2 2009-02-05 11:41:17 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/Makefile,v 1.3 2011-01-05 14:16:33 cjm Exp $
 
 include			../../../Makefile.common
 include			../../Makefile.common
@@ -31,7 +31,7 @@ JAVAOBJS	=	$(JAVASRCS:%.c=%.o)
 JAVADOCS 	= 	$(JAVASRCS:%.c=$(DOCSDIR)/%.html)
 LIBNAME		=	lib$(NEWMARK_LIBNAME)
 
-top: shared docs $(INCDIR)/ngat_frodospec_newmark_Newmark.h 
+top: $(INCDIR)/ngat_frodospec_newmark_Newmark.h shared docs 
 
 shared: $(LT_LIB_HOME)/$(LIBNAME).so
 
@@ -87,6 +87,9 @@ backup: tidy
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.2  2009/02/05 11:41:17  cjm
+# Added log_udp.h include dir.
+#
 # Revision 1.1  2008/11/20 11:35:54  cjm
 # Initial revision
 #
