@@ -1,5 +1,5 @@
 // TestCCDRedatum.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/test/TestCCDRedatum.java,v 1.1 2009-03-05 12:15:48 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/test/TestCCDRedatum.java,v 1.2 2011-01-05 14:12:41 cjm Exp $
 package ngat.frodospec.ccd.test;
 
 import java.lang.*;
@@ -19,14 +19,14 @@ import ngat.frodospec.ccd.*;
  * This software tests opening and closing connections to the FrodoSpec CCDs - this is currently failing with
  * missing interface pointers from FrodoSpec itself.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class TestCCDRedatum
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: TestCCDRedatum.java,v 1.1 2009-03-05 12:15:48 cjm Exp $");
+	public final static String RCSID = new String("$Id: TestCCDRedatum.java,v 1.2 2011-01-05 14:12:41 cjm Exp $");
 	/**
 	 * Default config filename.
 	 */
@@ -137,11 +137,8 @@ public class TestCCDRedatum
 	 * @exception Exception Thrown if an error occurs.
 	 * @see #redCCD
 	 * @see #blueCCD
-	 * @see #status
 	 * @see NGATProperties#getProperty
-	 * @see NGATProperties#getPropertyInteger
 	 * @see NGATProperties#getBoolean
-	 * @see NGATProperties#getPropertyDouble
 	 * @see ngat.frodospec.ccd.CCDLibrary#loadTypeFromString
 	 * @see ngat.frodospec.ccd.CCDLibrary#initialise
 	 * @see ngat.frodospec.ccd.CCDLibrary#setTextPrintLevel
@@ -260,7 +257,6 @@ public class TestCCDRedatum
 	 * <li>The CCD setup is shutdown (memory map), and the interface closed.
 	 * </ul>
 	 * @exception CCDLibraryNativeException Thrown if the device failed to shut down.
-	 * @see #status
 	 * @see #redCCD
 	 * @see #blueCCD
 	 * @see ngat.util.NGATProperties#getBoolean
@@ -284,6 +280,7 @@ public class TestCCDRedatum
 			blueCCD.interfaceClose();
 		}
 	}
+
 	/**
 	 * Get ccd instance.
 	 * @param arm Which arm. Either FrodoSpecConfig.RED_ARM or FrodoSpecConfig.BLUE_ARM.
@@ -411,7 +408,8 @@ public class TestCCDRedatum
 	 * The main routine. 
 	 * @see #parseArgs
 	 * @see #init
-	 * @see #run
+	 * @see #startupCCDController
+	 * @see #shutdownCCDController
 	 */
 	public static void main(String[] args)
 	{
@@ -448,4 +446,7 @@ public class TestCCDRedatum
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2009/03/05 12:15:48  cjm
+// Initial revision
+//
 //
