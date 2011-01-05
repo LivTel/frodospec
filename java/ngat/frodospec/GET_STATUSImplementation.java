@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.7 2010-03-22 19:02:47 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.8 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.7 2010-03-22 19:02:47 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.8 2011-01-05 14:07:42 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -484,7 +484,6 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 	 * @see ngat.frodospec.ccd.CCDLibrary#temperatureGetUtilityBoardADU
 	 * @see FrodoSpecStatus#getPropertyBoolean
 	 * @see FrodoSpecStatus#getProperty
-	 * @see #plc
 	 * @see FrodoSpec#getPLC
 	 * @see Plc
 	 * @see Plc#getFaultStatus
@@ -649,7 +648,7 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				{
 					try
 					{
-						position = focusStage.getPosition();
+						position = focusStage.getPosition("GET_STATUS");
 						hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							      ".Focus Stage Position",new Double(position));
 						focusStageInstrumentStatusString[arm] =GET_STATUS_DONE.VALUE_STATUS_OK;
@@ -1214,6 +1213,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2010/03/22 19:02:47  cjm
+// Fixed comments.
+// Added lamp controller fault status bit.
+//
 // Revision 1.6  2010/03/16 14:38:05  cjm
 // FAULT_STATUS_COOLING bit is now FAULT_STATUS_PLC bit.
 //
