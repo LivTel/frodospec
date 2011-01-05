@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.9 2010-11-25 14:08:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.10 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.9 $
+ * @version $Revision: 1.10 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.9 2010-11-25 14:08:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.10 2011-01-05 14:07:42 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -305,7 +305,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 				      ":processCommand:Moving focus stage for arm "+
 				      FrodoSpecConstants.ARM_STRING_LIST[arm]+" and resolution "+
 				      FrodoSpecConstants.RESOLUTION_STRING_LIST[frodospecConfig.getResolution()]+".");
-			focusStage.moveToSetPoint(frodospecConfig.getResolution());
+			focusStage.moveToSetPoint(configCommand.getClass().getName(),frodospecConfig.getResolution());
 		}
 		catch(Exception e)
 		{
@@ -422,6 +422,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2010/11/25 14:08:35  cjm
+// Removed restrictions on square binning. This so we can test binning in the spectral direction.
+//
 // Revision 1.8  2010/08/03 09:24:20  cjm
 // Added calls to move focus stage to per-resolution based setpoint.
 //
