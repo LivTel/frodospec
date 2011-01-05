@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.9 2010-03-15 16:52:05 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.10 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.9 $
+ * @version $Revision: 1.10 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.9 2010-03-15 16:52:05 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.10 2011-01-05 14:07:42 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1100,7 +1100,7 @@ public class FrodoSpec
 	{
 		for(int i = FrodoSpecConfig.RED_ARM; i <= FrodoSpecConfig.BLUE_ARM; i++)
 		{
-			focusStageList[i].init(status,i);
+			focusStageList[i].init(this.getClass().getName(),status,i);
 		}
 	}
 
@@ -1959,6 +1959,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2010/03/15 16:52:05  cjm
+// Added lamp unit stowMirror call as part of shutdown.
+//
 // Revision 1.8  2009/05/01 14:27:40  cjm
 // Changed copyLogHandlers calls in initLoggers to use Logging.ALL as the logLevel rather than
 // status.getLogLevel(), which caused no CCD/focus stage/PLC/lamp logs to be written.
