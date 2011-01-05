@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.16 2010-06-14 16:28:23 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.17 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.16 $
+ * @version $Revision: 1.17 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.16 2010-06-14 16:28:23 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.17 2011-01-05 14:07:42 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -133,7 +133,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * 	is sent to the client, to allow for network delay etc.
 	 * @return The method returns true if the ACK was sent successfully, false if an error occured.
 	 * @see #serverConnectionThread
-	 * @see ngat.message.ISS_INST.ACK
+	 * @see ngat.message.base.ACK
 	 * @see FrodoSpecTCPServerConnectionThread#sendAcknowledge
 	 */
 	protected boolean sendBasicAck(COMMAND command,COMMAND_DONE done,int timeToComplete)
@@ -748,7 +748,7 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		// CAMFOC
 			cardImage = frodospecFitsHeaderList[arm].get("CAMFOC");
 			focusStage = frodospec.getFocusStage(arm);
-			fvalue = (float)(focusStage.getPosition());
+			fvalue = (float)(focusStage.getPosition(command.getClass().getName()));
 			cardImage.setValue(new Float(fvalue)); 
 		// GRATID
 			cardImage = frodospecFitsHeaderList[arm].get("GRATID");
@@ -1535,6 +1535,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.16  2010/06/14 16:28:23  cjm
+// Moved sendBasicAck from CALIBRATEImplementation, so it can be used by LAMPFOCUSImplementation.
+//
 // Revision 1.15  2010/03/15 16:46:51  cjm
 // Comment changes.
 //
