@@ -1,5 +1,5 @@
 // LAMPFOCUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.4 2010-06-14 16:29:22 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.5 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFOCUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.4 2010-06-14 16:29:22 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.5 2011-01-05 14:07:42 cjm Exp $");
 	/**
 	 * A small number. Used to prevent a division by zero.
 	 */	 
@@ -47,7 +47,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	protected int arm;
 	/**
 	 * Which CCD to get exposures from.
-	 * @see ngat.ccd.CCDLibrary
+	 * @see ngat.frodospec.ccd.CCDLibrary
 	 */
 	protected CCDLibrary ccd = null;
 	/**
@@ -376,7 +376,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 		}// end for on exposures
 		// reset focus to set-point
 		// eventually - reduction will calculate best position to use here.
-		if(resetFocus(lampFocusCommand,lampFocusDone) == false)
+		if(resetFocus(lampFocusCommand,lampFocusDone,resolution) == false)
 			return lampFocusDone;
 	// setup return values.
 	// meanCounts and peakCounts set by pipelineProcess for last image reduced.
@@ -401,7 +401,7 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	{
 		try
 		{
-			focusStage.moveToPosition(focus);
+			focusStage.moveToPosition(lampFocusCommand.getClass().getName(),focus);
 		}
 		catch(Exception e)
 		{
@@ -420,15 +420,17 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * @param lampFocusCommand The command being implemented.
 	 * @param lampFocusDone The done command to be returned. If an error occurs, the error string and error number
 	 *        are filled in.
+	 * @param resolution Whether to reset the focus to the low or high resolution focus position.
 	 * @return A boolean, true if the operation succeeds, and false if an error occurs (returned in lampFocusDone).
 	 * @see #focusStage
 	 * @see FocusStage#moveToSetPoint
 	 */
-	protected boolean resetFocus(FRODOSPEC_LAMPFOCUS lampFocusCommand,FRODOSPEC_LAMPFOCUS_DONE lampFocusDone)
+	protected boolean resetFocus(FRODOSPEC_LAMPFOCUS lampFocusCommand,FRODOSPEC_LAMPFOCUS_DONE lampFocusDone,
+				     int resolution)
 	{
 		try
 		{
-			focusStage.moveToSetPoint();
+			focusStage.moveToSetPoint(lampFocusCommand.getClass().getName(),resolution);
 		}
 		catch(Exception e)
 		{
@@ -456,9 +458,9 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	 * <li>The frameParameters filename field is set to the saved filename.
 	 * </ul>
 	 * testAbort is called during this method to see if the command has been aborted.
-	 * @param telFocusCommand The TELFOCUS command that is causing this exposure. It is passed
+	 * @param lampFocusCommand The LAMPFOCUS command that is causing this exposure. It is passed
 	 * 	to saveFitsHeaders and testAbort.
-	 * @param telFocusDone The instance of TELFOCUS_DONE. This is filled in with an error message if the
+	 * @param lampFocusDone The instance of LAMPFOCUS_DONE. This is filled in with an error message if the
 	 * 	exposure fails. It is passed to saveFitsHeaders and testAbort.
 	 * @param exposureNumber The frame number. Used to generate the filename.
 	 * @param frameParameters The frame parameters for this exposure. The filename is set in this,
@@ -787,6 +789,9 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2010/06/14 16:29:22  cjm
+// Added sendBasicAck to exposeFrame, so longer Arc exposure lengths (60s) do not cause the GUI to time out.
+//
 // Revision 1.3  2010/03/15 16:48:22  cjm
 // Removed stowFold call - now lamp unit has it's own mirror.
 //
