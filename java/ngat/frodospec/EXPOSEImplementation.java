@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.7 2010-03-15 16:48:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.8 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.7 2010-03-15 16:48:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.8 2011-01-05 14:07:42 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -296,7 +296,6 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see #getArcExposureLength
 	 * @see #testAbort
 	 * @see #turnLampsOff
-	 * @see #turnLampsOn
 	 * @see FITSImplementation#clearFitsHeaders
 	 * @see FITSImplementation#setFitsHeaders
 	 * @see FITSImplementation#saveFitsHeaders
@@ -309,6 +308,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see ngat.frodospec.ccd.CCDLibrary#expose
 	 * @see FrodoSpecConstants#ARM_STRING_LIST
 	 * @see FrodoSpecConstants#RESOLUTION_STRING_LIST
+	 * @see LampController#setLampLock
+	 * @see FrodoSpec#getLampController
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
@@ -551,6 +552,9 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2010/03/15 16:48:40  cjm
+// Removed stowFold call - now lamp unit has it's own mirror.
+//
 // Revision 1.6  2010/02/08 11:09:26  cjm
 // Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
 //

@@ -1,5 +1,5 @@
 // ABORTImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ABORTImplementation.java,v 1.1 2009-04-30 09:53:40 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ABORTImplementation.java,v 1.2 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -12,14 +12,14 @@ import ngat.frodospec.ccd.*;
  * This class provides the implementation for the ABORT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class ABORTImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ABORTImplementation.java,v 1.1 2009-04-30 09:53:40 cjm Exp $");
+	public final static String RCSID = new String("$Id: ABORTImplementation.java,v 1.2 2011-01-05 14:07:42 cjm Exp $");
 
 	/**
 	 * Constructor.
@@ -130,10 +130,8 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 	 * @param command The command instance, one of ABORT or FRODOSPEC_ABORT.
 	 * @param done The command done instance (to fill in with errors if the abort fails), one of
 	 *             ABORT_DONE or FRODOSPEC_ABORT_DONE.
-	 * @see #ccd
 	 * @see #frodospec
 	 * @see #status
-	 * @see #plc
 	 * @see ngat.frodospec.ccd.CCDLibrary#getExposureStatus
 	 * @see ngat.frodospec.ccd.CCDLibrary#abort
 	 * @see ngat.frodospec.ccd.CCDLibrary#getSetupInProgress
@@ -233,4 +231,7 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2009/04/30 09:53:40  cjm
+// Initial revision
+//
 //
