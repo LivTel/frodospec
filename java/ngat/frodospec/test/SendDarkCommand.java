@@ -1,5 +1,5 @@
 // SendDarkCommand.java 
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/SendDarkCommand.java,v 1.1 2009-09-17 09:52:59 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/SendDarkCommand.java,v 1.2 2011-01-05 14:13:38 cjm Exp $
 package ngat.frodospec.test;
 
 import java.lang.*;
@@ -15,7 +15,7 @@ import ngat.util.*;
 /**
  * This class send a DARK to FrodoSpec. 
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 public class SendDarkCommand
 {
@@ -72,9 +72,6 @@ public class SendDarkCommand
 	 * @return An instance of DARK.
 	 * @see #arm
 	 * @see #exposureLength
-	 * @see #exposureCount
-	 * @see #standard
-	 * @see #pipelineProcess
 	 */
 	private FRODOSPEC_DARK createDark()
 	{
@@ -302,4 +299,7 @@ public class SendDarkCommand
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.1  2009/09/17 09:52:59  cjm
+// Initial revision
+//
 //
