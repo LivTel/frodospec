@@ -1,5 +1,5 @@
 // FocusStage.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.4 2010-08-03 09:27:02 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FocusStage.java,v 1.5 2011-01-05 14:07:42 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -13,14 +13,14 @@ import ngat.frodospec.newmark.*;
 /**
  * An instance of this class is used to control a focus stage.
  * @author Chris Mottram
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 public class FocusStage
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FocusStage.java,v 1.4 2010-08-03 09:27:02 cjm Exp $");
+	public final static String RCSID = new String("$Id: FocusStage.java,v 1.5 2011-01-05 14:07:42 cjm Exp $");
 	/**
 	 * FrodoSpec status object.
 	 */
@@ -123,8 +123,8 @@ public class FocusStage
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	public void init(FrodoSpecStatus status,int arm) throws IllegalArgumentException, ArcomESSNativeException, 
-								NewmarkNativeException
+	public void init(String clazz,FrodoSpecStatus status,int arm) throws IllegalArgumentException, 
+								ArcomESSNativeException, NewmarkNativeException
 	{
 		// set status
 		this.status = status;
@@ -146,10 +146,10 @@ public class FocusStage
 		// home focus stage
 		if(enable)
 		{
-			setPositionTolerance();
+			setPositionTolerance(clazz);
 			if(moveEnable)
 			{
-				home();
+				home(clazz);
 			}
 		}
 		else
@@ -163,18 +163,20 @@ public class FocusStage
 	/**
 	 * Method to close any open connections to the focus stage. Closes the arcomESS connection, if enabled.
 	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param clazz The class that is closing the arcomESS connection, used for logging.
 	 * @exception ArcomESSNativeException Thrown if closing the connection failed.
 	 * @see #enable
 	 * @see #arcomESS
+	 * @see #armString
 	 * @see ngat.serial.arcomess.ArcomESS#interfaceClose
 	 */
-	public void close() throws ArcomESSNativeException
+	public void close(String clazz) throws ArcomESSNativeException
 	{
 		if(enable)
 		{
 			synchronized(arcomESS)
 			{
-				arcomESS.interfaceClose();
+				arcomESS.interfaceClose(clazz,armString);
 			}
 		}
 		else
@@ -187,6 +189,7 @@ public class FocusStage
 	/**
 	 * Method to get the current position of the focus stage, if enabled.
 	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param clazz The class that is requesting the position, used for logging.
 	 * @return The position of the focus stage, in mm (usually, by default). Usually in the range -25 to 175mm.
 	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
 	 * @exception NewmarkNativeException Thrown if getting the position failed.
@@ -194,9 +197,10 @@ public class FocusStage
 	 * @see #newmark
 	 * @see #open
 	 * @see #close
+	 * @see #armString
 	 * @see ngat.frodospec.newmark.Newmark#getPosition
 	 */
-	public double getPosition() throws NewmarkNativeException, ArcomESSNativeException
+	public double getPosition(String clazz) throws NewmarkNativeException, ArcomESSNativeException
 	{
 		double position;
 
@@ -206,15 +210,15 @@ public class FocusStage
 			{
 				try
 				{
-					open();
-					position = newmark.getPosition();
+					open(clazz);
+					position = newmark.getPosition(clazz,armString);
 					logger.log(Logger.VERBOSITY_VERY_TERSE,
 						   this.getClass().getName()+
 						   ":getPosition:Arm "+armString+" has focus position "+position+".");
 				}
 				finally
 				{
-					close();
+					close(clazz);
 				}
 			}
 			return position;
@@ -258,6 +262,7 @@ public class FocusStage
 	/**
 	 * Method to move the focus stage, if the device is enabled and movement is enabled.
 	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param clazz The class that is moving the focus stage, used for logging.
 	 * @param resolution Whether to use the low or high resolution focus position.
 	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
 	 * @exception NewmarkNativeException Thrown if the focus stage failed.
@@ -270,10 +275,11 @@ public class FocusStage
 	 * @see #moveSetPoint
 	 * @see #open
 	 * @see #close
+	 * @see #armString
 	 * @see ngat.frodospec.newmark.Newmark#move
 	 */
-	public void moveToSetPoint(int resolution) throws NewmarkNativeException, ArcomESSNativeException, 
-							  IllegalArgumentException
+	public void moveToSetPoint(String clazz,int resolution) throws NewmarkNativeException, 
+							  ArcomESSNativeException, IllegalArgumentException
 	{
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":moveToSetPoint:Started for arm "+armString+".");
@@ -290,12 +296,12 @@ public class FocusStage
 				{
 					try
 					{
-						open();
-						newmark.move(moveSetPoint[resolution]);
+						open(clazz);
+						newmark.move(clazz,armString,moveSetPoint[resolution]);
 					}
 					finally
 					{
-						close();
+						close(clazz);
 					}
 				}
 			}
@@ -317,6 +323,7 @@ public class FocusStage
 	/**
 	 * Method to move the focus stage to a specified position, if the device is enabled and movement is enabled.
 	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param clazz The class that is moving the focus stage, used for logging.
 	 * @param position The position to move the focus stage to, in mm.
 	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
 	 * @exception NewmarkNativeException Thrown if the focus stage failed.
@@ -325,9 +332,10 @@ public class FocusStage
 	 * @see #newmark
 	 * @see #open
 	 * @see #close
+	 * @see #armString
 	 * @see ngat.frodospec.newmark.Newmark#move
 	 */
-	public void moveToPosition(double position) throws NewmarkNativeException, ArcomESSNativeException
+	public void moveToPosition(String clazz,double position) throws NewmarkNativeException, ArcomESSNativeException
 	{
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":moveToPosition:Moving arm "+armString+" to position "+position+".");
@@ -339,12 +347,12 @@ public class FocusStage
 				{
 					try
 					{
-						open();
-						newmark.move(position);
+						open(clazz);
+						newmark.move(clazz,armString,position);
 					}
 					finally
 					{
-						close();
+						close(clazz);
 					}
 				}
 			}
@@ -423,12 +431,13 @@ public class FocusStage
 
 	/**
 	 * Method to set the Newmark librarys position tolerance.
+	 * @param clazz The class used for logging.
 	 * @exception NewmarkNativeException Thrown if the focus stage failed.
 	 * @see #positionTolerance
 	 * @see #newmark
 	 * @see ngat.frodospec.newmark.Newmark#setPositionTolerance
 	 */
-	protected void setPositionTolerance() throws NewmarkNativeException
+	protected void setPositionTolerance(String clazz) throws NewmarkNativeException
 	{
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":setPositionTolerance:Started.");
@@ -436,7 +445,7 @@ public class FocusStage
 		{
 			logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 				   ":setPositionTolerance:Setting to "+positionTolerance+".");
-			newmark.setPositionTolerance(positionTolerance);
+			newmark.setPositionTolerance(clazz,armString,positionTolerance);
 		}
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":setPositionTolerance:Finished.");
@@ -446,6 +455,7 @@ public class FocusStage
 	 * Method to open the connection to the arcomESS, using details loaded from the config,
 	 * if the device is enabled.
 	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param clazz The class used for logging.
 	 * @exception ArcomESSNativeException Thrown if initialising the connection failed.
 	 * @see #enable
 	 * @see #arcomESS
@@ -455,7 +465,7 @@ public class FocusStage
 	 * @see ngat.serial.arcomess.ArcomESS#setLogFilterLevel
 	 * @see ngat.serial.arcomess.ArcomESS#interfaceOpen
 	 */
-	protected void open() throws ArcomESSNativeException
+	protected void open(String clazz) throws ArcomESSNativeException
 	{
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":open:Started for arm "+armString+".");
@@ -463,7 +473,7 @@ public class FocusStage
 		{
 			synchronized(arcomESS)
 			{
-				arcomESS.interfaceOpen(deviceId,deviceName,devicePortNumber);
+				arcomESS.interfaceOpen(clazz,armString,deviceId,deviceName,devicePortNumber);
 			}
 		}
 		else
@@ -478,6 +488,7 @@ public class FocusStage
 	/**
 	 * Method to home the focus stage, if the device is enabled and movement is enabled.
 	 * We synchronise on the arcomESS object whilst doing this in case another thread is accessing the focus stage.
+	 * @param clazz The class used for logging.
 	 * @exception ArcomESSNativeException Thrown if the open/close operation failed.
 	 * @exception NewmarkNativeException Thrown if the focus stage failed.
 	 * @see #enable
@@ -487,7 +498,7 @@ public class FocusStage
 	 * @see #close
 	 * @see ngat.frodospec.newmark.Newmark#home
 	 */
-	protected void home() throws NewmarkNativeException,ArcomESSNativeException
+	protected void home(String clazz) throws NewmarkNativeException,ArcomESSNativeException
 	{
 		logger.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
 			   ":home:Started for arm "+armString+".");
@@ -499,12 +510,12 @@ public class FocusStage
 				{
 					try
 					{
-						open();
-						newmark.home();
+						open(clazz);
+						newmark.home(clazz,armString);
 					}
 					finally
 					{
-						close();
+						close(clazz);
 					}
 				}
 			}
@@ -525,6 +536,11 @@ public class FocusStage
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.4  2010/08/03 09:27:02  cjm
+// Removed moveValue and added per-resolution moveSetPoint array.
+// init procedure no longer moves focus stage to set-point.
+// moveToSetPoint now takes resolution as an argument (and is called from CONFIG).
+//
 // Revision 1.3  2009/05/07 15:55:48  cjm
 // moveToSetPoint now public so LAMPFOCUS implementation can call it.
 // moveToPosition added for LAMPFOCUS implementation.
