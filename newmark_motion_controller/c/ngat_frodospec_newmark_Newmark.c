@@ -1,6 +1,6 @@
 /* ngat_frodospec_newmark_Newmark.c
 ** implementation of Java Class ngat.frodospec.newmark.Newmark native interfaces
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/ngat_frodospec_newmark_Newmark.c,v 1.2 2009-02-05 11:41:03 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/ngat_frodospec_newmark_Newmark.c,v 1.3 2011-01-05 14:14:17 cjm Exp $
 */
 /**
  * ngat_frodospec_newmark_Newmark.c is the 'glue' between libfrodospec_newmark, 
@@ -8,7 +8,7 @@
  * a Java Class to drive the motion controller. Newmark specifically
  * contains all the native C routines corresponding to native methods in Java.
  * @author Chris Mottram LJMU
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -27,7 +27,7 @@
 #include <time.h>
 #include "newmark_general.h"
 #include "newmark_command.h"
-
+#include "ngat_frodospec_newmark_Newmark.h"
 /**
  * Special external declaration of ArcomESS_Handle_Map_Find.
  * This routine is implemented in libarcom_ess, as part of it's JNI interface code (ngat_serial_arcomess_ArcomESS.c).
@@ -67,7 +67,7 @@ struct Handle_Map_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ngat_frodospec_newmark_Newmark.c,v 1.2 2009-02-05 11:41:03 cjm Exp $";
+static char rcsid[] = "$Id: ngat_frodospec_newmark_Newmark.c,v 1.3 2011-01-05 14:14:17 cjm Exp $";
 
 /**
  * Copy of the java virtual machine pointer, used for logging back up to the Java layer from C.
@@ -79,7 +79,8 @@ static JavaVM *java_vm = NULL;
  */
 static jobject logger = NULL;
 /**
- * Cached reference to the "ngat.util.logging.Logger" class's log(int level,String message) method.
+ * Cached reference to the "ngat.util.logging.Logger" class's 
+ * log(int level,String clazz,String source,String message) method.
  * Used to log C layer log messages, in conjunction with the logger's object reference logger.
  * @see #logger
  */
@@ -102,7 +103,7 @@ static struct Handle_Map_Struct Handle_Map_List[HANDLE_MAP_SIZE] =
 /* internal routines */
 static void Newmark_Throw_Exception(JNIEnv *env,jobject obj,char *function_name);
 static void Newmark_Throw_Exception_String(JNIEnv *env,jobject obj,char *function_name,char *error_string);
-static void Newmark_Log_Handler(int level,char *string);
+static void Newmark_Log_Handler(char *class,char *source,int level,char *string);
 static int Newmark_Handle_Map_Add(JNIEnv *env,jobject newmark_instance,jobject arcom_ess_instance);
 static int Newmark_Handle_Map_Delete(JNIEnv *env,jobject instance);
 static int Newmark_Handle_Map_Find(JNIEnv *env,jobject instance,Arcom_ESS_Interface_Handle_T** interface_handle);
@@ -158,7 +159,10 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_initialiseLoggerRefer
 		return;
 /* get relevant method id to call */
 /* log(int level,java/lang/String message) */
-	log_method_id = (*env)->GetMethodID(env,cls,"log","(ILjava/lang/String;)V");
+/*	log_method_id = (*env)->GetMethodID(env,cls,"log","(ILjava/lang/String;)V");*/
+/* log(int level,java/lang/String clazz,java/lang/String source,java/lang/String message) */
+	log_method_id = (*env)->GetMethodID(env,cls,"log",
+					    "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
 	if(log_method_id == NULL)
 	{
 		/* One of the following exceptions has been thrown:
@@ -243,17 +247,32 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Set_1Log_1Fi
 /**
  * Class:     ngat_frodospec_newmark_Newmark<br>
  * Method:    Newmark_Command_Home<br>
- * Signature: ()V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V<br>
  */
-JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Home(JNIEnv *env,jobject obj)
+JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Home(JNIEnv *env,jobject obj,
+							  jstring class_jstring, jstring source_jstring)
 {
 	Arcom_ESS_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from Newmark instance map */
 	if(!Newmark_Handle_Map_Find(env,obj,&handle))
 		return; /* Newmark_Handle_Map_Find throws an exception on failure */
-	retval = Newmark_Command_Home(handle);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* do home */
+	retval = Newmark_Command_Home((char*)class,(char*)source,handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		Newmark_Throw_Exception(env,obj,"Newmark_Command_Home");
@@ -262,18 +281,32 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Hom
 /**
  * Class:     ngat_frodospec_newmark_Newmark<br>
  * Method:    Newmark_Command_Move<br>
- * Signature: (D)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;D)V<br>
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Move(JNIEnv *env,jobject obj,
-										  jdouble position)
+						jstring class_jstring, jstring source_jstring,jdouble position)
 {
 	Arcom_ESS_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from Newmark instance map */
 	if(!Newmark_Handle_Map_Find(env,obj,&handle))
 		return; /* Newmark_Handle_Map_Find throws an exception on failure */
-	retval = Newmark_Command_Move(handle,(double)position);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* do move */
+	retval = Newmark_Command_Move((char*)class,(char*)source,handle,(double)position);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		Newmark_Throw_Exception(env,obj,"Newmark_Command_Move");
@@ -282,17 +315,32 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Mov
 /**
  * Class:     ngat_frodospec_newmark_Newmark<br>
  * Method:    Newmark_Command_Abort_Move<br>
- * Signature: ()V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V<br>
  */
-JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Abort_1Move(JNIEnv *env,jobject obj)
+JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Abort_1Move(JNIEnv *env,jobject obj,
+								  jstring class_jstring, jstring source_jstring)
 {
 	Arcom_ESS_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from Newmark instance map */
 	if(!Newmark_Handle_Map_Find(env,obj,&handle))
 		return; /* Newmark_Handle_Map_Find throws an exception on failure */
-	retval = Newmark_Command_Abort_Move(handle);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* do abort */
+	retval = Newmark_Command_Abort_Move((char*)class,(char*)source,handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		Newmark_Throw_Exception(env,obj,"Newmark_Command_Abort_Move");
@@ -301,18 +349,33 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Abo
 /**
  * Class:     ngat_frodospec_newmark_Newmark<br>
  * Method:    Newmark_Command_Position_Get<br>
- * Signature: ()D<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)D<br>
  */
-JNIEXPORT jdouble JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Position_1Get(JNIEnv *env,jobject obj)
+JNIEXPORT jdouble JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Position_1Get(JNIEnv *env,jobject obj,
+								   jstring class_jstring, jstring source_jstring)
 {
 	Arcom_ESS_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	double position;
 	int retval;
 
 	/* get interface handle from Newmark instance map */
 	if(!Newmark_Handle_Map_Find(env,obj,&handle))
 		return 0.0; /* Newmark_Handle_Map_Find throws an exception on failure */
-	retval = Newmark_Command_Position_Get(handle,&position);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* get position */
+	retval = Newmark_Command_Position_Get((char*)class,(char*)source,handle,&position);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 	{
@@ -325,14 +388,28 @@ JNIEXPORT jdouble JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1
 /**
  * Class:     ngat_frodospec_newmark_Newmark<br>
  * Method:    Newmark_Command_Position_Tolerance_Set<br>
- * Signature: (D)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;D)V<br>
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_newmark_Newmark_Newmark_1Command_1Position_1Tolerance_1Set(JNIEnv *env,
-										  jobject obj, jdouble mm)
+					     jobject obj, jstring class_jstring, jstring source_jstring,jdouble mm)
 {
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
-	retval = Newmark_Command_Position_Tolerance_Set(mm);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* set tolerance */
+	retval = Newmark_Command_Position_Tolerance_Set((char*)class,(char*)source,mm);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 	{
@@ -427,20 +504,26 @@ static void Newmark_Throw_Exception_String(JNIEnv *env,jobject obj,char *functio
 /**
  * libfrodospec_newmark Log Handler for the Java layer interface. 
  * This calls the ngat.frodospec.newmark.Newmark logger's 
- * log(int level,String message) method with the parameters supplied to this routine.
+ * log(int level,String clazz,String source,String message) method with the parameters supplied to this routine.
  * If the logger instance is NULL, or the log_method_id is NULL the call is not made.
  * Otherwise, A java.lang.String instance is constructed from the string parameter,
  * and the JNI CallVoidMEthod routine called to call log().
+ * @param class A string representing the class that caused this message to be logged - used to fill in the 
+ *        class field in the log record.
+ * @param source A string representing the source that caused this message to be logged - used to fill in the 
+ *        source field in the log record.
  * @param level The log level of the message.
  * @param string The message to log.
  * @see #java_vm
  * @see #logger
  * @see #log_method_id
  */
-static void Newmark_Log_Handler(int level,char *string)
+static void Newmark_Log_Handler(char *class,char *source,int level,char *string)
 {
 	JNIEnv *env = NULL;
 	jstring java_string = NULL;
+	jstring java_class = NULL;
+	jstring java_source = NULL;
 
 	if(logger == NULL)
 	{
@@ -471,8 +554,16 @@ static void Newmark_Log_Handler(int level,char *string)
 	}
 /* convert C to Java String */
 	java_string = (*env)->NewStringUTF(env,string);
+	if(class != NULL)
+		java_class = (*env)->NewStringUTF(env,class);
+	else
+		java_class = (*env)->NewStringUTF(env,"-");
+	if(source != NULL)
+		java_source = (*env)->NewStringUTF(env,source);
+	else
+		java_source = (*env)->NewStringUTF(env,"-");
 /* call log method on logger instance */
-	(*env)->CallVoidMethod(env,logger,log_method_id,(jint)level,java_string);
+	(*env)->CallVoidMethod(env,logger,log_method_id,(jint)level,java_class,java_source,java_string);
 }
 
 /**
@@ -651,6 +742,9 @@ static int Newmark_Handle_Map_Find(JNIEnv *env,jobject newmark_instance,
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2009/02/05 11:41:03  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 1.1  2008/11/20 11:35:45  cjm
 ** Initial revision
 **

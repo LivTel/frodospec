@@ -1,11 +1,11 @@
 /* newmark_command.c
 ** Newmark Motion Controller library.
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.3 2010-12-09 14:48:48 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.4 2011-01-05 14:14:17 cjm Exp $
 */
 /**
  * Command routines for the Newmark Motion Controller.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -70,7 +70,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: newmark_command.c,v 1.3 2010-12-09 14:48:48 cjm Exp $";
+static char rcsid[] = "$Id: newmark_command.c,v 1.4 2011-01-05 14:14:17 cjm Exp $";
 /**
  * How close the reported position has to be to the requested position before the stage
  * is deemed to be at the requested position. In millimetres.
@@ -79,9 +79,9 @@ static char rcsid[] = "$Id: newmark_command.c,v 1.3 2010-12-09 14:48:48 cjm Exp 
 static double Position_Tolerance = DEFAULT_POSITION_TOLERANCE;
 
 /* internal functions */
-static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle);
-static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int loop_timeout_count,int timeout_is_error,
-				     char **read_string);
+static int Command_Read_Flush(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle);
+static int Command_Read_Until_Prompt(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,
+				     int loop_timeout_count,int timeout_is_error,char **read_string);
 static char *Newmark_Command_Fix_String(char *string);
 
 /* =======================================
@@ -90,6 +90,8 @@ static char *Newmark_Command_Fix_String(char *string);
 /**
  * Meta command. Sends a MOVA and then enters a loop reading the position and error status until the 
  * position is reached, or a timeout or error is detected.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @param position The address of a double to store the retrieved position of the slide.
  * @return The routine returns TRUE on success and FALSE on failure.
@@ -100,20 +102,20 @@ static char *Newmark_Command_Fix_String(char *string);
  * @see #Newmark_Command_Error_Reset
  * @see #Position_Tolerance
  */
-int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
+int Newmark_Command_Move(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,double position)
 {
 	struct timespec sleep_time;
 	int done,timeout_index,retval,sleep_errno,error_exists,error_code;
 	double current_position,last_position;
 
 #if LOGGING > 1
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move(%.6f):Start.",position);
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move(%.6f):Start.",position);
 #endif
 	/* reset error code */
-	if(!Newmark_Command_Error_Reset(handle))
+	if(!Newmark_Command_Error_Reset(class,source,handle))
 		return FALSE;
 	/* move to an absolute position */
-	if(!Newmark_Command_Move_Absolute(handle,position))
+	if(!Newmark_Command_Move_Absolute(class,source,handle,position))
 		return FALSE;
 	done = FALSE;
 	current_position = 0.0;
@@ -135,7 +137,7 @@ int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
 		/* keep a copy of last position */
 		last_position = current_position;
 		/* get current position */
-		if(!Newmark_Command_Position_Get(handle,&current_position))
+		if(!Newmark_Command_Position_Get(class,source,handle,&current_position))
 			return FALSE;
 		/* have we moved - if not increment timeout */
 		if(last_position == current_position)
@@ -150,7 +152,7 @@ int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
 		** Don't use 'PRINT ERROR' for this as set errors persist until reset with 'ERROR = 0'.
 		** 'PRINT ERR' returns TRUE after an error UNTIL the next 'PRINT ERROR' 
 		** after which it is reset to FALSE. */
-		if(!Newmark_Command_Err_Get(handle,&error_exists))
+		if(!Newmark_Command_Err_Get(class,source,handle,&error_exists))
 			return FALSE;
 		if(error_exists)
 		{
@@ -160,7 +162,7 @@ int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
 			** put the error code from 'PRINT ERROR' persists
 			** until explicitly being reset with 'ERROR = 0'.
 			*/
-			if(!Newmark_Command_Error_Get(handle,&error_code))
+			if(!Newmark_Command_Error_Get(class,source,handle,&error_code))
 				return FALSE;
 			Newmark_Error_Number = 132;
 			sprintf(Newmark_Error_String,"Newmark_Command_Move:Error code was non-zero:%d.",error_code);
@@ -170,12 +172,14 @@ int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
 		done = (fabs(current_position - position) < Position_Tolerance);
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move:Finished.");
 #endif
 	return TRUE;
 }
 /**
  * Command used to home the Newmark encoder.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle  The interface handle to the newmark controller.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #Command_Read_Flush
@@ -188,13 +192,13 @@ int Newmark_Command_Move(Arcom_ESS_Interface_Handle_T *handle,double position)
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
+int Newmark_Command_Home(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle)
 {
 	char *reply_string = NULL;
 	char command_buff[COMMAND_BUFF_LENGTH];
 
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -204,7 +208,7 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -212,10 +216,10 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 	/* send HOME */
 	sprintf(command_buff,"HOME\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Writing '%s' to handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 101;
@@ -223,13 +227,13 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 	/* read reply  - takes a long time to home - allow 6000 (x 10ms) = 60s */
-	if(!Command_Read_Until_Prompt(handle,6000,TRUE,&reply_string))
+	if(!Command_Read_Until_Prompt(class,source,handle,6000,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Read '%s' from handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -252,13 +256,15 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Home:Finished.");
 #endif
 	return TRUE;
 }
 
 /**
  * Command used to get the current encoder position of the device, using the "PRINT POS" command.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @param position The address of a double to store the retrieved position of the slide.
  * @return The routine returns TRUE on success and FALSE on failure.
@@ -271,7 +277,7 @@ int Newmark_Command_Home(Arcom_ESS_Interface_Handle_T *handle)
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *position)
+int Newmark_Command_Position_Get(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,double *position)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
@@ -284,7 +290,7 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -294,7 +300,7 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -302,10 +308,11 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 	/* send PRINT POS */
 	sprintf(command_buff,"PRINT POS\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Writing '%s' to handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Position_Get:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 115;
@@ -313,13 +320,14 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 		return FALSE;	       
 	}
 	/* read reply */
-	if(!Command_Read_Until_Prompt(handle,100,TRUE,&reply_string))
+	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Read '%s' from handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Position_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -343,8 +351,8 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Get:Finished with position %.6f.",
-			   (*position));
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Position_Get:Finished with position %.6f.",(*position));
 #endif
 	return TRUE;
 }
@@ -355,6 +363,8 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
  * Note the routine completes after the command has been received by the controller, the move may be
  * ongoing after this routine returns. Use Newmark_Command_Position_Get to monitor whether the
  * move arrives at the new position.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @param position A double indicating the target position to move to.
  * @return The routine returns TRUE on success and FALSE on failure.
@@ -368,13 +378,14 @@ int Newmark_Command_Position_Get(Arcom_ESS_Interface_Handle_T *handle,double *po
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double position)
+int Newmark_Command_Move_Absolute(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,double position)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
 
 #if LOGGING > 1
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute(%.6f):Start.",position);
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute(%.6f):Start.",
+			   position);
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -384,7 +395,7 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -392,10 +403,11 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 	/* send MOVA <position> */
 	sprintf(command_buff,"MOVA %.6f\r\n",position);
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute:Writing '%s' to handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Move_Absolute:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 108;
@@ -403,13 +415,14 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 	/* read reply */
-	if(!Command_Read_Until_Prompt(handle,100,TRUE,&reply_string))
+	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute:Read '%s' from handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Move_Absolute:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -432,7 +445,7 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute:Finished.");
 #endif
 	return TRUE;
 }
@@ -443,6 +456,8 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
  * Note the routine completes after the command has been received by the controller, the move may be
  * ongoing after this routine returns. Use Newmark_Command_Position_Get to monitor whether the
  * move arrives at the new position.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @param position A double indicating the relative position (offset) to move.
  * @return The routine returns TRUE on success and FALSE on failure.
@@ -456,13 +471,14 @@ int Newmark_Command_Move_Absolute(Arcom_ESS_Interface_Handle_T *handle,double po
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double position_offset)
+int Newmark_Command_Move_Relative(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,double position_offset)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
 
 #if LOGGING > 1
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative(%.6f):Start.",position_offset);
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative(%.6f):Start.",
+			   position_offset);
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -472,7 +488,7 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -480,10 +496,11 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 	/* send MOVR <position> */
 	sprintf(command_buff,"MOVR %.6f\r\n",position_offset);
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative:Writing '%s' to handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Move_Relative:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 119;
@@ -491,14 +508,15 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 	/* read reply */
-	if(!Command_Read_Until_Prompt(handle,100,TRUE,&reply_string))
+	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
 	}
 	/* parse reply string */
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative:Read '%s' from handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Move_Relative:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	if(strstr(reply_string,">") == NULL)
@@ -520,13 +538,15 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Relative:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Relative:Finished.");
 #endif
 	return TRUE;
 }
 
 /**
  * Stop motion with the controller using the <esc> command.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
@@ -537,12 +557,12 @@ int Newmark_Command_Move_Relative(Arcom_ESS_Interface_Handle_T *handle,double po
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
+int Newmark_Command_Abort_Move(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Abort_Move:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Abort_Move:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -552,7 +572,7 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -560,9 +580,10 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
 	/* send <esc>  - escape is ASCII character 0x1B*/
 	strcpy(command_buff,"\x1B");
 #if LOGGING > 5
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative:Writing '<esc>' to handle.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,
+		    "Newmark_Command_Move_Relative:Writing '<esc>' to handle.");
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 123;
@@ -570,7 +591,7 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 	/* read reply */
-	if(!Command_Read_Until_Prompt(handle,100,FALSE,NULL))
+	if(!Command_Read_Until_Prompt(class,source,handle,100,FALSE,NULL))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -583,13 +604,15 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Abort_Move:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Abort_Move:Finished.");
 #endif
 	return TRUE;
 }
 
 /**
  * Get whether there is an error from the controller using the 'PRINT ERR' command.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @param error_exists The address of an integer to store a boolean : FALSE (0) No error exists, TRUE (1) Error exists.
  * @return The routine returns TRUE on success and FALSE on failure.
@@ -602,7 +625,7 @@ int Newmark_Command_Abort_Move(Arcom_ESS_Interface_Handle_T *handle)
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exists)
+int Newmark_Command_Err_Get(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,int *error_exists)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char true_false_string[32];
@@ -616,7 +639,7 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -626,7 +649,7 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -634,10 +657,10 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 	/* send PRINT POS */
 	sprintf(command_buff,"PRINT ERR\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Writing '%s' to handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 135;
@@ -647,13 +670,13 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 	/* read reply 
 	** If the loop timeout count is 100 (100*10 = 1000ms), this sometimes times out.
 	** Increased timeout to 1000*10 = 10000ms. */
-	if(!Command_Read_Until_Prompt(handle,1000,TRUE,&reply_string))
+	if(!Command_Read_Until_Prompt(class,source,handle,1000,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Read '%s' from handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -691,14 +714,16 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Finished : error exists = %d.",
-			   (*error_exists));
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Err_Get:Finished : error exists = %d.",(*error_exists));
 #endif
 	return TRUE;
 }
 
 /**
  * Get the last error code from the controller using the 'PRINT ERROR' command.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @param error_code The address of an integer to store the retrieved error code.
  * @return The routine returns TRUE on success and FALSE on failure.
@@ -711,7 +736,7 @@ int Newmark_Command_Err_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_exis
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_code)
+int Newmark_Command_Error_Get(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,int *error_code)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
@@ -724,7 +749,7 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -734,7 +759,7 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -742,10 +767,10 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 	/* send PRINT POS */
 	sprintf(command_buff,"PRINT ERROR\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Writing '%s' to handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 127;
@@ -753,13 +778,13 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 		return FALSE;	       
 	}
 	/* read reply */
-	if(!Command_Read_Until_Prompt(handle,100,TRUE,&reply_string))
+	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Read '%s' from handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -783,14 +808,16 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Finished with error code %d.",
-			   (*error_code));
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Error_Get:Finished with error code %d.",(*error_code));
 #endif
 	return TRUE;
 }
 
 /**
  * Reset the controller's error code using 'ERROR = 0' command.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to the newmark controller.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
@@ -802,14 +829,14 @@ int Newmark_Command_Error_Get(Arcom_ESS_Interface_Handle_T *handle,int *error_co
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Mutex_Unlock
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Write
  */
-int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
+int Newmark_Command_Error_Reset(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
 	int retval,error_code;
 
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Start.");
 #endif
 	/* mutex */
 	if(!Arcom_ESS_Interface_Mutex_Lock(handle))
@@ -819,7 +846,7 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 	/* clear any unread data */
-	if(!Command_Read_Flush(handle))
+	if(!Command_Read_Flush(class,source,handle))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
@@ -827,10 +854,11 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 	/* send PRINT POS */
 	sprintf(command_buff,"ERROR = 0\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Writing '%s' to handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Error_Reset:Writing '%s' to handle.",
 			   Newmark_Command_Fix_String(command_buff));
 #endif
-	if(!Arcom_ESS_Interface_Write(handle,command_buff,strlen(command_buff)))
+	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		Newmark_Error_Number = 140;
@@ -838,13 +866,14 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 	/* read reply */
-	if(!Command_Read_Until_Prompt(handle,100,TRUE,&reply_string))
+	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
 	{
 		Arcom_ESS_Interface_Mutex_Unlock(handle);
 		return FALSE;
 	}
 #if LOGGING > 5
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Read '%s' from handle.",
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Error_Reset:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
 #endif
 	/* parse reply string */
@@ -876,21 +905,23 @@ int Newmark_Command_Error_Reset(Arcom_ESS_Interface_Handle_T *handle)
 		return FALSE;	       
 	}
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Finished.");
 #endif
 	return TRUE;
 }
 
 /**
  * Set the position tolerance of the move command.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param mm The position tolerance in mm. Values from 0.0 to 1.0 are allowed.
  * @return The routine returns true if the tolerance was in range, false otherwise.
  * @see #Position_Tolerance
  */
-int Newmark_Command_Position_Tolerance_Set(double mm)
+int Newmark_Command_Position_Tolerance_Set(char *class,char *source,double mm)
 {
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Started.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Started.");
 #endif
 	if((mm < 0.0) || (mm > 1.0))
 	{
@@ -901,11 +932,11 @@ int Newmark_Command_Position_Tolerance_Set(double mm)
 	}
 	Position_Tolerance = mm;
 #if LOGGING > 1
-	Newmark_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Set to %.6f.",
-			   Position_Tolerance);
+	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			   "Newmark_Command_Position_Tolerance_Set:Set to %.6f.",Position_Tolerance);
 #endif
 #if LOGGING > 1
-	Newmark_Log(LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Position_Tolerance_Set:Finished.");
 #endif
 	return TRUE;
 }
@@ -915,6 +946,8 @@ int Newmark_Command_Position_Tolerance_Set(double mm)
 ** ======================================= */
 /**
  * Routine to read from the handle until nothing more is read (any read buffers are flushed).
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to read the data from.
  * @see #Newmark_Command_Fix_String
  * @see #COMMAND_BUFF_LENGTH
@@ -922,14 +955,14 @@ int Newmark_Command_Position_Tolerance_Set(double mm)
  * @see #COMMAND_READ_LOOP_SLEEP_MS
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Read
  */
-static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
+static int Command_Read_Flush(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	struct timespec sleep_time;
 	int done,retval,bytes_read,sleep_errno;
 
 #if LOGGING > 5
-	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Start.");
 #endif
 	done = FALSE;
 	while(done == FALSE)
@@ -947,17 +980,17 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 			Newmark_Error();
 		}
 #if LOGGING > 10
-		Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Arcom_ESS_Interface_Read.");
+		Newmark_Log(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Arcom_ESS_Interface_Read.");
 #endif
 		/* read from interface */
-		if(!Arcom_ESS_Interface_Read(handle,command_buff,COMMAND_BUFF_LENGTH,&bytes_read))
+		if(!Arcom_ESS_Interface_Read(class,source,handle,command_buff,COMMAND_BUFF_LENGTH,&bytes_read))
 		{
 			Newmark_Error_Number = 112;
 			sprintf(Newmark_Error_String,"Command_Read_Flush:Arcom_ESS_Interface_Read failed.");
 			return FALSE;
 		}
 #if LOGGING > 10
-		Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:"
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:"
 				   "Arcom_ESS_Interface_Read read %d bytes.",bytes_read);
 #endif
 		/* have we read anything? */
@@ -966,7 +999,8 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 			/* terminate buffer */
 			command_buff[bytes_read] = '\0';
 #if LOGGING > 9
-			Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Last Read '%s'.",
+			Newmark_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+					   "Command_Read_Flush:Last Read '%s'.",
 					   Newmark_Command_Fix_String(command_buff));
 #endif
 		}/* if we read something */
@@ -974,12 +1008,14 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
 			done = TRUE;
 	}/* end while */
 #if LOGGING > 5
-	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Flush:Finished.");
 #endif
 	return TRUE;
 }
 /**
  * Routine to read from the handle until the COMMAND_PROMPT is read.
+ * @param class The class parameter for logging.
+ * @param source The source parameter for logging.
  * @param handle The interface handle to read the data from.
  * @param loop_timeout_count How many times round the read loop before we timeout - each loop has a 
  *        COMMAND_READ_LOOP_SLEEP_MS in it.
@@ -996,32 +1032,33 @@ static int Command_Read_Flush(Arcom_ESS_Interface_Handle_T *handle)
  * @see newmark_general.html#Newmark_Add_To_String
  * @see http://ltdevsrv.livjm.ac.uk/~dev/arcom_ess/cdocs/arcom_ess_interface.html#Arcom_ESS_Interface_Read
  */
-static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int loop_timeout_count,int timeout_is_error,
-				     char **read_string)
+static int Command_Read_Until_Prompt(char *class,char *source,Arcom_ESS_Interface_Handle_T *handle,
+				     int loop_timeout_count,int timeout_is_error,char **read_string)
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	struct timespec sleep_time;
 	int done,retval,bytes_read,sleep_errno,timeout_index;
 
 #if LOGGING > 5
-	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Start.");
+	Newmark_Log(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Start.");
 #endif
 	timeout_index = 0;
 	done = FALSE;
 	while(done == FALSE)
 	{
 #if LOGGING > 10
-		Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Arcom_ESS_Interface_Read.");
+		Newmark_Log(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+			    "Command_Read_Until_Prompt:Arcom_ESS_Interface_Read.");
 #endif
 		/* read from interface */
-		if(!Arcom_ESS_Interface_Read(handle,command_buff,COMMAND_BUFF_LENGTH,&bytes_read))
+		if(!Arcom_ESS_Interface_Read(class,source,handle,command_buff,COMMAND_BUFF_LENGTH,&bytes_read))
 		{
 			Newmark_Error_Number = 104;
 			sprintf(Newmark_Error_String,"Command_Read_Until_Prompt:Arcom_ESS_Interface_Read failed.");
 			return FALSE;
 		}
 #if LOGGING > 10
-		Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:"
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:"
 				   "Arcom_ESS_Interface_Read read %d bytes.",bytes_read);
 #endif
 		/* have we read anything? */
@@ -1030,7 +1067,8 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 			/* terminate buffer */
 			command_buff[bytes_read] = '\0';
 #if LOGGING > 9
-			Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Last Read '%s'.",
+			Newmark_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+					   "Command_Read_Until_Prompt:Last Read '%s'.",
 					   Newmark_Command_Fix_String(command_buff));
 #endif
 			/* have we read a command prompt. If so, we are ready to stop */
@@ -1038,7 +1076,8 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 			{
 				done = TRUE;
 #if LOGGING > 9
-				Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Found Prompt.");
+				Newmark_Log(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+					    "Command_Read_Until_Prompt:Found Prompt.");
 #endif
 			}
 			/* If the read_string is not null, add the command_buff to it */
@@ -1047,7 +1086,7 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 				if(!Newmark_Add_To_String(read_string,command_buff))
 					return FALSE;
 #if LOGGING > 9
-				Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:"
+				Newmark_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:"
 						   "Total Read '%s'.",Newmark_Command_Fix_String((*read_string)));
 #endif
 			}
@@ -1081,9 +1120,9 @@ static int Command_Read_Until_Prompt(Arcom_ESS_Interface_Handle_T *handle,int lo
 		}
 	}/* end while */
 #if LOGGING > 5
-	Newmark_Log(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Finished.");
+	Newmark_Log(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Finished.");
 	if((read_string != NULL)&&((*read_string) != NULL))
-		Newmark_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Read '%s'.",
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"Command_Read_Until_Prompt:Read '%s'.",
 				   Newmark_Command_Fix_String((*read_string)));
 #endif
 	return TRUE;
@@ -1164,6 +1203,11 @@ static char *Newmark_Command_Fix_String(char *string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.3  2010/12/09 14:48:48  cjm
+** Changed timeout count in call to Command_Read_Until_Prompt in Newmark_Command_Err_Get.
+** This means the software waits for ~10s for a reply to PRINT ERR rather than ~1s, as it was found
+** the software sometimes times out awaiting that reply.
+**
 ** Revision 1.2  2009/02/05 11:41:03  cjm
 ** Swapped Bitwise for Absolute logging levels.
 **

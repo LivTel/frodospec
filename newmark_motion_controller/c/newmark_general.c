@@ -1,11 +1,11 @@
 /* newmark_general.c
 ** Newmark Motion Controller library.
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_general.c,v 1.1 2008-11-20 11:35:45 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_general.c,v 1.2 2011-01-05 14:14:17 cjm Exp $
 */
 /**
  * General routines (logging/error handling) for the Newmark Motion Controller.
  * @author Chris Mottram
- * @version $Revision: 1.1 $
+ * @version $Revision: 1.2 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -51,8 +51,8 @@
 
 struct General_Struct
 {
-	void (*Log_Handler)(int level,char *string);
-	int (*Log_Filter)(int level,char *string);
+	void (*Log_Handler)(char *class,char *source,int level,char *string);
+	int (*Log_Filter)(char *class,char *source,int level,char *string);
 	int Log_Filter_Level;
 };
 
@@ -71,7 +71,7 @@ char Newmark_Error_String[NEWMARK_ERROR_LENGTH];
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: newmark_general.c,v 1.1 2008-11-20 11:35:45 cjm Exp $";
+static char rcsid[] = "$Id: newmark_general.c,v 1.2 2011-01-05 14:14:17 cjm Exp $";
 
 /**
  * The instance of General_Struct that contains local data for this module.
@@ -166,6 +166,8 @@ void Newmark_Get_Current_Time_String(char *time_string,int string_length)
  * Routine to log a message to a defined logging mechanism. This routine has an arbitary number of arguments,
  * and uses vsprintf to format them i.e. like fprintf. 
  * Newmark_Log is then called to handle the log message.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level An integer, used to decide whether this particular message has been selected for
  * 	logging or not.
  * @param format A string, with formatting statements the same as fprintf would use to determine the type
@@ -173,7 +175,7 @@ void Newmark_Get_Current_Time_String(char *time_string,int string_length)
  * @see #Newmark_Log
  * @see #LOG_BUFF_LENGTH
  */
-void Newmark_Log_Format(int level,char *format,...)
+void Newmark_Log_Format(char *class,char *source,int level,char *format,...)
 {
 	char buff[LOG_BUFF_LENGTH];
 	va_list ap;
@@ -183,19 +185,21 @@ void Newmark_Log_Format(int level,char *format,...)
 	vsprintf(buff,format,ap);
 	va_end(ap);
 /* call the log routine to log the results */
-	Newmark_Log(level,buff);
+	Newmark_Log(class,source,level,buff);
 }
 
 /**
  * Routine to log a message to a defined logging mechanism. If the string or General_Data.Log_Handler are NULL
  * the routine does not log the message. If the General_Data.Log_Filter function pointer is non-NULL, the
  * message is passed to it to determoine whether to log the message.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level An integer, used to decide whether this particular message has been selected for
  * 	logging or not.
  * @param string The message to log.
  * @see #General_Data
  */
-void Newmark_Log(int level,char *string)
+void Newmark_Log(char *class,char *source,int level,char *string)
 {
 /* If the string is NULL, don't log. */
 	if(string == NULL)
@@ -206,11 +210,11 @@ void Newmark_Log(int level,char *string)
 /* If there's a log filter, check it returns TRUE for this message */
 	if(General_Data.Log_Filter != NULL)
 	{
-		if(General_Data.Log_Filter(level,string) == FALSE)
+		if(General_Data.Log_Filter(class,source,level,string) == FALSE)
 			return;
 	}
 /* We can log the message */
-	(*General_Data.Log_Handler)(level,string);
+	(*General_Data.Log_Handler)(class,source,level,string);
 }
 
 /**
@@ -219,7 +223,7 @@ void Newmark_Log(int level,char *string)
  * @see #General_Data
  * @see #Newmark_Log
  */
-void Newmark_Set_Log_Handler_Function(void (*log_fn)(int level,char *string))
+void Newmark_Set_Log_Handler_Function(void (*log_fn)(char *class,char *source,int level,char *string))
 {
 	General_Data.Log_Handler = log_fn;
 }
@@ -230,7 +234,7 @@ void Newmark_Set_Log_Handler_Function(void (*log_fn)(int level,char *string))
  * @see #General_Data
  * @see #Newmark_Log
  */
-void Newmark_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string))
+void Newmark_Set_Log_Filter_Function(int (*filter_fn)(char *class,char *source,int level,char *string))
 {
 	General_Data.Log_Filter = filter_fn;
 }
@@ -238,14 +242,16 @@ void Newmark_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string))
 /**
  * A log handler to be used for the General_Data.Log_Handler function.
  * Just prints the message to stdout, terminated by a newline.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level The log level for this message.
  * @param string The log message to be logged. 
  */
-void Newmark_Log_Handler_Stdout(int level,char *string)
+void Newmark_Log_Handler_Stdout(char *class,char *source,int level,char *string)
 {
 	if(string == NULL)
 		return;
-	fprintf(stdout,"%s\n",string);
+	fprintf(stdout,"%s : %s : %s\n",class,source,string);
 }
 
 /**
@@ -259,26 +265,30 @@ void Newmark_Set_Log_Filter_Level(int level)
 
 /**
  * A log message filter routine, to be used for the General_Data.Log_Filter function pointer.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level The log level of the message to be tested.
  * @param string The log message to be logged, not used in this filter. 
  * @return The routine returns TRUE if the level is less than or equal to the General_Data.Log_Filter_Level,
  * 	otherwise it returns FALSE.
  * @see #General_Data
  */
-int Newmark_Log_Filter_Level_Absolute(int level,char *string)
+int Newmark_Log_Filter_Level_Absolute(char *class,char *source,int level,char *string)
 {
 	return (level <= General_Data.Log_Filter_Level);
 }
 
 /**
  * A log message filter routine, to be used for the General_Data.Log_Filter function pointer.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level The log level of the message to be tested.
  * @param string The log message to be logged, not used in this filter. 
  * @return The routine returns TRUE if the level has bits set that are also set in the 
  * 	General_Data.Log_Filter_Level, otherwise it returns FALSE.
  * @see #General_Data
  */
-int Newmark_Log_Filter_Level_Bitwise(int level,char *string)
+int Newmark_Log_Filter_Level_Bitwise(char *class,char *source,int level,char *string)
 {
 	return ((level & General_Data.Log_Filter_Level) > 0);
 }
@@ -331,4 +341,7 @@ int Newmark_Add_To_String(char **string,char *add_string)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.1  2008/11/20 11:35:45  cjm
+** Initial revision
+**
 */

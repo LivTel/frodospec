@@ -1,5 +1,5 @@
 /* newmark_test_move_relative.c
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/test/newmark_test_move_relative.c,v 1.2 2009-02-05 11:42:14 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/test/newmark_test_move_relative.c,v 1.3 2011-01-05 14:17:04 cjm Exp $
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +14,7 @@
 /**
  * This program tests the Newmark motion controller MOVR command - move relative.
  * @author $Author: cjm $
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 /**
  * Default absolute log level.
@@ -25,7 +25,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: newmark_test_move_relative.c,v 1.2 2009-02-05 11:42:14 cjm Exp $";
+static char rcsid[] = "$Id: newmark_test_move_relative.c,v 1.3 2011-01-05 14:17:04 cjm Exp $";
 /**
  * Variable holding which type of device we are using to communicate with the PLC.
  * @see ../cdocs/arcom_ess_interface.html#ARCOM_ESS_INTERFACE_DEVICE_ID
@@ -79,20 +79,20 @@ int main(int argc, char *argv[])
 		Arcom_ESS_Error();
 		return 4;
 	}
-	if(!Arcom_ESS_Interface_Open(Device_Id,Device_Name,Port_Number,handle))
+	if(!Arcom_ESS_Interface_Open("newmark_test_move_relative",NULL,Device_Id,Device_Name,Port_Number,handle))
 	{
 		Arcom_ESS_Error();
 		return 3;
 	}
 	/* offset motion controller position */
-	if(!Newmark_Command_Move_Relative(handle,Position_Offset))
+	if(!Newmark_Command_Move_Relative("newmark_test_move_relative",NULL,handle,Position_Offset))
 	{
 		Newmark_Error();
 		Arcom_ESS_Error();
 		return 5;
 	}
 	/* close interface */
-	if(!Arcom_ESS_Interface_Close(handle))
+	if(!Arcom_ESS_Interface_Close("newmark_test_move_relative",NULL,handle))
 	{
 		Arcom_ESS_Error();
 		return 3;
@@ -258,6 +258,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.2  2009/02/05 11:42:14  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 1.1  2008/11/20 11:35:54  cjm
 ** Initial revision
 **
