@@ -1,5 +1,5 @@
 // EXPOSEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.8 2011-01-05 14:07:42 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/EXPOSEImplementation.java,v 1.9 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * resources to make FITS files.
  * @see FITSImplementation
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class EXPOSEImplementation extends FITSImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.8 2011-01-05 14:07:42 cjm Exp $");
+	public final static String RCSID = new String("$Id: EXPOSEImplementation.java,v 1.9 2011-01-12 11:50:03 cjm Exp $");
 
 	/**
 	 * This method gets the EXPOSE command's acknowledge time. It returns the server connection 
@@ -72,6 +72,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 *     <b>frodospec.calibrate.&lt;before|after&gt;.lamps.&lt;index&gt;</b>.
 	 *      doCalibrationArc is then called to do the arc.
 	 * </ul>
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm Which arm to do the calibration for, either RED_ARM or BLUE_ARM.
 	 * @param exposeCommand The command requiring this configuration to be done.
 	 * @param exposeDone The done message, filled in if with a suitable error of the configuration failed.
@@ -85,7 +87,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	protected boolean doCalibration(int arm,EXPOSE exposeCommand,EXPOSE_DONE exposeDone,boolean isBefore,
+	protected boolean doCalibration(String clazz,String source,
+					int arm,EXPOSE exposeCommand,EXPOSE_DONE exposeDone,boolean isBefore,
 					int exposureLength,List reduceFilenameList)
 	{
 		String beforeAfterString = null;
@@ -113,13 +116,13 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 					lampsString = status.getProperty("frodospec.calibrate."+
 									 FrodoSpecConstants.ARM_STRING_LIST[arm]+
 									 "."+beforeAfterString+".lamps."+index);
-					if(doCalibrationArc(arm,lampsString,exposeCommand,exposeDone,
+					if(doCalibrationArc(clazz,source,arm,lampsString,exposeCommand,exposeDone,
 							    reduceFilenameList) == false)
 						return false;
 				}
 				else if(typeString.equals("DARK"))
 				{
-					if(doCalibrationDark(arm,exposeCommand,exposeDone,exposureLength,
+					if(doCalibrationDark(clazz,source,arm,exposeCommand,exposeDone,exposureLength,
 							     reduceFilenameList) == false)
 						return false;
 				}
@@ -143,6 +146,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	/**
 	 * Do DARK calibration associated with this exposure. In this case, do a dark with the same exposure length
 	 * as the exposure itself.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm Which arm to do the calibration for, either RED_ARM or BLUE_ARM.
 	 * @param exposeCommand The command requiring this configuration to be done.
 	 * @param exposeDone The done message, filled in if with a suitable error of the configuration failed.
@@ -167,8 +172,9 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	protected boolean doCalibrationDark(int arm,EXPOSE exposeCommand,EXPOSE_DONE exposeDone,int exposureLength,
-					List reduceFilenameList)
+	protected boolean doCalibrationDark(String clazz,String source,
+					    int arm,EXPOSE exposeCommand,EXPOSE_DONE exposeDone,int exposureLength,
+					    List reduceFilenameList)
 	{
 		FILENAME_ACK filenameAck = null;
 		CCDLibrary ccd = null;
@@ -251,7 +257,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		}// end if ccdEnable
 		else
 		{
-			frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,clazz,source,this.getClass().getName()+
 				      ":doCalibrationDark:Did not do dark, ccd enable was false.");
 		}
 		if(unLockFile(exposeCommand,exposeDone,filename) == false)
@@ -284,6 +290,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 	/**
 	 * Do ARC calibration associated with this exposure. 
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm Which arm to do the calibration for, either RED_ARM or BLUE_ARM.
 	 * @param exposeCommand The command requiring this configuration to be done.
 	 * @param exposeDone The done message, filled in if with a suitable error of the configuration failed.
@@ -313,7 +321,8 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	protected boolean doCalibrationArc(int arm,String lampsString,EXPOSE exposeCommand,EXPOSE_DONE exposeDone,
+	protected boolean doCalibrationArc(String clazz,String source,
+					   int arm,String lampsString,EXPOSE exposeCommand,EXPOSE_DONE exposeDone,
 					   List reduceFilenameList)
 	{
 		FILENAME_ACK filenameAck = null;
@@ -342,7 +351,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		plc = frodospec.getPLC();
 		try
 		{
-			resolution = plc.getGratingResolution(arm);
+			resolution = plc.getGratingResolution(clazz,source,arm);
 		}
 		catch(EIPNativeException e)
 		{
@@ -397,7 +406,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 	// subsequently timed out and been turned off by the PLC.
 		try
 		{
-			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
+			frodospec.getLampController().setLampLock(clazz,source,arm,lampsString,serverConnectionThread);
 		}
 		catch(Exception e)
 		{
@@ -415,17 +424,17 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		if(setFitsHeaders(exposeCommand,exposeDone,arm,FitsHeaderDefaults.OBSTYPE_VALUE_ARC,
 				  exposureLength) == false)
 		{
-			turnLampsOff(arm,exposeCommand,exposeDone);
+			turnLampsOff(clazz,source,arm,exposeCommand,exposeDone);
 			return false;
 		}
 		if(getFitsHeadersFromISS(exposeCommand,exposeDone,arm) == false)
 		{
-			turnLampsOff(arm,exposeCommand,exposeDone);
+			turnLampsOff(clazz,source,arm,exposeCommand,exposeDone);
 			return false;
 		}
 		if(testAbort(exposeCommand,exposeDone) == true)
 		{
-			turnLampsOff(arm,exposeCommand,exposeDone);
+			turnLampsOff(clazz,source,arm,exposeCommand,exposeDone);
 			return false;
 		}
 	// Modify "OBJECT" FITS header value to distinguish between spectra of the OBJECT
@@ -435,7 +444,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		// save FITS headers
 		if(saveFitsHeaders(exposeCommand,exposeDone,arm,filename) == false)
 		{
-			turnLampsOff(arm,exposeCommand,exposeDone);
+			turnLampsOff(clazz,source,arm,exposeCommand,exposeDone);
 			unLockFile(exposeCommand,exposeDone,filename);
 			return false;
 		}
@@ -449,7 +458,7 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 			}
 			catch(CCDLibraryNativeException e)
 			{
-				turnLampsOff(arm,exposeCommand,exposeDone);
+				turnLampsOff(clazz,source,arm,exposeCommand,exposeDone);
 				frodospec.error(this.getClass().getName()+
 						":doCalibrationArc:"+exposeCommand+":",e);
 				exposeDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+611);
@@ -461,12 +470,12 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 		}// end if ccdEnable
 		else
 		{
-			frodospec.log(Logger.VERBOSITY_VERY_TERSE,
+			frodospec.log(Logger.VERBOSITY_VERY_TERSE,clazz,source,
 				      this.getClass().getName()+
 				      ":doCalibrationArc:Did not do arc exposure, ccd enable was false.");
 		}
 		// switch lamp off
-		turnLampsOff(arm,exposeCommand,exposeDone);
+		turnLampsOff(clazz,source,arm,exposeCommand,exposeDone);
 		// unlock FITS file lock created by saveFitsHeaders
 		if(unLockFile(exposeCommand,exposeDone,filename) == false)
 			return false;
@@ -552,6 +561,9 @@ public class EXPOSEImplementation extends FITSImplementation implements JMSComma
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2011/01/05 14:07:42  cjm
+// Fixed javadocs.
+//
 // Revision 1.7  2010/03/15 16:48:40  cjm
 // Removed stowFold call - now lamp unit has it's own mirror.
 //

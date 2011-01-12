@@ -1,5 +1,5 @@
 // LAMPFLATImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.6 2010-04-07 15:13:15 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.7 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFLAT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class LAMPFLATImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.6 2010-04-07 15:13:15 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.7 2011-01-12 11:50:03 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -162,7 +162,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		plc = frodospec.getPLC();
 		try
 		{
-			resolution = plc.getGratingResolution(arm);
+			resolution = plc.getGratingResolution(lampFlatCommand.getClass().getName(),
+							      FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 		}
 		catch(EIPNativeException e)
 		{
@@ -206,7 +207,9 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
 		try
 		{
-			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
+			frodospec.getLampController().setLampLock(lampFlatCommand.getClass().getName(),
+								  FrodoSpecConstants.ARM_STRING_LIST[arm],
+								  arm,lampsString,serverConnectionThread);
 		}
 		catch(Exception e)
 		{
@@ -220,7 +223,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		if(testAbort(lampFlatCommand,lampFlatDone) == true)
 		{
 			// turn lamps off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				     arm,lampFlatCommand,lampFlatDone);
 			return lampFlatDone;
 		}
 	// get fits headers
@@ -229,19 +233,22 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 				  exposureLength) == false)
 		{
 			// turn lamps off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				     arm,lampFlatCommand,lampFlatDone);
 			return lampFlatDone;
 		}
 		if(getFitsHeadersFromISS(lampFlatCommand,lampFlatDone,arm) == false)
 		{
 			// turn lamps off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				     arm,lampFlatCommand,lampFlatDone);
 			return lampFlatDone;
 		}
 		if(testAbort(lampFlatCommand,lampFlatDone) == true)
 		{
 			// turn lamps off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				     arm,lampFlatCommand,lampFlatDone);
 			return lampFlatDone;
 		}
 	// Modify "OBJECT" FITS header value to distinguish between spectra of the OBJECT
@@ -258,7 +265,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		catch(Exception e)
 		{
 			// switch lamp off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				     arm,lampFlatCommand,lampFlatDone);
 			frodospec.error(this.getClass().getName()+
 				  ":processCommand:"+command+":"+e.toString());
 			lampFlatDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+2705);
@@ -273,7 +281,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 		if(saveFitsHeaders(lampFlatCommand,lampFlatDone,arm,filename) == false)
 		{
 			// switch lamp off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				     arm,lampFlatCommand,lampFlatDone);
 			unLockFile(lampFlatCommand,lampFlatDone,filename);
 			return lampFlatDone;
 		}
@@ -282,7 +291,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 				exposureLength+serverConnectionThread.getDefaultAcknowledgeTime()) == false)
 		{
 			// switch lamp off
-			turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+			turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				     arm,lampFlatCommand,lampFlatDone);
 			unLockFile(lampFlatCommand,lampFlatDone,filename);
 			return lampFlatDone;
 		}
@@ -298,7 +308,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 			catch(CCDLibraryNativeException e)
 			{
 				// switch lamp off
-				turnLampsOff(arm,lampFlatCommand,lampFlatDone);
+				turnLampsOff(lampFlatCommand.getClass().getName(),
+					     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,lampFlatCommand,lampFlatDone);
 				unLockFile(lampFlatCommand,lampFlatDone,filename);
 				frodospec.error(this.getClass().getName()+
 						":processCommand:"+command+":"+e.toString());
@@ -315,7 +326,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 				      ":processCommand:Did not do lamp flat exposure, ccd enable was false.");
 		}
 		// switch lamp off
-		if(turnLampsOff(arm,lampFlatCommand,lampFlatDone) == false)
+		if(turnLampsOff(lampFlatCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				arm,lampFlatCommand,lampFlatDone) == false)
 			return lampFlatDone;
 		// unlock FITS file lock created by saveFitsHeaders
 		if(unLockFile(lampFlatCommand,lampFlatDone,filename)  == false)
@@ -352,6 +364,10 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2010/04/07 15:13:15  cjm
+// More documentation.
+// sendBasicAck used to ensure client does not time out when a long ARC exposure length is used.
+//
 // Revision 1.5  2010/03/15 16:47:47  cjm
 // Removed stowFold call - now lamp unit has it's own mirror.
 //

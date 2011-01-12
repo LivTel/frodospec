@@ -1,5 +1,5 @@
 // MULTRUNImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.5 2010-02-08 11:09:08 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/MULTRUNImplementation.java,v 1.6 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the MULTRUN command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.5 2010-02-08 11:09:08 cjm Exp $");
+	public final static String RCSID = new String("$Id: MULTRUNImplementation.java,v 1.6 2011-01-12 11:50:03 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -134,7 +134,7 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		int index,arm;
 		boolean retval = false,ccdEnable;
 
-		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
+		if(testAbort(command,frodospecMultRunDone) == true)
 			return frodospecMultRunDone;
 		if((command instanceof FRODOSPEC_MULTRUN) == false)
 		{
@@ -171,12 +171,15 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
        // setup reduced filename list
 		reduceFilenameList = new Vector();
        // do any calibrate before here
-		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"Command:"+
-			     frodospecMultRunDone.getClass().getName()+
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,
+			      frodospecMultRunCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			      "Command:"+frodospecMultRunDone.getClass().getName()+
 			     ":calibrate before = "+status.getConfigCalibrateBefore(arm)+".");
 		if(status.getConfigCalibrateBefore(arm))
 		{
-			if(doCalibration(arm,frodospecMultRunCommand,frodospecMultRunDone,true,
+			if(doCalibration(frodospecMultRunCommand.getClass().getName(),
+					 FrodoSpecConstants.ARM_STRING_LIST[arm],
+					 arm,frodospecMultRunCommand,frodospecMultRunDone,true,
 					 frodospecMultRunCommand.getExposureTime(),reduceFilenameList) == false)
 				return frodospecMultRunDone;
 		}
@@ -186,7 +189,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 	// before moving fold, so fold is not moved until lamp lock acquired
 		try
 		{
-			frodospec.getLampController().setNoLampLock(arm,serverConnectionThread);
+			frodospec.getLampController().setNoLampLock(frodospecMultRunCommand.getClass().getName(),
+				    FrodoSpecConstants.ARM_STRING_LIST[arm],arm,serverConnectionThread);
 		}
 		catch(Exception e)
 		{
@@ -201,7 +205,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
 		{
 			// actually removing NO_LAMP lock
-			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+			turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+			   FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,frodospecMultRunDone);
 			return frodospecMultRunDone;
 		}
 	// move the fold mirror to the correct location
@@ -209,13 +214,15 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		if(moveFold(frodospecMultRunCommand,frodospecMultRunDone) == false)
 		{
 			// actually removing NO_LAMP lock
-			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+			turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+			   FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,frodospecMultRunDone);
 			return frodospecMultRunDone;
 		}
 		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
 		{
 			// actually removing NO_LAMP lock
-			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);			
+			turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+			  FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,frodospecMultRunDone);
 			return frodospecMultRunDone;
 		}
 	// setup filename obs type/exposure code
@@ -238,7 +245,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		catch(Exception e)
 		{
 			// actually removing NO_LAMP lock
-			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+			turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+			  FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,frodospecMultRunDone);
 			frodospec.error(this.getClass().getName()+
 				  ":processCommand:"+command+":"+e.toString());
 			frodospecMultRunDone.setErrorNum(FrodoSpecConstants.FRODOSPEC_ERROR_CODE_BASE+1206);
@@ -250,13 +258,15 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 		if(autoguiderStart(frodospecMultRunCommand,frodospecMultRunDone) == false)
 		{
 			// actually removing NO_LAMP lock
-			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+			turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+			  FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,frodospecMultRunDone);
 			return frodospecMultRunDone;
 		}
 		if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
 		{
 			// actually removing NO_LAMP lock
-			turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+			turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+			   FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,frodospecMultRunDone);
 			autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 			return frodospecMultRunDone;
 		}
@@ -280,21 +290,27 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					  frodospecMultRunCommand.getNumberExposures()) == false)
 			{
 				// actually removing NO_LAMP lock
-				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+				turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+					     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,
+					     frodospecMultRunDone);
 				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 				return frodospecMultRunDone;
 			}
 			if(getFitsHeadersFromISS(frodospecMultRunCommand,frodospecMultRunDone,arm) == false)
 			{
 				// actually removing NO_LAMP lock
-				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+				turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+					     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,
+					     frodospecMultRunDone);
 				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 				return frodospecMultRunDone;
 			}
 			if(testAbort(frodospecMultRunCommand,frodospecMultRunDone) == true)
 			{
 				// actually removing NO_LAMP lock
-				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+				turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+					     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,
+					     frodospecMultRunCommand,frodospecMultRunDone);
 				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 				return frodospecMultRunDone;
 			}
@@ -302,7 +318,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			if(saveFitsHeaders(frodospecMultRunCommand,frodospecMultRunDone,arm,filenameList) == false)
 			{
 				// actually removing NO_LAMP lock
-				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+				turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+					     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,
+					     frodospecMultRunCommand,frodospecMultRunDone);
 				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 				unLockFiles(frodospecMultRunCommand,frodospecMultRunDone,filenameList);
 				return frodospecMultRunDone;
@@ -327,7 +345,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 					frodospecMultRunDone.setErrorString(e.toString());
 					frodospecMultRunDone.setSuccessful(false);
 					// actually removing NO_LAMP lock
-					turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+					turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+						     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,
+						     frodospecMultRunCommand,frodospecMultRunDone);
 					autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 					unLockFiles(frodospecMultRunCommand,frodospecMultRunDone,filenameList);
 					return frodospecMultRunDone;
@@ -343,7 +363,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			if(unLockFiles(frodospecMultRunCommand,frodospecMultRunDone,filenameList) == false)
 			{
 				// actually removing NO_LAMP lock
-				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+				turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+					     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,
+					     frodospecMultRunDone);
 				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 				return frodospecMultRunDone;
 			}
@@ -366,7 +388,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 				frodospecMultRunDone.setErrorString(e.toString());
 				frodospecMultRunDone.setSuccessful(false);
 				// actually removing NO_LAMP lock
-				turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone);
+				turnLampsOff(frodospecMultRunCommand.getClass().getName(),
+					     FrodoSpecConstants.ARM_STRING_LIST[arm],arm,frodospecMultRunCommand,
+					     frodospecMultRunDone);
 				autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 				return frodospecMultRunDone;
 			}
@@ -382,7 +406,8 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			index++;
 		}
 	// clear lock on lamps
-		if(turnLampsOff(arm,frodospecMultRunCommand,frodospecMultRunDone) == false)
+		if(turnLampsOff(frodospecMultRunCommand.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				arm,frodospecMultRunCommand,frodospecMultRunDone) == false)
 		{
 			autoguiderStop(frodospecMultRunCommand,frodospecMultRunDone,false);
 			return frodospecMultRunDone;
@@ -401,7 +426,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 			     ":calibrate after = "+status.getConfigCalibrateAfter(arm)+".");
 		if(status.getConfigCalibrateAfter(arm))
 		{
-			if(doCalibration(arm,frodospecMultRunCommand,frodospecMultRunDone,false,
+			if(doCalibration(frodospecMultRunCommand.getClass().getName(),
+					 FrodoSpecConstants.ARM_STRING_LIST[arm],arm,
+					 frodospecMultRunCommand,frodospecMultRunDone,false,
 					 frodospecMultRunCommand.getExposureTime(),reduceFilenameList) == false)
 				return frodospecMultRunDone;
 		}
@@ -476,6 +503,9 @@ public class MULTRUNImplementation extends EXPOSEImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2010/02/08 11:09:08  cjm
+// Added unLockFiles calls as saveFitsHeaders now creates FITS file locks.
+//
 // Revision 1.4  2009/08/20 11:24:46  cjm
 // Added extra loggin to setNoLampLock exception handling, so stack trace is printed.
 //

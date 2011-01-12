@@ -1,5 +1,5 @@
 // ABORTImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ABORTImplementation.java,v 1.2 2011-01-05 14:07:42 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ABORTImplementation.java,v 1.3 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -12,14 +12,14 @@ import ngat.frodospec.ccd.*;
  * This class provides the implementation for the ABORT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class ABORTImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ABORTImplementation.java,v 1.2 2011-01-05 14:07:42 cjm Exp $");
+	public final static String RCSID = new String("$Id: ABORTImplementation.java,v 1.3 2011-01-12 11:50:03 cjm Exp $");
 
 	/**
 	 * Constructor.
@@ -207,7 +207,7 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 		try
 		{
 			plc = frodospec.getPLC();
-			if(plc.getGratingResolution(arm) == 0)// 0 means unknown/in-transit
+			if(plc.getGratingResolution("ABORT",null,arm) == 0)// 0 means unknown/in-transit
 			{
 				// This will abort movement on either arm.
 				plc.abort();
@@ -231,6 +231,9 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2011/01/05 14:07:42  cjm
+// Fixed javadocs.
+//
 // Revision 1.1  2009/04/30 09:53:40  cjm
 // Initial revision
 //

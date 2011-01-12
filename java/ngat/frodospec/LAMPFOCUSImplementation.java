@@ -1,5 +1,5 @@
 // LAMPFOCUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.5 2011-01-05 14:07:42 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFOCUSImplementation.java,v 1.6 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -22,14 +22,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFOCUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.5 2011-01-05 14:07:42 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFOCUSImplementation.java,v 1.6 2011-01-12 11:50:03 cjm Exp $");
 	/**
 	 * A small number. Used to prevent a division by zero.
 	 */	 
@@ -258,7 +258,8 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 		plc = frodospec.getPLC();
 		try
 		{
-			resolution = plc.getGratingResolution(arm);
+			resolution = plc.getGratingResolution("FRODOSPEC_LAMPFOCUS",
+							      FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 		}
 		catch(EIPNativeException e)
 		{
@@ -314,7 +315,9 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
 		try
 		{
-			frodospec.getLampController().setLampLock(arm,lampsString,serverConnectionThread);
+			frodospec.getLampController().setLampLock("FRODOSPEC_LAMPFOCUS",
+								  FrodoSpecConstants.ARM_STRING_LIST[arm],
+								  arm,lampsString,serverConnectionThread);
 		}
 		catch(Exception e)
 		{
@@ -336,28 +339,32 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 			// set focus stage focus
 			if(setFocus(lampFocusCommand,lampFocusDone,focus) == false)
 			{
-				turnLampsOff(arm,lampFocusCommand,lampFocusDone);
+				turnLampsOff("FRODOSPEC_LAMPFOCUS",FrodoSpecConstants.ARM_STRING_LIST[arm],
+					     arm,lampFocusCommand,lampFocusDone);
 				return lampFocusDone;
 			}
 			frameParameters.setFocus(focus);
 			// do exposure
 			if(exposeFrame(lampFocusCommand,lampFocusDone,exposureNumber,frameParameters) == false)
 			{
-				turnLampsOff(arm,lampFocusCommand,lampFocusDone);
+				turnLampsOff("FRODOSPEC_LAMPFOCUS",FrodoSpecConstants.ARM_STRING_LIST[arm],
+					     arm,lampFocusCommand,lampFocusDone);
 				return lampFocusDone;
 			}
 			// send acknowledge
 			if(sendFrameAcknowledge(lampFocusCommand,lampFocusDone,
 						frameParameters.getFilename()) == false)
 			{
-				turnLampsOff(arm,lampFocusCommand,lampFocusDone);
+				turnLampsOff("FRODOSPEC_LAMPFOCUS",FrodoSpecConstants.ARM_STRING_LIST[arm],
+					     arm,lampFocusCommand,lampFocusDone);
 				return lampFocusDone;
 			}
 			// increment frame number.
 			exposureNumber++;
 		}// end for on focus
 		// switch lamp off
-		if(turnLampsOff(arm,lampFocusCommand,lampFocusDone) == false)
+		if(turnLampsOff("FRODOSPEC_LAMPFOCUS",FrodoSpecConstants.ARM_STRING_LIST[arm],
+				arm,lampFocusCommand,lampFocusDone) == false)
 			return lampFocusDone;
 	// reduce data
 		for(int i = 0; i < list.size(); i++)
@@ -789,6 +796,10 @@ public class LAMPFOCUSImplementation extends SETUPImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2011/01/05 14:07:42  cjm
+// Added class argument to focusStage.getPosition to improve logging.
+// Fixed resetFocus. Fixed comments.
+//
 // Revision 1.4  2010/06/14 16:29:22  cjm
 // Added sendBasicAck to exposeFrame, so longer Arc exposure lengths (60s) do not cause the GUI to time out.
 //
