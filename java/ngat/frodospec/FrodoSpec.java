@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.10 2011-01-05 14:07:42 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.11 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.10 $
+ * @version $Revision: 1.11 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.10 2011-01-05 14:07:42 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.11 2011-01-12 11:50:03 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1652,6 +1652,26 @@ public class FrodoSpec
 
 	/**
 	 * Routine to write the string to the relevant logger. If the relevant logger has not been
+	 * created yet the error gets written to System.out.
+	 * @param level The level of logging this message belongs to.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
+	 * @param s The string to write.
+	 * @see #logLogger
+	 */
+	public void log(int level,String clazz,String source,String s)
+	{
+		if(logLogger != null)
+			logLogger.log(level,clazz,source,s);
+		else
+		{
+			if((status.getLogLevel()&level) > 0)
+				System.out.println(clazz+":"+source+":"+s);
+		}
+	}
+
+	/**
+	 * Routine to write the string to the relevant logger. If the relevant logger has not been
 	 * created yet the error gets written to System.err.
 	 * @param s The string to write.
 	 * @see #errorLogger
@@ -1959,6 +1979,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2011/01/05 14:07:42  cjm
+// *** empty log message ***
+//
 // Revision 1.9  2010/03/15 16:52:05  cjm
 // Added lamp unit stowMirror call as part of shutdown.
 //
