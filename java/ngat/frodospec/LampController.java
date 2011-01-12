@@ -1,5 +1,5 @@
 // LampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.9 2010-12-13 11:18:45 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LampController.java,v 1.10 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -21,14 +21,14 @@ import ngat.util.logging.*;
  * </ul>
  * This class attempts to coordinate this activity.
  * @author Chris Mottram
- * @version $Revision: 1.9 $
+ * @version $Revision: 1.10 $
  */
 public class LampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LampController.java,v 1.9 2010-12-13 11:18:45 cjm Exp $");
+	public final static String RCSID = new String("$Id: LampController.java,v 1.10 2011-01-12 11:50:03 cjm Exp $");
 	/**
 	 * Constant used when we require no lamp to be used.
 	 */
@@ -94,6 +94,8 @@ public class LampController
 	/**
 	 * Set the lamp lock to NO_LAMP (i.e. we want to do a MULTRUN). And actually turn all the lamps off.
 	 * Stow the calibration mirror.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm The arm to set the lock for.
 	 * @param serverConnectionThread The servers connection thread. Used to send ACKs whilst waiting for the
 	 *                               light (or lack thereof) to become available.
@@ -107,24 +109,43 @@ public class LampController
 	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
 	 * @see ngat.lamp.LTAGLampUnit#stowMirror
 	 */
-	public void setNoLampLock(int arm,FrodoSpecTCPServerConnectionThread serverConnectionThread) 
+	public void setNoLampLock(String clazz,String source,int arm,
+				  FrodoSpecTCPServerConnectionThread serverConnectionThread) 
 		throws IOException, Exception
 	{
 		ACK ack = null;
 
-		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 			   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") started.");
 		// acquire lock
 		synchronized(inUseLock)
 		{
-			logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 				   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+"): Entered lock.");
 			// if no lamp locked out, acquire NO_LAMP
 			if(inUseCount == 0)
 			{
+				if(lampUnit != null)
+				{
+					// actually turn all lamps off (this even works if lock was on NO_LAMP!)
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+						   this.getClass().getName()+
+						   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+						   ") turning off all lamps.");
+					lampUnit.turnAllLampsOff(clazz,source);
+					// actually stow mirror
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+						   this.getClass().getName()+
+						   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+						   ") stowing calibration mirror.");
+					lampUnit.stowMirror(clazz,source);
+				}
+				// update inUse Data
+				// Do this after turning off lamps/stowing mirror, so if those operations fail
+				// the lamp controller does not get stuck in a locked state
 				inUseLamps = NO_LAMP;
 				inUseCount++;
-				logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 					   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 					   "): inUseCount was zero: Acquired NO_LAMP lock.");
 			}
@@ -133,15 +154,37 @@ public class LampController
 				// if current lamp in use is NO_LAMP, just inc in use count
 				if(inUseLamps.equals(NO_LAMP))
 				{
+					if(lampUnit != null)
+					{
+						// actually turn all lamps off(this even works if lock was on NO_LAMP!)
+						// if inUseLamps / inUseCount is > 0 these calls arn't
+						// strictly necessary, the lamps should already be off/ mirror stowed
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setNoLampLock(arm="+
+							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") turning off all lamps.");
+						lampUnit.turnAllLampsOff(clazz,source);
+						// actually stow mirror
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setNoLampLock(arm="+
+							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") stowing calibration mirror.");
+						lampUnit.stowMirror(clazz,source);
+					}
+					// update inUse Data
+					// Do this after turning off lamps/stowing mirror, so if those operations fail
+					// the lamp controller does not get stuck in a locked state
 					inUseCount++;
-					logger.log(Logger.VERBOSITY_INTERMEDIATE,
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 						   this.getClass().getName()+
 						  ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 						   "): inUseLamp was NO_LAMP: inUseCount now:"+inUseCount);
 				}
 				else
 				{
-					logger.log(Logger.VERBOSITY_INTERMEDIATE,
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 						   this.getClass().getName()+
 						   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 						   "): lamp lock in use ("+inUseLamps+","+inUseCount+
@@ -152,7 +195,7 @@ public class LampController
 					// _must_ be zero
 					while((inUseCount > 0) && (inUseLamps.equals(NO_LAMP) == false))
 					{
-						logger.log(Logger.VERBOSITY_INTERMEDIATE,
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 							   this.getClass().getName()+
 							   ":setNoLampLock(arm="+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
@@ -164,7 +207,7 @@ public class LampController
 						ack.setTimeToComplete((waitLength * 2));
 						if(serverConnectionThread != null)
 							serverConnectionThread.sendAcknowledge(ack);
-						logger.log(Logger.VERBOSITY_INTERMEDIATE,
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 							   this.getClass().getName()+
 							   ":setNoLampLock(arm="+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
@@ -180,30 +223,42 @@ public class LampController
 						// lock is now back on for inUseLock
 					}// end while
 					// so NO_LAMP in use and inc count
+					// actually turn all lamps off (this even works if lock was on NO_LAMP!)
+					if(lampUnit != null)
+					{
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setNoLampLock(arm="+
+							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") turning off all lamps.");
+						lampUnit.turnAllLampsOff(clazz,source);
+						// actually stow mirror
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setNoLampLock(arm="+
+							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") stowing calibration mirror.");
+						lampUnit.stowMirror(clazz,source);
+					}
+					// update inUse Data
+					// Do this after turning off lamps/stowing mirror, so if those operations fail
+					// the lamp controller does not get stuck in a locked state
 					inUseLamps = NO_LAMP;
 					inUseCount++;
-					logger.log(Logger.VERBOSITY_INTERMEDIATE,
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 						   this.getClass().getName()+
 						  ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 						   "): acquired NO_LAMP: inUseCount now:"+inUseCount);
 				}// endif wrong lamp is in use
 			}// end if in use count > 0
 		}// end synchronized on inUseLock
-		// actually turn all lamps off (this even works if lock was on NO_LAMP!)
-		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-			   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning off all lamps.");
-		if(lampUnit != null)
-			lampUnit.turnAllLampsOff();
-		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-			   ":setNoLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
-			   ") stowing calibration mirror.");
-		if(lampUnit != null)
-			lampUnit.stowMirror();
 	}
 
 	/**
 	 * Set the lamp lock to lampsString (i.e. we want to do an ARC of some sort).
 	 * Then turn all the lamps off, and then turn on the specified lamps. Then move the calibration mirror inline.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm The arm to set the lock for.
 	 * @param lampsString Which set of lamps we want to use.
 	 * @param serverConnectionThread The servers connection thread. Used to send ACKs whilst waiting for the
@@ -218,12 +273,13 @@ public class LampController
 	 * @see ngat.lamp.LTAGLampUnit#turnLampsOn
 	 * @see ngat.lamp.LTAGLampUnit#moveMirrorInline
 	 */
-	public void setLampLock(int arm,String lampsString,FrodoSpecTCPServerConnectionThread serverConnectionThread)
+	public void setLampLock(String clazz,String source,int arm,String lampsString,
+				FrodoSpecTCPServerConnectionThread serverConnectionThread)
 		throws IOException, Exception
 	{
 		ACK ack = null;
 
-		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 		       ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+lampsString+") started.");
 		// acquire lock
 		synchronized(inUseLock)
@@ -231,9 +287,29 @@ public class LampController
 			// if no lamp locked out, acquire lampsString
 			if(inUseCount == 0)
 			{
+				if(lampUnit != null)
+				{
+					// actually turn lamp on
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+						   this.getClass().getName()+
+						   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+						   ") turning lamps on:"+lampsString);
+					// we should turn all lamps off before turning the ones we want back on
+					// this resets all the lamp demand bits
+					lampUnit.turnAllLampsOff(clazz,source);
+					lampUnit.turnLampsOn(clazz,source,lampsString);
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+						   this.getClass().getName()+
+						   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+						   ") moving mirror inline.");
+					lampUnit.moveMirrorInline(clazz,source);
+				}
+				// update inUse Data
+				// Do this after turning on lamps/moving mirror inline, so if those operations fail
+				// the lamp controller does not get stuck in a locked state
 				inUseLamps = lampsString;
 				inUseCount++;
-				logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 					   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 					   ",lamps="+lampsString+"): inUseCount was zero: Acquired lock for:"+
 					   lampsString);
@@ -243,8 +319,31 @@ public class LampController
 				// if current lamp in use is lampsString, just inc in use count
 				if(inUseLamps.equals(lampsString))
 				{
+					if(lampUnit != null)
+					{
+						// actually turn lamp on
+						// if inUseLamps / inUseCount is > 0 these calls arn't
+						// strictly necessary, the lamps should already be on/ mirror inline
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") turning lamps on:"+lampsString);
+						// we should turn all lamps off before turning the ones we want back on
+						// this resets all the lamp demand bits
+						lampUnit.turnAllLampsOff(clazz,source);
+						lampUnit.turnLampsOn(clazz,source,lampsString);
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") moving mirror inline.");
+						lampUnit.moveMirrorInline(clazz,source);
+					}
+					// update inUse Data
+					// Do this after turning on lamps/moving mirror inline, 
+					// so if those operations fail
+					// the lamp controller does not get stuck in a locked state
 					inUseCount++;
-					logger.log(Logger.VERBOSITY_INTERMEDIATE,
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 						   this.getClass().getName()+":setLampLock(arm="+
 						   FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+lampsString+
 						   "): inUseLamp was "+lampsString+": inUseCount now:"+inUseCount);
@@ -257,7 +356,7 @@ public class LampController
 					// _must_ be zero
 					while((inUseCount > 0) && (inUseLamps.equals(lampsString) == false))
 					{
-						logger.log(Logger.VERBOSITY_INTERMEDIATE,
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 							   this.getClass().getName()+
 							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ",lamps="+lampsString+"): Sending ACK:"+waitLength);
@@ -271,7 +370,7 @@ public class LampController
 						ack.setTimeToComplete((waitLength * 2));
 						if(serverConnectionThread != null)
 							serverConnectionThread.sendAcknowledge(ack,false);
-						logger.log(Logger.VERBOSITY_INTERMEDIATE,
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 							   this.getClass().getName()+
 							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ",lamps="+lampsString+"): Entering wait on lock:"+
@@ -286,10 +385,30 @@ public class LampController
 						}
 						// lock is now back on for inUseLock
 					}// end while
-					// set lampsString in use and inc count
+					if(lampUnit != null)
+					{
+						// actually turn lamp on
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") turning lamps on:"+lampsString);
+						// we should turn all lamps off before turning the ones we want back on
+						// this resets all the lamp demand bits
+						lampUnit.turnAllLampsOff(clazz,source);
+						lampUnit.turnLampsOn(lampsString);
+						logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
+							   this.getClass().getName()+
+							   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
+							   ") moving mirror inline.");
+						lampUnit.moveMirrorInline(clazz,source);
+					}
+					// update inUse Data
+					// Do this after turning on lamps/moving mirror inline, 
+					// so if those operations fail
+					// the lamp controller does not get stuck in a locked state
 					inUseLamps = lampsString;
 					inUseCount++;
-					logger.log(Logger.VERBOSITY_INTERMEDIATE,
+					logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,
 						   this.getClass().getName()+":setLampLock(arm="+
 						   FrodoSpecConstants.ARM_STRING_LIST[arm]+",lamps="+lampsString+
 						   "): acquired "+lampsString+
@@ -307,24 +426,12 @@ public class LampController
 			ack.setTimeToComplete(serverConnectionThread.getAcknowledgeTime());
 			serverConnectionThread.sendAcknowledge(ack,true);
 		}
-		// actually turn lamp on
-		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-		    ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") turning lamps on:"+lampsString);
-		// we should turn all lamps off before turning the ones we want back on
-		// this resets all the lamp demand bits
-		if(lampUnit != null)
-		{
-			lampUnit.turnAllLampsOff();
-			lampUnit.turnLampsOn(lampsString);
-			logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
-				   ":setLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
-				   ") moving mirror inline.");
-			lampUnit.moveMirrorInline();
-		}
 	}
 
 	/**
 	 * Clear the previously specified lock. Then turn all the lamps off. Then stow the calibration mirror.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @exception Exception Thrown if a problem with the lamp unit occurs.
 	 * @see #inUseLock
 	 * @see #inUseCount
@@ -333,20 +440,20 @@ public class LampController
 	 * @see ngat.lamp.LTAGLampUnit#turnAllLampsOff
 	 * @see ngat.lamp.LTAGLampUnit#stowMirror
 	 */
-	public void clearLampLock(int arm) throws Exception
+	public void clearLampLock(String clazz,String source,int arm) throws Exception
 	{
-		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 		       ":clearLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") started.");
 		// acquire lock
 		synchronized(inUseLock)
 		{
 			inUseCount--;
-			logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 				   ":clearLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 				   "): Acquired lamp lock:Decremented inUseCount ="+inUseCount);
 			if(inUseCount == 0)
 			{
-				logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 					   ":clearLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 					   ") turning lamps off:"+inUseLamps);
 				try
@@ -354,9 +461,9 @@ public class LampController
 					// actually turn all lamps off (this even works if lock was on NO_LAMP!)
 					if(lampUnit != null)
 					{
-						lampUnit.turnAllLampsOff();
+						lampUnit.turnAllLampsOff(clazz,source);
 						// make sure calibration mirror is stowed
-						lampUnit.stowMirror();
+						lampUnit.stowMirror(clazz,source);
 					}
 				}
 				// even if the stow mirror or turn all lamps off fails,
@@ -369,7 +476,7 @@ public class LampController
 				}
 			}
 		}
-		logger.log(Logger.VERBOSITY_INTERMEDIATE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_INTERMEDIATE,clazz,source,this.getClass().getName()+
 		    ":clearLampLock(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+") finished.");
 	}
 
@@ -395,20 +502,28 @@ public class LampController
 	 * Method to get the fault status from the lamp unit.
 	 * Note this can be called from a thread other than the one controlling the lights, as the
 	 * ngat.lamp.PLCConnection class in synchronised.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return The method returns true if the underlying lamp controller has a fault, false if it does not
 	 *         have a fault.
 	 * @exception Exception Thrown if there is a comms problem with the lamp unit.
 	 * @see #lampUnit
 	 * @see ngat.lamp.LTAGLampUnit#getFaultStatus
 	 */
-	public boolean getFaultStatus() throws Exception
+	public boolean getFaultStatus(String clazz,String source) throws Exception
 	{
-		return lampUnit.getFaultStatus();
+		return lampUnit.getFaultStatus(clazz,source);
 	}
 }
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2010/12/13 11:18:45  cjm
+// Modified clearLampLock to clear inUseLamps/inUseLock.notify even if the call to
+// turnAllLampsOff or stowMirror fails. This stops the software getting stuck with a lock in place.
+// Of course, the lamp may be left on/mirror be left in position incorrectly, but I think the
+// stowMirror/turnAllLampsOff will be retried on subsequent commands.
+//
 // Revision 1.8  2010/04/07 15:11:53  cjm
 // The ACKs now sent whilst waiting for a lamp to become available are not saved in the
 // server connection thread.

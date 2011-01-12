@@ -11,14 +11,14 @@ import ngat.util.logging.*;
 /**
  * An instance of this class is used to control the FrodoSpec Plc.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 public class Plc
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: Plc.java,v 1.5 2010-03-16 14:38:06 cjm Exp $");
+	public final static String RCSID = new String("$Id: Plc.java,v 1.6 2011-01-12 11:50:03 cjm Exp $");
 	/**
 	 * The number of temperature probes in FrodoSpec.
 	 */
@@ -516,6 +516,18 @@ public class Plc
 	/**
 	 * Reset the fault indicator on the PLC.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #faultReset(String,String)
+	 */
+	public void faultReset() throws EIPNativeException
+	{
+		faultReset(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Reset the fault indicator on the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
 	 * @see #logger
 	 * @see #plc
@@ -524,9 +536,9 @@ public class Plc
 	 * @see #connectionIdleThread
 	 * @see #faultResetPLCAddress
 	 */
-	public void faultReset() throws EIPNativeException
+	public void faultReset(String clazz,String source) throws EIPNativeException
 	{
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":faultReset:Started.");
 		if(enable)
 		{
@@ -534,25 +546,38 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":faultReset:Setting "+faultResetPLCAddress);
-			plc.setBoolean(handle,faultResetPLCAddress,true);
+			plc.setBoolean(clazz,source,handle,faultResetPLCAddress,true);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":faultReset:PLC not enabled:Not resetting fault.");
 			
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":faultReset:Finished.");
 	}
 
 	/**
 	 * Turn enclosure cooling on or off in the PLC.
+	 * @param onoff If true turn the cooling on, otherwise turn it off.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #setCooling(String,String,boolean)
+	 */
+	public void setCooling(boolean onoff) throws EIPNativeException
+	{
+		setCooling(this.getClass().getName(),null,onoff);
+	}
+
+	/**
+	 * Turn enclosure cooling on or off in the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param onoff If true turn the cooling on, otherwise turn it off.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
@@ -563,9 +588,9 @@ public class Plc
 	 * @see #open
 	 * @see #coolingDemandPLCAddress
 	 */
-	public void setCooling(boolean onoff) throws EIPNativeException
+	public void setCooling(String clazz,String source,boolean onoff) throws EIPNativeException
 	{
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":setCooling:Started.");
 		if(enable)
 		{
@@ -573,25 +598,41 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":setCooling:Setting "+coolingDemandPLCAddress+" to "+onoff);
-			plc.setBoolean(handle,coolingDemandPLCAddress,onoff);
+			plc.setBoolean(clazz,source,handle,coolingDemandPLCAddress,onoff);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":setCooling:PLC not enabled:Not setting cooling to "+onoff+".");
 			
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":setCooling:Finished.");
 	}
 
 	/**
 	 * Get the mechanism status word from the PLC.
+	 * @return An integer. Various bits are set depending on the status of the grating.
+	 *        See MECH_STATUS_GRATING_RED_IN_TRANSIT, MECH_STATUS_GRATING_BLUE_IN_TRANSIT, 
+	 *        MECH_STATUS_GRATING_RED_IN_POSITION_HIGH, MECH_STATUS_GRATING_RED_IN_POSITION_LOW,
+	 *        MECH_STATUS_GRATING_BLUE_IN_POSITION_HIGH, MECH_STATUS_GRATING_BLUE_IN_POSITION_LOW.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #getMechanismStatus(String,String)
+	 */
+	public int getMechanismStatus() throws EIPNativeException
+	{
+		return getMechanismStatus(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the mechanism status word from the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return An integer. Various bits are set depending on the status of the grating.
 	 *        See MECH_STATUS_GRATING_RED_IN_TRANSIT, MECH_STATUS_GRATING_BLUE_IN_TRANSIT, 
 	 *        MECH_STATUS_GRATING_RED_IN_POSITION_HIGH, MECH_STATUS_GRATING_RED_IN_POSITION_LOW,
@@ -612,11 +653,11 @@ public class Plc
 	 * @see #MECH_STATUS_GRATING_BLUE_IN_POSITION_HIGH
 	 * @see #MECH_STATUS_GRATING_BLUE_IN_POSITION_LOW
 	 */
-	public int getMechanismStatus() throws EIPNativeException
+	public int getMechanismStatus(String clazz,String source) throws EIPNativeException
 	{
 		int mechStatus;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getMechanismStatus:Started.");
 		if(enable)
 		{
@@ -624,26 +665,44 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getMechanismStatus:Retrieving from: "+mechStatusPLCAddress);
-			mechStatus = plc.getInteger(handle,mechStatusPLCAddress);
+			mechStatus = plc.getInteger(clazz,source,handle,mechStatusPLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getMechanismStatus:PLC not enabled:Not resetting fault.");
 			mechStatus = 0;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getMechanismStatus:Finished with status:"+printBits(mechStatus));
 		return mechStatus;
 	}
 
 	/**
 	 * Get the fault status word from the PLC.
+	 * @return An integer. Various bits are set depending on the fault status of the PLC.
+	 *        See FAULT_STATUS_AIR_PRESSURE_HIGH, FAULT_STATUS_AIR_PRESSURE_LOW, FAULT_STATUS_HUMIDITY_HIGH,
+	 *        FAULT_STATUS_GRATING_POSITION_RED_HIGH, FAULT_STATUS_GRATING_POSITION_RED_LOW,
+	 *        FAULT_STATUS_GRATING_POSITION_BLUE_HIGH, FAULT_STATUS_GRATING_POSITION_BLUE_LOW,
+	 *        FAULT_STATUS_SHUTTER_POSITION_RED, FAULT_STATUS_SHUTTER_POSITION_BLUE, 
+	 *        FAULT_STATUS_PLC, FAULT_STATUS_TEMPERATURE_HIGH.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #getFaultStatus
+	 */
+	public int getFaultStatus() throws EIPNativeException
+	{
+		return getFaultStatus(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the fault status word from the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return An integer. Various bits are set depending on the fault status of the PLC.
 	 *        See FAULT_STATUS_AIR_PRESSURE_HIGH, FAULT_STATUS_AIR_PRESSURE_LOW, FAULT_STATUS_HUMIDITY_HIGH,
 	 *        FAULT_STATUS_GRATING_POSITION_RED_HIGH, FAULT_STATUS_GRATING_POSITION_RED_LOW,
@@ -674,33 +733,49 @@ public class Plc
 	 * @see #FAULT_STATUS_INST_TEMPERATURE_HIGH
 	 * @see #FAULT_STATUS_PANEL_TEMPERATURE_HIGH
 	 */
-	public int getFaultStatus() throws EIPNativeException
+	public int getFaultStatus(String clazz,String source) throws EIPNativeException
 	{
 		int faultStatus;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":getFaultStatus:Started.");
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+":getFaultStatus:Started.");
 		if(enable)
 		{
 			// ensure connection is opened correctly
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getFaultStatus:Retrieving from: "+faultStatusPLCAddress);
-			faultStatus = plc.getInteger(handle,faultStatusPLCAddress);
+			faultStatus = plc.getInteger(clazz,source,handle,faultStatusPLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getFaultStatus:PLC not enabled:Not resetting fault.");
 			faultStatus = 0;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getFaultStatus:Finished with status:"+printBits(faultStatus));
 		return faultStatus;
+	}
+
+	/**
+	 * Method to set the grating position.
+	 * @param arm Which arm grating to use, either RED_ARM or BLUE_ARM.
+	 * @param resolution Which grating we want in the light beam, either RESOLUTION_HIGH or RESOLUTION_LOW.
+	 *        RESOLUTION_HIGH is the VPH grating, RESOLUTION_LOW is the normal grating.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @exception IllegalArgumentException Thrown if arm or resolution are not legal values.
+	 * @exception Exception Thrown if the relevant 'not in position' PLC fault bit is set whilst moving the
+	 *            grating (the PLC thinks the grating move failed).
+	 * @see #setGrating(String,String,int,int)
+	 */
+	public void setGrating(int arm,int resolution) throws IllegalArgumentException, EIPNativeException, Exception
+	{
+		setGrating(this.getClass().getName(),null,arm,resolution);
 	}
 
 	/**
@@ -737,6 +812,8 @@ public class Plc
 	 *     </ul>
 	 * <li>else if <b>enable</b> is false, we log we havn't moved the grating.
 	 * </ul>
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm Which arm grating to use, either RED_ARM or BLUE_ARM.
 	 * @param resolution Which grating we want in the light beam, either RESOLUTION_HIGH or RESOLUTION_LOW.
 	 *        RESOLUTION_HIGH is the VPH grating, RESOLUTION_LOW is the normal grating.
@@ -776,13 +853,14 @@ public class Plc
 	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_HIGH
 	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_LOW
 	 */
-	public void setGrating(int arm,int resolution) throws IllegalArgumentException, EIPNativeException, Exception
+	public void setGrating(String clazz,String source,int arm,int resolution) throws IllegalArgumentException, 
+											 EIPNativeException, Exception
 	{
 		String demandPLCAddress = null;
 		boolean demandValue,done;
 		int mechStatus,transitBit=0,inPositionBit=0,faultStatus,faultBit=0;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":setGrating:Started.");
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+":setGrating:Started.");
 		if(enable)
 		{
 			// explicity open a session/connection, to stop many individual open/closes
@@ -794,11 +872,11 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
 			// reset any faults
-			faultReset();
+			faultReset(clazz,source);
 			if(moveEnable)
 			{
 				// reset abort flag
@@ -810,7 +888,7 @@ public class Plc
 					demandPLCAddress = gratingDemandPLCAddress[arm];
 				else
 				{
-					throw new IllegalArgumentException(this.getClass().getName()+
+					throw new IllegalArgumentException(this.getClass().getName()+":"+source+":"+
 									   ":setGrating:Illegal arm:"+arm);
 				}
 				// work out value to write from resolution
@@ -820,7 +898,7 @@ public class Plc
 					demandValue = false;
 				else
 				{
-					throw new IllegalArgumentException(this.getClass().getName()+
+					throw new IllegalArgumentException(this.getClass().getName()+":"+source+":"+
 									":setGrating:Illegal resolution:"+resolution);
 				}
 				// work out transit / in position / fault bits
@@ -853,7 +931,7 @@ public class Plc
 					}
 				}
 				// set demand
-				logger.log(Logger.VERBOSITY_VERBOSE,
+				logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 					   this.getClass().getName()+
 					   ":setGrating:Moving Arm "+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 					   " to resolution "+FrodoSpecConstants.RESOLUTION_STRING_LIST[resolution]+
@@ -870,16 +948,16 @@ public class Plc
 					}
 					catch(InterruptedException e)
 					{
-						logger.log(Logger.VERBOSITY_VERBOSE,
+						logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 							   this.getClass().getName()+
 							   ":setGrating:Sleep interrupted.");
 					}
 					// get mechanism status
-					mechStatus = getMechanismStatus();
+					mechStatus = getMechanismStatus(clazz,source);
 					// are we in the correct position?
 					if((mechStatus & transitBit) == transitBit)
 					{
-						logger.log(Logger.VERBOSITY_VERBOSE,
+						logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 							   this.getClass().getName()+
 							   ":setGrating:Grating is in transit.");
 					}
@@ -887,7 +965,7 @@ public class Plc
 					{
 						// exit loop
 						done = true;
-						logger.log(Logger.VERBOSITY_VERBOSE,
+						logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 							   this.getClass().getName()+
 							   ":setGrating:Grating is in position.");
 					}
@@ -895,48 +973,48 @@ public class Plc
 					if((mechStatus & MECH_STATUS_PANEL_IN_LOCAL) == 
 					   MECH_STATUS_PANEL_IN_LOCAL)
 					{
-						logger.log(Logger.VERBOSITY_VERBOSE,
+						logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 							   this.getClass().getName()+
 							   ":setGrating:Plc is in local.");
-						throw new Exception(this.getClass().getName()+
+						throw new Exception(this.getClass().getName()+":"+source+":"+
 				      		    ":setGrating:Plc is in local:"+printBits(mechStatus));
 					}
 					// get fault status
-					faultStatus = getFaultStatus();
+					faultStatus = getFaultStatus(clazz,source);
 					if((faultStatus & faultBit) == faultBit)
 					{
-						logger.log(Logger.VERBOSITY_VERBOSE,
+						logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 							   this.getClass().getName()+
 							   ":setGrating:Grating Position Fault bit set:"+
 							   printBits(faultStatus));
-						throw new Exception(this.getClass().getName()+
+						throw new Exception(this.getClass().getName()+":"+source+":"+
 								    ":setGrating:Grating Position Fault bit set:"+
 								    printBits(faultStatus));
 					}
 					// check abort flag
 					if(abortMovement)
 					{
-						logger.log(Logger.VERBOSITY_VERBOSE,
+						logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 							   this.getClass().getName()+
 							   ":setGrating:Abort movement flag set:Aborting.");
-						throw new Exception(this.getClass().getName()+
+						throw new Exception(this.getClass().getName()+":"+source+":"+
 								    ":setGrating:Abort movement flag set:Aborting.");
 					}
 				}// end while on done
 			}
 			else
 			{
-				logger.log(Logger.VERBOSITY_VERBOSE,
+				logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 					   this.getClass().getName()+
 					   ":setGrating:Movement not enabled:Grating not moved.");
 			}
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":setGrating:PLC not enabled:Grating not moved.");
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":setGrating:Finished.");
 	}
 
@@ -957,6 +1035,22 @@ public class Plc
 	 *         RESOLUTION_HIGH, RESOLUTION_LOW or 0 if unknown or in transit.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @exception IllegalArgumentException Thrown if arm is not legal a value.
+	 * @see #getGratingResolution(String,String,int)
+	 */
+	public int getGratingResolution(int arm) throws EIPNativeException, IllegalArgumentException
+	{
+		return getGratingResolution(this.getClass().getName(),null,arm);
+	}
+
+	/**
+	 * Get the current position of the Grating for the specified arm.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
+	 * @param arm Which arm grating to use, either RED_ARM or BLUE_ARM.
+	 * @return A integer describing the grating position of the specified arm; one of:
+	 *         RESOLUTION_HIGH, RESOLUTION_LOW or 0 if unknown or in transit.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @exception IllegalArgumentException Thrown if arm is not legal a value.
 	 * @see #MECH_STATUS_GRATING_RED_IN_TRANSIT
 	 * @see #MECH_STATUS_GRATING_BLUE_IN_TRANSIT
 	 * @see #MECH_STATUS_GRATING_RED_IN_POSITION_HIGH
@@ -968,14 +1062,15 @@ public class Plc
 	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_HIGH
 	 * @see ngat.phase2.FrodoSpecConfig#RESOLUTION_LOW
 	 */
-	public int getGratingResolution(int arm) throws EIPNativeException, IllegalArgumentException
+	public int getGratingResolution(String clazz,String source,int arm) 
+		throws EIPNativeException, IllegalArgumentException
 	{
 		int mechStatus,retval;
 
 		// unknown / in transit
 		retval = 0;
 		// get mechanism status
-		mechStatus = getMechanismStatus();
+		mechStatus = getMechanismStatus(clazz,source);
 		if(arm == FrodoSpecConfig.RED_ARM)
 		{
 			if((mechStatus & MECH_STATUS_GRATING_RED_IN_TRANSIT) == MECH_STATUS_GRATING_RED_IN_TRANSIT)
@@ -1000,10 +1095,10 @@ public class Plc
 		}
 		else
 		{
-			throw new IllegalArgumentException(this.getClass().getName()+
+			throw new IllegalArgumentException(this.getClass().getName()+":"+source+":"+
 							   ":getGratingPositionString:Illegal arm:"+arm);
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getGratingPositionString("+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 			   "):Finished with resolution:"+retval);
 		return retval;
@@ -1011,6 +1106,22 @@ public class Plc
 
 	/**
 	 * Get the current position of the Grating for the specified arm.
+	 * @param arm Which arm grating to use, either RED_ARM or BLUE_ARM.
+	 * @return A string describing the grating position of the specified arm; one of:
+	 *         "high", "low", "in-transit", "UNKNOWN".
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @exception IllegalArgumentException Thrown if arm is not legal a value.
+	 * @see #getGratingPositionString(String,String,int)
+	 */
+	public String getGratingPositionString(int arm) throws EIPNativeException, IllegalArgumentException
+	{
+		return getGratingPositionString(this.getClass().getName(),null,arm);
+	}
+
+	/**
+	 * Get the current position of the Grating for the specified arm.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm Which arm grating to use, either RED_ARM or BLUE_ARM.
 	 * @return A string describing the grating position of the specified arm; one of:
 	 *         "high", "low", "in-transit", "UNKNOWN".
@@ -1026,14 +1137,15 @@ public class Plc
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	public String getGratingPositionString(int arm) throws EIPNativeException, IllegalArgumentException
+	public String getGratingPositionString(String clazz,String source,int arm) 
+		throws EIPNativeException, IllegalArgumentException
 	{
 		int mechStatus;
 		String statusString = null;
 
 		statusString = new String("UNKNOWN");
 		// get mechanism status
-		mechStatus = getMechanismStatus();
+		mechStatus = getMechanismStatus(clazz,source);
 		if(arm == FrodoSpecConfig.RED_ARM)
 		{
 			if((mechStatus & MECH_STATUS_GRATING_RED_IN_TRANSIT) == MECH_STATUS_GRATING_RED_IN_TRANSIT)
@@ -1058,10 +1170,10 @@ public class Plc
 		}
 		else
 		{
-			throw new IllegalArgumentException(this.getClass().getName()+
+			throw new IllegalArgumentException(this.getClass().getName()+":"+source+":"+
 							   ":getGratingPositionString:Illegal arm:"+arm);
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getGratingPositionString("+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 			   "):Finished with status:"+statusString);
 		return statusString;
@@ -1069,6 +1181,18 @@ public class Plc
 
 	/**
 	 * Get the humidity of the FrodoSpec enclosure from the PLC.
+	 * @return A float. The relative humidity in percent (0..100).
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 */
+	public float getHumidity() throws EIPNativeException
+	{
+		return getHumidity(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the humidity of the FrodoSpec enclosure from the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return A float. The relative humidity in percent (0..100).
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
@@ -1079,11 +1203,11 @@ public class Plc
 	 * @see #connectionIdleThread
 	 * @see #humidityPLCAddress
 	 */
-	public float getHumidity() throws EIPNativeException
+	public float getHumidity(String clazz,String source) throws EIPNativeException
 	{
 		float humidity;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getHumidity:Started.");
 		if(enable)
 		{
@@ -1091,26 +1215,40 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getHumidity:Retrieving from: "+humidityPLCAddress);
-			humidity = plc.getFloat(handle,humidityPLCAddress);
+			humidity = plc.getFloat(clazz,source,handle,humidityPLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getHumidity:PLC not enabled:Humidity not retrieved.");
 			humidity = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getHumidity:Finished with humidity:"+humidity);
 		return humidity;
 	}
 
 	/**
 	 * Get the temperature of the FrodoSpec enclosure from the PLC.
+	 * @param index Which temperature probe to read. An integer from 0..TEMPERATURE_PROBE_COUNT-1.
+	 * @return A float. The temperature in degrees centigrade.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @exception IllegalArgumentException Thrown if the index is out of range.
+	 */
+	public float getTemperature(int index) throws EIPNativeException, IllegalArgumentException
+	{
+		return getTemperature(this.getClass().getName(),null,index);
+	}
+
+	/**
+	 * Get the temperature of the FrodoSpec enclosure from the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param index Which temperature probe to read. An integer from 0..TEMPERATURE_PROBE_COUNT-1.
 	 * @return A float. The temperature in degrees centigrade.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
@@ -1124,16 +1262,17 @@ public class Plc
 	 * @see #temperaturePLCAddress
 	 * @see #TEMPERATURE_PROBE_COUNT
 	 */
-	public float getTemperature(int index) throws EIPNativeException, IllegalArgumentException
+	public float getTemperature(String clazz,String source,int index) 
+		throws EIPNativeException, IllegalArgumentException
 	{
 		float temperature;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getTemperature("+index+"):Started.");
 		if((index < 0)||(index >= TEMPERATURE_PROBE_COUNT))
 		{
-			throw new IllegalArgumentException(this.getClass().getName()+":getTemperature:index "+
-							   index+" our of range 0.."+TEMPERATURE_PROBE_COUNT+".");
+			throw new IllegalArgumentException(this.getClass().getName()+":"+source+
+				   ":getTemperature:index "+index+" our of range 0.."+TEMPERATURE_PROBE_COUNT+".");
 		}
 		if(enable)
 		{
@@ -1141,26 +1280,39 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getTemperature:Retrieving from: "+temperaturePLCAddress[index]);
-			temperature = plc.getFloat(handle,temperaturePLCAddress[index]);
+			temperature = plc.getFloat(clazz,source,handle,temperaturePLCAddress[index]);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getTemperature:PLC not enabled:Temperature not retrieved.");
 			temperature = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getTemperature("+index+"):Finished with temperature:"+temperature);
 		return temperature;
 	}
 
 	/**
 	 * Get the instrument temperature of the FrodoSpec enclosure from the PLC.
+	 * @return A float. The instrument temperature in degrees C.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #getInstrumentTemperature(String,String)
+	 */
+	public float getInstrumentTemperature() throws EIPNativeException
+	{
+		return getInstrumentTemperature(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the instrument temperature of the FrodoSpec enclosure from the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return A float. The instrument temperature in degrees C.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
@@ -1171,11 +1323,11 @@ public class Plc
 	 * @see #connectionIdleThread
 	 * @see #instrumentTemperaturePLCAddress
 	 */
-	public float getInstrumentTemperature() throws EIPNativeException
+	public float getInstrumentTemperature(String clazz,String source) throws EIPNativeException
 	{
 		float temperature;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getInstrumentTemperature:Started.");
 		if(enable)
 		{
@@ -1183,26 +1335,39 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getInstrumentTemperature:Retrieving from: "+instrumentTemperaturePLCAddress);
-			temperature = plc.getFloat(handle,instrumentTemperaturePLCAddress);
+			temperature = plc.getFloat(clazz,source,handle,instrumentTemperaturePLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getInstrumentTemperature:PLC not enabled:Instrument Temperature not retrieved.");
 			temperature = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getInstrumentTemperature:Finished with instrument temperature:"+temperature);
 		return temperature;
 	}
 
 	/**
 	 * Get the panel temperature of the FrodoSpec enclosure from the PLC.
+	 * @return A float. The panel temperature in degrees C.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #getPanelTemperature(String,String)
+	 */
+	public float getPanelTemperature() throws EIPNativeException
+	{
+		return getPanelTemperature(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the panel temperature of the FrodoSpec enclosure from the PLC.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return A float. The panel temperature in degrees C.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
@@ -1213,11 +1378,11 @@ public class Plc
 	 * @see #connectionIdleThread
 	 * @see #panelTemperaturePLCAddress
 	 */
-	public float getPanelTemperature() throws EIPNativeException
+	public float getPanelTemperature(String clazz,String source) throws EIPNativeException
 	{
 		float temperature;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getPanelTemperature:Started.");
 		if(enable)
 		{
@@ -1225,26 +1390,39 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getPanelTemperature:Retrieving from: "+panelTemperaturePLCAddress);
-			temperature = plc.getFloat(handle,panelTemperaturePLCAddress);
+			temperature = plc.getFloat(clazz,source,handle,panelTemperaturePLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getPanelTemperature:PLC not enabled:Panel Temperature not retrieved.");
 			temperature = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getPanelTemperature:Finished with panel temperature:"+temperature);
 		return temperature;
 	}
 
 	/**
 	 * Get the air flow of the FrodoSpec pneumatics.
+	 * @return A float. The pneumatic air flow in litres/minute.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #getAirFlow(String,String)
+	 */
+	public float getAirFlow() throws EIPNativeException
+	{
+		return getAirFlow(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the air flow of the FrodoSpec pneumatics.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return A float. The pneumatic air flow in litres/minute.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
@@ -1255,38 +1433,50 @@ public class Plc
 	 * @see #connectionIdleThread
 	 * @see #airFlowPLCAddress
 	 */
-	public float getAirFlow() throws EIPNativeException
+	public float getAirFlow(String clazz,String source) throws EIPNativeException
 	{
 		float airFlow;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
-			   ":getAirFlow:Started.");
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+":getAirFlow:Started.");
 		if(enable)
 		{
 			// ensure connection is opened correctly
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getAirFlow:Retrieving from: "+airFlowPLCAddress);
-			airFlow = plc.getFloat(handle,airFlowPLCAddress);
+			airFlow = plc.getFloat(clazz,source,handle,airFlowPLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getAirFlow:PLC not enabled:Air Flow not retrieved.");
 			airFlow = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getAirFlow:Finished with air flow:"+airFlow);
 		return airFlow;
 	}
 
 	/**
 	 * Get the air pressure of the FrodoSpec pneumatics.
+	 * @return A float. The pneumatic air pressure in bar.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 * @see #getAirPressure(String,String)
+	 */
+	public float getAirPressure() throws EIPNativeException
+	{
+		return getAirPressure(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the air pressure of the FrodoSpec pneumatics.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return A float. The pneumatic air pressure in bar.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
@@ -1297,11 +1487,11 @@ public class Plc
 	 * @see #connectionIdleThread
 	 * @see #airPressurePLCAddress
 	 */
-	public float getAirPressure() throws EIPNativeException
+	public float getAirPressure(String clazz,String source) throws EIPNativeException
 	{
 		float airPressure;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getAirPressure:Started.");
 		if(enable)
 		{
@@ -1309,26 +1499,38 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getAirPressure:Retrieving from: "+airPressurePLCAddress);
-			airPressure = plc.getFloat(handle,airPressurePLCAddress);
+			airPressure = plc.getFloat(clazz,source,handle,airPressurePLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getAirPressure:PLC not enabled:Air Pressure not retrieved.");
 			airPressure = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getAirPressure:Finished with air pressure:"+airPressure);
 		return airPressure;
 	}
 
 	/**
 	 * Get the length of time the FrodoSpec cooling has been on.
+	 * @return A float. The length of time the cooling has been on, in seconds.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 */
+	public float getCoolingTimeOn() throws EIPNativeException
+	{
+		return getCoolingTimeOn(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Get the length of time the FrodoSpec cooling has been on.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @return A float. The length of time the cooling has been on, in seconds.
 	 * @exception EIPNativeException Thrown if PLC comms fail.
 	 * @see #enable
@@ -1339,11 +1541,11 @@ public class Plc
 	 * @see #connectionIdleThread
 	 * @see #coolingTimePLCAddress
 	 */
-	public float getCoolingTimeOn() throws EIPNativeException
+	public float getCoolingTimeOn(String clazz,String source) throws EIPNativeException
 	{
 		float time;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getCoolingTimeOn:Started.");
 		if(enable)
 		{
@@ -1351,26 +1553,40 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getCoolingTimeOn:Retrieving from: "+coolingTimePLCAddress);
-			time = plc.getFloat(handle,coolingTimePLCAddress);
+			time = plc.getFloat(clazz,source,handle,coolingTimePLCAddress);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getCoolingTimeOn:PLC not enabled:Cooling time not retrieved.");
 			time = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getCoolingTimeOn:Finished with cooling time:"+time);
 		return time;
 	}
 
 	/**
 	 * Get the linear encoder position of the focus stage linear encoder.
+	 * @param arm Which arm to get the linear encoder position for. 
+	 * @return A float. The linear encoder position for the specified arm, in mm.
+	 * @exception IllegalArgumentException Thrown if arm is not a legal value.
+	 * @exception EIPNativeException Thrown if PLC comms fail.
+	 */
+	public float getLinearEncoderPosition(int arm) throws EIPNativeException, IllegalArgumentException
+	{
+		return getLinearEncoderPosition(this.getClass().getName(),null,arm);
+	}
+
+	/**
+	 * Get the linear encoder position of the focus stage linear encoder.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm Which arm to get the linear encoder position for. 
 	 * @return A float. The linear encoder position for the specified arm, in mm.
 	 * @exception IllegalArgumentException Thrown if arm is not a legal value.
@@ -1386,16 +1602,17 @@ public class Plc
 	 * @see ngat.phase2.FrodoSpecConfig#RED_ARM
 	 * @see ngat.phase2.FrodoSpecConfig#BLUE_ARM
 	 */
-	public float getLinearEncoderPosition(int arm) throws EIPNativeException, IllegalArgumentException
+	public float getLinearEncoderPosition(String clazz,String source,int arm) 
+		throws EIPNativeException, IllegalArgumentException
 	{
 		float position;
 
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getLinearEncoderPosition:Started.");
 		// check arm is legal
 		if((arm != FrodoSpecConfig.RED_ARM)&&(arm != FrodoSpecConfig.BLUE_ARM))
 		{
-			throw new IllegalArgumentException(this.getClass().getName()+
+			throw new IllegalArgumentException(this.getClass().getName()+":"+source+
 							   ":getLinearEncoderPosition:Illegal arm:"+arm);
 		}
 		if(enable)
@@ -1404,21 +1621,21 @@ public class Plc
 			synchronized(handle)
 			{
 				if(handle.isOpen() == false)
-					open();
+					open(clazz,source);
 			}
 			connectionIdleThread.setBusy();	
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getLinearEncoderPosition(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 				   "):Retrieving from: "+linearEncoderPositionPLCAddress[arm]);
-			position = plc.getFloat(handle,linearEncoderPositionPLCAddress[arm]);
+			position = plc.getFloat(clazz,source,handle,linearEncoderPositionPLCAddress[arm]);
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":getLinearEncoderPosition:PLC not enabled:Position not retrieved.");
 			position = 0.0f;
 		}
-		logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+		logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 			   ":getLinearEncoderPosition(arm="+FrodoSpecConstants.ARM_STRING_LIST[arm]+
 			   "):Finished with linear encoder position:"+position);
 		return position;
@@ -1503,19 +1720,32 @@ public class Plc
 	// protected methods
 	/**
 	 * Method to hold open the connection handle to the PLC.
+	 * @exception EIPNativeException Thrown if the open operation fails.
+	 * @see #open(String,String)
+	 */
+	protected void open() throws EIPNativeException
+	{
+		open(this.getClass().getName(),null);
+	}
+
+	/**
+	 * Method to hold open the connection handle to the PLC.
 	 * Normally the handle is opened/closed internally to EIPPLC (plc), for each call
 	 * to get/set Integer/Float/Boolean. However, this can cause the EIP_Session_Handle_Open call to fail
 	 * when a lot of open/closes are done close together (I think due to CLOSE_WAIT on the underlying
 	 * TCP/IP socket). So EIPPLC (plc) supports an explicit open/close call so we can hold a session
 	 * open whilst performing an operation that requires multiple PLC manipultations i.e. moving the grating
 	 * or querying a whole load of status.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
+	 * @exception EIPNativeException Thrown if the open operation fails.
 	 * @see #enable
 	 * @see #plc
 	 * @see #handle
 	 * @see #connectionIdleThread
 	 * @see ngat.eip.EIPPLC#open
 	 */
-	protected void open() throws EIPNativeException
+	protected void open(String clazz,String source) throws EIPNativeException
 	{
 		if(enable)
 		{
@@ -1523,12 +1753,12 @@ public class Plc
 			{
 				if(handle.isOpen() == false)
 				{
-					logger.log(Logger.VERBOSITY_VERBOSE,
+					logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 						   this.getClass().getName()+":open:Opening handle.");
-					plc.open(handle);
-					logger.log(Logger.VERBOSITY_VERBOSE,
+					plc.open(clazz,source,handle);
+					logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,
 						   this.getClass().getName()+":open:Starting connection idle thread.");
-					connectionIdleThread = new ConnectionIdleThread();
+					connectionIdleThread = new ConnectionIdleThread(clazz,source);
 					connectionIdleThread.start();
 				}
 				else
@@ -1537,9 +1767,19 @@ public class Plc
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":open:enable was false:PLC not opened.");
 		}
+	}
+
+	/**
+	 * Method to close the open connection handle to the PLC.
+	 * @exception EIPNativeException Thrown if the close operation fails.
+	 * @see #close(String,String)
+	 */
+	protected void close() throws EIPNativeException
+	{
+		close(this.getClass().getName(),null);
 	}
 
 	/**
@@ -1550,12 +1790,15 @@ public class Plc
 	 * TCP/IP socket). So EIPPLC (plc) supports an explicit open/close call so we can hold a session
 	 * open whilst performing an operation that requires multiple PLC manipultations i.e. moving the grating
 	 * or querying a whole load of status.
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
+	 * @exception EIPNativeException Thrown if the close operation fails.
 	 * @see #enable
 	 * @see #plc
 	 * @see #handle
 	 * @see ngat.eip.EIPPLC#close
 	 */
-	protected void close() throws EIPNativeException
+	protected void close(String clazz,String source) throws EIPNativeException
 	{
 		if(enable)
 		{
@@ -1563,13 +1806,13 @@ public class Plc
 			{
 				if(handle.isOpen() == true)
 				{
-					plc.close(handle);
+					plc.close(clazz,source,handle);
 				}
 			}
 		}
 		else
 		{
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":close:enable was false:PLC not closed.");
 		}
 	}
@@ -1744,9 +1987,39 @@ public class Plc
 	public class ConnectionIdleThread extends Thread
 	{
 		/**
+		 * The class string used for generating log records from this thread.
+		 */
+		protected String clazz = null;
+		/**
+		 * The source string used for generating log records from this thread.
+		 */
+		protected String source = null;
+		/**
 		 * Boolean keeping track of wether the connection is idle or not.
 		 */
 		protected boolean isIdle = false;
+
+		/**
+		 * Default constructor.
+		 */
+		public ConnectionIdleThread()
+		{
+			super();
+		}
+
+		/**
+		 * Constructor.
+		 * @param clazz The class string used for generating log records from this thread.
+		 * @param source The source string used for generating log records from this thread.
+		 * @see #clazz
+		 * @see #source
+		 */
+		public ConnectionIdleThread(String clazz,String source)
+		{
+			super();
+			this.clazz = clazz;
+			this.source = source;
+		}
 
 		/**
 		 * Thread run method.
@@ -1761,16 +2034,18 @@ public class Plc
 		 * @see #connectionIdleTime
 		 * @see #isIdle
 		 * @see #close
+		 * @see #clazz
+		 * @see #source
 		 */
 		public void run()
 		{
 			boolean done = false;
 
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+":run:"+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+":run:"+
 				   hostname+":Started.");
 			while(done == false)
 			{
-				logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 					   ":run:"+hostname+":Sleeping.");
 				isIdle = true;
 				try
@@ -1780,11 +2055,11 @@ public class Plc
 				catch(Exception e)
 				{
 				}
-				logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 					   ":run:"+hostname+":Checking whether connection is idle:"+isIdle+".");
 				done = (isIdle == true);
 			}// while not done
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":run:"+hostname+":Closing connection.");
 			try
 			{
@@ -1792,10 +2067,10 @@ public class Plc
 			}
 			catch(Exception e)
 			{
-				logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
-					   ":run:"+hostname+":Close connection failed.",e);
+				logger.log(null,Logger.VERBOSITY_VERBOSE,clazz,source,"run",this.getClass().getName()+
+					   ":run:"+hostname+":Close connection failed.",null,e);
 			}
-			logger.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+			logger.log(Logger.VERBOSITY_VERBOSE,clazz,source,this.getClass().getName()+
 				   ":run:"+hostname+":Finished.");
 		}
 
@@ -1811,6 +2086,9 @@ public class Plc
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.5  2010/03/16 14:38:06  cjm
+// FAULT_STATUS_COOLING bit is now FAULT_STATUS_PLC bit.
+//
 // Revision 1.4  2009/09/02 16:35:55  cjm
 // Added FAULT_STATUS_AIR_FLOW_HIGH and
 // FAULT_STATUS_PANEL_WAS_IN_LOCAL.
