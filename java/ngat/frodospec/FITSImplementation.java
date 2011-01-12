@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.17 2011-01-05 14:07:42 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.18 2011-01-12 11:50:03 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.17 $
+ * @version $Revision: 1.18 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.17 2011-01-05 14:07:42 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.18 2011-01-12 11:50:03 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -498,7 +498,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			xbin = ccd.getXBin();
 			ybin = ccd.getYBin();
 			// get resolution of grating for this arm
-			currentResolutionString = plc.getGratingPositionString(arm);
+
+			currentResolutionString = plc.getGratingPositionString(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 		// load all the FITS header defaults and put them into the frodospecFitsHeaderList object
 			defaultFitsHeaderList = frodospecFitsHeaderDefaultsList[arm].getCardImageList();
 			frodospecFitsHeaderList[arm].addKeywordValueList(defaultFitsHeaderList,0);
@@ -668,7 +670,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			{
 		// LAMPFLUX
 				cardImage = frodospecFitsHeaderList[arm].get("LAMPFLUX");
-				cardImage.setValue(new Integer(lampUnit.getLightLevel()));
+				cardImage.setValue(new Integer(lampUnit.getLightLevel(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm])));
 			}
 			catch(Exception e)
 			{
@@ -685,7 +688,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			try
 			{
 				cardImage = frodospecFitsHeaderList[arm].get("LAMP1SET");
-				cardImage.setValue(new Boolean(lampUnit.isLampOn(lampName)));
+				cardImage.setValue(new Boolean(lampUnit.isLampOn(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm],lampName)));
 			}
 			catch(Exception e)
 			{
@@ -702,7 +706,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			try
 			{
 				cardImage = frodospecFitsHeaderList[arm].get("LAMP2SET");
-				cardImage.setValue(new Boolean(lampUnit.isLampOn(lampName)));
+				cardImage.setValue(new Boolean(lampUnit.isLampOn(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm],lampName)));
 			}
 			catch(Exception e)
 			{
@@ -719,7 +724,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 			try
 			{
 				cardImage = frodospecFitsHeaderList[arm].get("LAMP3SET");
-				cardImage.setValue(new Boolean(lampUnit.isLampOn(lampName)));
+				cardImage.setValue(new Boolean(lampUnit.isLampOn(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm],lampName)));
 			}
 			catch(Exception e)
 			{
@@ -757,44 +763,54 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		// ENVTEMP[N]
 			for(int i = 0; i< Plc.TEMPERATURE_PROBE_COUNT; i++)
 			{
-				fvalue = plc.getTemperature(i);
+				fvalue = plc.getTemperature(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm],i);
 				cardImage = frodospecFitsHeaderList[arm].get("ENVTEMP"+i);
 				cardImage.setValue(new Float(fvalue+CENTIGRADE_TO_KELVIN));
 			}
 		// ENVHUM0
-			fvalue = plc.getHumidity();
+			fvalue = plc.getHumidity(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("ENVHUM0");
 			cardImage.setValue(new Float(fvalue));
 		// INSTEMP
-			fvalue = plc.getInstrumentTemperature();
+			fvalue = plc.getInstrumentTemperature(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("INSTEMP");
 			cardImage.setValue(new Float(fvalue+CENTIGRADE_TO_KELVIN));
 		// PANTEMP
-			fvalue = plc.getPanelTemperature();
+			fvalue = plc.getPanelTemperature(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("PANTEMP");
 			cardImage.setValue(new Float(fvalue+CENTIGRADE_TO_KELVIN));
 		// ENVAIRF
-			fvalue = plc.getAirFlow();
+			fvalue = plc.getAirFlow(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("ENVAIRF");
 			cardImage.setValue(new Float(fvalue));
 		// ENVAIRP
-			fvalue = plc.getAirPressure();
+			fvalue = plc.getAirPressure(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("ENVAIRP");
 			cardImage.setValue(new Float(fvalue));
 		// COOLTIME
-			fvalue = plc.getCoolingTimeOn();
+			fvalue = plc.getCoolingTimeOn(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("COOLTIME");
 			cardImage.setValue(new Float(fvalue));
 		// FOCLINEN
-			fvalue = plc.getLinearEncoderPosition(arm);
+			fvalue = plc.getLinearEncoderPosition(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 			cardImage = frodospecFitsHeaderList[arm].get("FOCLINEN");
 			cardImage.setValue(new Float(fvalue));
 		// STATMECH
-			ivalue = plc.getMechanismStatus();
+			ivalue = plc.getMechanismStatus(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("STATMECH");
 			cardImage.setValue(new Integer(ivalue));
 		// STATFALT
-			ivalue = plc.getFaultStatus();
+			ivalue = plc.getFaultStatus(command.getClass().getName(),
+						      FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			cardImage = frodospecFitsHeaderList[arm].get("STATFALT");
 			cardImage.setValue(new Integer(ivalue));
 		// Axis 1 WCS - in pixels (actually fibres)
@@ -1503,6 +1519,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 	/**
 	 * Method to turn off A&G lamps using the LampController (and therefore lampUnit).
+	 * @param clazz The class string used for generating log records from this operation.
+	 * @param source The source string used for generating log records from this operation.
 	 * @param arm Which arm is the command running on.
 	 * @param command The command that requires the lamp turning off.
 	 * @param done  The COMMAND_DONE that requires the lamp turning off. On failure, the error
@@ -1513,11 +1531,11 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 	 * @see ngat.frodospec.FrodoSpec#getLampController
 	 * @see ngat.frodospec.LampController#clearLampLock
 	 */
-	public boolean turnLampsOff(int arm,COMMAND command,COMMAND_DONE done)
+	public boolean turnLampsOff(String clazz,String source,int arm,COMMAND command,COMMAND_DONE done)
 	{
 		try
 		{
-			frodospec.getLampController().clearLampLock(arm);
+			frodospec.getLampController().clearLampLock(clazz,source,arm);
 		}
 		catch(Exception e)
 		{
@@ -1535,6 +1553,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.17  2011/01/05 14:07:42  cjm
+// focusStage.getPosition API change associated with logging.
+//
 // Revision 1.16  2010/06/14 16:28:23  cjm
 // Moved sendBasicAck from CALIBRATEImplementation, so it can be used by LAMPFOCUSImplementation.
 //
