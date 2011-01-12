@@ -1,5 +1,5 @@
 // TestLampController.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/TestLampController.java,v 1.2 2011-01-05 14:13:38 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/test/TestLampController.java,v 1.3 2011-01-12 11:59:34 cjm Exp $
 package ngat.frodospec.test;
 
 import java.lang.*;
@@ -11,14 +11,14 @@ import ngat.util.logging.*;
 /**
  * This class tests the FrodoSpec LampController class.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class TestLampController
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: TestLampController.java,v 1.2 2011-01-05 14:13:38 cjm Exp $");
+	public final static String RCSID = new String("$Id: TestLampController.java,v 1.3 2011-01-12 11:59:34 cjm Exp $");
 	/**
 	 * The logger.
 	 */
@@ -166,7 +166,8 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Ne ARC:setLampLock.");
-					testLampController.getLampController().setLampLock(arm,"Ne",null);
+					testLampController.getLampController().setLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm,"Ne",null);
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Ne ARC:10s exposure (sleep).");
@@ -174,12 +175,14 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Ne ARC:clearLampLock.");
-					testLampController.getLampController().clearLampLock(arm);
+					testLampController.getLampController().clearLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 					// MULTRUN
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":MULTRUN:setNoLampLock.");
-					testLampController.getLampController().setNoLampLock(arm,null);
+					testLampController.getLampController().setNoLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm,null);
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":MULTRUN:10s exposure (sleep).");
@@ -187,12 +190,14 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":MULTRUN:clearLampLock.");
-					testLampController.getLampController().clearLampLock(arm);
+					testLampController.getLampController().clearLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 					// Ne ARC
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Ne ARC:setLampLock.");
-					testLampController.getLampController().setLampLock(arm,"Ne",null);
+					testLampController.getLampController().setLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm,"Ne",null);
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Ne ARC:10s exposure (sleep).");
@@ -200,7 +205,8 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Ne ARC:clearLampLock.");
-					testLampController.getLampController().clearLampLock(arm);
+					testLampController.getLampController().clearLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 				}
 				else if(arm == FrodoSpecConfig.BLUE_ARM)
 				{
@@ -208,7 +214,8 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Xe ARC:setLampLock.");
-					testLampController.getLampController().setLampLock(arm,"Xe",null);
+					testLampController.getLampController().setLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm,"Xe",null);
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Xe ARC:10s exposure (sleep).");
@@ -216,12 +223,14 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Xe ARC:clearLampLock.");
-					testLampController.getLampController().clearLampLock(arm);
+					testLampController.getLampController().clearLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 					// MULTRUN
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":MULTRUN:setNoLampLock.");
-					testLampController.getLampController().setNoLampLock(arm,null);
+					testLampController.getLampController().setNoLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm,null);
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":MULTRUN:10s exposure (sleep).");
@@ -229,12 +238,14 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":MULTRUN:clearLampLock.");
-					testLampController.getLampController().clearLampLock(arm);
+					testLampController.getLampController().clearLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 					// Xe ARC
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Xe ARC:setLampLock.");
-					testLampController.getLampController().setLampLock(arm,"Xe",null);
+					testLampController.getLampController().setLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm,"Xe",null);
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Xe ARC:10s exposure (sleep).");
@@ -242,7 +253,8 @@ public class TestLampController
 					System.out.println(this.getClass().getName()+":run:arm "+
 							   FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							   ":Xe ARC:clearLampLock.");
-					testLampController.getLampController().clearLampLock(arm);
+					testLampController.getLampController().clearLampLock("TestLampController",
+							FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 				}
 				System.out.println(this.getClass().getName()+":run:arm "+
 						   FrodoSpecConstants.ARM_STRING_LIST[arm]+":Finished.");
@@ -258,6 +270,9 @@ public class TestLampController
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2011/01/05 14:13:38  cjm
+// Fixed comments.
+//
 // Revision 1.1  2009/08/20 11:22:47  cjm
 // Initial revision
 //
