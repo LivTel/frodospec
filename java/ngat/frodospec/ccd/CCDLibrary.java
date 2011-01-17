@@ -1,5 +1,5 @@
 // CCDLibrary.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/CCDLibrary.java,v 1.2 2009-02-05 11:39:58 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/CCDLibrary.java,v 1.3 2011-01-17 10:56:48 cjm Exp $
 package ngat.frodospec.ccd;
 
 import java.lang.*;
@@ -10,14 +10,14 @@ import ngat.util.logging.*;
 /**
  * This class supports an interface to the SDSU CCD Controller library, for controlling the FrodoSpec CCD.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class CCDLibrary
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class
 	 */
-	public final static String RCSID = new String("$Id: CCDLibrary.java,v 1.2 2009-02-05 11:39:58 cjm Exp $");
+	public final static String RCSID = new String("$Id: CCDLibrary.java,v 1.3 2011-01-17 10:56:48 cjm Exp $");
 	// ccd_dsp.h
 	/* These constants should be the same as those in ccd_dsp.h */
 	/**
@@ -225,25 +225,35 @@ public class CCDLibrary
 // ccd_dsp.h
 	/**
 	 * Native wrapper to libfrodospec_ccd routine "Read Elapsed Time" that reads the alapsed exposure length.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 */
-	private native int CCD_DSP_Command_RET();
+	private native int CCD_DSP_Command_RET(String clazz,String source);
 // ccd_exposure.h
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that does an exposure.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This routine throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Exposure_Expose(boolean openShutter,long startTime,int exposureTime,List filenameList) 
+	private native void CCD_Exposure_Expose(String clazz,String source,
+						boolean openShutter,long startTime,int exposureTime,List filenameList) 
 		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that does a bias frame.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This routine throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Exposure_Bias(String filename) throws CCDLibraryNativeException;
+	private native void CCD_Exposure_Bias(String clazz,String source,String filename) 
+		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that aborts an exposure.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This routine throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Exposure_Abort() throws CCDLibraryNativeException;
+	private native void CCD_Exposure_Abort(String clazz,String source) throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine thats returns whether an exposure is currently in progress.
 	 */
@@ -269,6 +279,8 @@ public class CCDLibrary
 // ccd_interface.h
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that opens the selected interface device.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param interfaceDevice The interface device to use to communicate with the SDSU CCD Controller.
 	 * 	One of: INTERFACE_DEVICE_NONE, INTERFACE_DEVICE_TEXT, INTERFACE_DEVICE_PCI.
 	 * @param devicePathname The pathname of the device. For devices of type PCI, this will be something like
@@ -279,43 +291,54 @@ public class CCDLibrary
 	 * @see #INTERFACE_DEVICE_PCI
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Interface_Open(int interfaceDevice,String devicePathname)
+	private native void CCD_Interface_Open(String clazz,String source,int interfaceDevice,String devicePathname)
 		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that closes the selected interface device.
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Interface_Close() throws CCDLibraryNativeException;
+	private native void CCD_Interface_Close(String clazz,String source) throws CCDLibraryNativeException;
 // ccd_setup.h
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that does the CCD setup.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Setup_Startup(int pci_load_type, String pci_filename,
+	private native void CCD_Setup_Startup(String clazz,String source,int pci_load_type, String pci_filename,
 		int timing_load_type,int timing_application_number,String timing_filename,
 		int utility_load_type,int utility_application_number,String utility_filename,
 		double target_temperature,int gain,boolean gain_speed,boolean idle) throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that does the CCD shutdown.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Setup_Shutdown() throws CCDLibraryNativeException;
+	private native void CCD_Setup_Shutdown(String clazz,String source) throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that does the CCD dimensions setup.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Setup_Dimensions(int ncols,int nrows,int nsbin,int npbin,
+	private native void CCD_Setup_Dimensions(String clazz,String source,int ncols,int nrows,int nsbin,int npbin,
 						 int amplifier,int deinterlace_setting,int window_flags,
 						 CCDLibrarySetupWindow window_list[]) throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that performs a hardware test data link.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Setup_Hardware_Test(int test_count) throws CCDLibraryNativeException;
+	private native void CCD_Setup_Hardware_Test(String clazz,String source,int test_count) 
+		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that aborts the CCD setup.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 */
-	private native void CCD_Setup_Abort();
+	private native void CCD_Setup_Abort(String clazz,String source);
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that gets the number of columns.
 	 */
@@ -367,39 +390,59 @@ public class CCDLibrary
 	private native int CCD_Setup_Get_Window_Height(int index);
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that gets voltage ADUS.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 */
-	private native int CCD_Setup_Get_High_Voltage_Analogue_ADU() throws CCDLibraryNativeException;
+	private native int CCD_Setup_Get_High_Voltage_Analogue_ADU(String clazz,String source) 
+		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that gets voltage ADUS.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 */
-	private native int CCD_Setup_Get_Low_Voltage_Analogue_ADU() throws CCDLibraryNativeException;
+	private native int CCD_Setup_Get_Low_Voltage_Analogue_ADU(String clazz,String source) 
+		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that gets voltage ADUS.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 */
-	private native int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU() throws CCDLibraryNativeException;
+	private native int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(String clazz,String source) 
+		throws CCDLibraryNativeException;
 
 // ccd_temperature.h
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that gets the current temperature of the CCD.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native double CCD_Temperature_Get() throws CCDLibraryNativeException;
+	private native double CCD_Temperature_Get(String clazz,String source) throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that sets the current temperature of the CCD.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native void CCD_Temperature_Set(double target_temperature) throws CCDLibraryNativeException;
+	private native void CCD_Temperature_Set(String clazz,String source,double target_temperature) 
+		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that gets the ADU counts from the 
 	 * utility board temperature sensor.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native int CCD_Temperature_Get_Utility_Board_ADU() throws CCDLibraryNativeException;
+	private native int CCD_Temperature_Get_Utility_Board_ADU(String clazz,String source) 
+		throws CCDLibraryNativeException;
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that gets the current heater ADU counts.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 */
-	private native int CCD_Temperature_Get_Heater_ADU() throws CCDLibraryNativeException;
+	private native int CCD_Temperature_Get_Heater_ADU(String clazz,String source) 
+		throws CCDLibraryNativeException;
 // ccd_text.h
 	/**
 	 * Native wrapper to libfrodospec_ccd routine that sets the amount of output from the text interface.
@@ -459,12 +502,14 @@ public class CCDLibrary
 // ccd_dsp.h
 	/**
 	 * Method to get the elapsed exposure length of the current exposure.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @return The elapsed exposure length in milliseconds.
 	 * @see #CCD_DSP_Command_RET
 	 */
-	public int getElapsedExposureTime()
+	public int getElapsedExposureTime(String clazz,String source)
 	{
-		return CCD_DSP_Command_RET();
+		return CCD_DSP_Command_RET(clazz,source);
 	}
 
 	/**
@@ -549,6 +594,8 @@ public class CCDLibrary
 // ccd_exposure.h
 	/**
 	 * Routine to perform an exposure.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param openShutter Determines whether the shutter should be opened to do the exposure. The shutter might
 	 * 	be left closed to perform calibration images etc.
 	 * @param startTime The start time, in milliseconds since the epoch (1st January 1970) to start the exposure.
@@ -559,14 +606,16 @@ public class CCDLibrary
 	 *           CCD_Exposure_Expose failed.
 	 * @see #CCD_Exposure_Expose
 	 */
-	public void expose(boolean openShutter,long startTime,int exposureTime,List filenameList) 
-		throws CCDLibraryNativeException
+	public void expose(String clazz,String source,boolean openShutter,long startTime,int exposureTime,
+			   List filenameList) throws CCDLibraryNativeException
 	{
-		CCD_Exposure_Expose(openShutter,startTime,exposureTime,filenameList);
+		CCD_Exposure_Expose(clazz,source,openShutter,startTime,exposureTime,filenameList);
 	}
 
 	/**
 	 * Routine to perform an exposure.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param openShutter Determines whether the shutter should be opened to do the exposure. The shutter might
 	 * 	be left closed to perform calibration images etc.
 	 * @param startTime The start time, in milliseconds since the epoch (1st January 1970) to start the exposure.
@@ -577,37 +626,41 @@ public class CCDLibrary
 	 *           CCD_Exposure_Expose failed.
 	 * @see #CCD_Exposure_Expose
 	 */
-	public void expose(boolean openShutter,long startTime,int exposureTime,String filename) 
-		throws CCDLibraryNativeException
+	public void expose(String clazz,String source,boolean openShutter,long startTime,int exposureTime,
+			   String filename) throws CCDLibraryNativeException
 	{
 		List filenameList = null;
 
 		filenameList = new Vector();
 		filenameList.add(filename);
-		CCD_Exposure_Expose(openShutter,startTime,exposureTime,filenameList);
+		CCD_Exposure_Expose(clazz,source,openShutter,startTime,exposureTime,filenameList);
 	}
 
 	/**
 	 * Routine to perform a bias frame.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param filename The filename to save the bias frame into.
 	 * @exception CCDLibraryNativeException This routine throws a CCDLibraryNativeException if 
 	 *            CCD_Exposure_Bias failed.
 	 * @see #CCD_Exposure_Bias
 	 */
-	public void bias(String filename) throws CCDLibraryNativeException
+	public void bias(String clazz,String source,String filename) throws CCDLibraryNativeException
 	{
-		CCD_Exposure_Bias(filename);
+		CCD_Exposure_Bias(clazz,source,filename);
 	}
 
 	/**
 	 * Routine to abort an exposure/bias.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This routine throws a CCDLibraryNativeException if 
 	 *            the method failed.
 	 * @see #CCD_Exposure_Abort
 	 */
-	public void abort() throws CCDLibraryNativeException
+	public void abort(String clazz,String source) throws CCDLibraryNativeException
 	{
-		CCD_Exposure_Abort();
+		CCD_Exposure_Abort(clazz,source);
 	}
 
 	/**
@@ -673,6 +726,8 @@ public class CCDLibrary
 // ccd_interface.h
 	/**
 	 * Routine to open the interface. 
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param interfaceDevice The interface device to use to communicate with the SDSU CCD Controller.
 	 * 	One of: INTERFACE_DEVICE_NONE, INTERFACE_DEVICE_TEXT, INTERFACE_DEVICE_PCI.
 	 * @param devicePathname The pathname of the device. For devices of type PCI, this will be something like
@@ -686,22 +741,25 @@ public class CCDLibrary
 	 * @see #interfaceClose
 	 * @see #CCD_Interface_Open
 	 */
-	public void interfaceOpen(int interfaceDevice,String devicePathname) throws CCDLibraryNativeException
+	public void interfaceOpen(String clazz,String source,int interfaceDevice,String devicePathname) 
+		throws CCDLibraryNativeException
 	{
-		CCD_Interface_Open(interfaceDevice,devicePathname);
+		CCD_Interface_Open(clazz,source,interfaceDevice,devicePathname);
 	}
 
 	/**
 	 * Routine to close the interface opened with 
 	 * <b>interfaceOpen</b>.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if the device could
 	 * 	not be closed.
 	 * @see #interfaceOpen
 	 * @see #CCD_Interface_Close
 	 */
-	public void interfaceClose() throws CCDLibraryNativeException
+	public void interfaceClose(String clazz,String source) throws CCDLibraryNativeException
 	{
-		CCD_Interface_Close();
+		CCD_Interface_Close(clazz,source);
 	}
 
 	/**
@@ -736,6 +794,8 @@ public class CCDLibrary
 	/**
 	 * This routine sets up the SDSU CCD Controller.
 	 * This routine can be aborted with setupAbort.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param pciLoadType Where to load the PCI DSP program code from. Acceptable values are
 	 * 	SETUP_LOAD_ROM, SETUP_LOAD_APPLICATION and SETUP_LOAD_FILENAME.
 	 * @param pciFilename If pciLoadType is SETUP_LOAD_FILENAMEthis specifies which file to load from.
@@ -767,12 +827,12 @@ public class CCDLibrary
 	 * @see #DSP_GAIN_FOUR
 	 * @see #DSP_GAIN_NINE
 	 */
-	public void setup(int pciLoadType, String pciFilename,
+	public void setup(String clazz,String source,int pciLoadType, String pciFilename,
 		int timingLoadType,int timingApplicationNumber,String timingFilename,
 		int utilityLoadType,int utilityApplicationNumber,String utilityFilename,
 		double targetTemperature,int gain,boolean gainSpeed,boolean idle) throws CCDLibraryNativeException
 	{
-		CCD_Setup_Startup(pciLoadType,pciFilename,
+		CCD_Setup_Startup(clazz,source,pciLoadType,pciFilename,
 				  timingLoadType,timingApplicationNumber,timingFilename,
 				  utilityLoadType,utilityApplicationNumber,utilityFilename,
 				  targetTemperature,gain,gainSpeed,idle);
@@ -782,20 +842,24 @@ public class CCDLibrary
 	 * Routine to shut down the SDSU CCD Controller board. This consists of:
 	 * It then just remains to close the connection to the astro device driver.
 	 * This routine can be aborted with setupAbort.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if the shutdown failed.
 	 * @see #setup
 	 * @see #setupAbort
 	 * @see #CCD_Setup_Shutdown
 	 */
-	public void setupShutdown() throws CCDLibraryNativeException
+	public void setupShutdown(String clazz,String source) throws CCDLibraryNativeException
 	{
-		CCD_Setup_Shutdown();
+		CCD_Setup_Shutdown(clazz,source);
 	}
 
 	/**
 	 * Routine to setup dimension information in the controller. This needs to be setup before an exposure
 	 * can take place. This routine must be called <b>after</b> the setup method.
 	 * This routine can be aborted with setupAbort.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param ncols The number of columns in the image.
 	 * @param nrows The number of rows in the image.
 	 * @param nsbin The amount of binning applied to pixels in columns.This parameter will change internally
@@ -825,34 +889,39 @@ public class CCDLibrary
 	 * @see #setupAbort
 	 * @see #CCD_Setup_Dimensions
 	 */
-	public void setupDimensions(int ncols,int nrows,int nsbin,int npbin,
+	public void setupDimensions(String clazz,String source,int ncols,int nrows,int nsbin,int npbin,
 		int amplifier,int deinterlaceSetting,
 		int windowFlags,CCDLibrarySetupWindow windowList[]) throws CCDLibraryNativeException
 	{
-		CCD_Setup_Dimensions(ncols,nrows,nsbin,npbin,amplifier,deinterlaceSetting,windowFlags,windowList);
+		CCD_Setup_Dimensions(clazz,source,ncols,nrows,nsbin,npbin,amplifier,deinterlaceSetting,windowFlags,
+				     windowList);
 	}
 
 	/**
 	 * Method to perform a hardware data link test, to ensure we can communicate with each board in the
 	 * controller. This routine can be aborted with setupAbort.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param testCount The number of times to test each board.
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if the test failed.
 	 * @see #setupAbort
 	 * @see #CCD_Setup_Hardware_Test
 	 */
-	public void setupHardwareTest(int testCount) throws CCDLibraryNativeException
+	public void setupHardwareTest(String clazz,String source,int testCount) throws CCDLibraryNativeException
 	{
-		CCD_Setup_Hardware_Test(testCount);
+		CCD_Setup_Hardware_Test(clazz,source,testCount);
 	}
 
 	/**
 	 * Routine to abort a setup that is underway.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @see #setup
 	 * @see #CCD_Setup_Abort
 	 */
-	public void setupAbort()
+	public void setupAbort(String clazz,String source)
 	{
-		CCD_Setup_Abort();
+		CCD_Setup_Abort(clazz,source);
 	}
 
 	/**
@@ -1018,35 +1087,41 @@ public class CCDLibrary
 
 	/**
 	 * Routine to get the measured high voltage analogue voltage, in ADUs.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @return Returns the number of ADU counts representing this voltage.
 	 * @exception CCDLibraryFormatException Thrown if the adu value could not be retrieved.
 	 * @see #CCD_Setup_Get_High_Voltage_Analogue_ADU
 	 */
-	public int getHighVoltageAnalogueADU() throws CCDLibraryNativeException
+	public int getHighVoltageAnalogueADU(String clazz,String source) throws CCDLibraryNativeException
 	{
-		return CCD_Setup_Get_High_Voltage_Analogue_ADU();
+		return CCD_Setup_Get_High_Voltage_Analogue_ADU(clazz,source);
 	}
 
 	/**
 	 * Routine to get the measured low voltage analogue voltage, in ADUs.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @return Returns the number of ADU counts representing this voltage.
 	 * @exception CCDLibraryFormatException Thrown if the adu value could not be retrieved.
 	 * @see #CCD_Setup_Get_Low_Voltage_Analogue_ADU
 	 */
-	public int getLowVoltageAnalogueADU() throws CCDLibraryNativeException
+	public int getLowVoltageAnalogueADU(String clazz,String source) throws CCDLibraryNativeException
 	{
-		return CCD_Setup_Get_Low_Voltage_Analogue_ADU();
+		return CCD_Setup_Get_Low_Voltage_Analogue_ADU(clazz,source);
 	}
 
 	/**
 	 * Routine to get the measured high voltage analogue voltage, in ADUs.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @return Returns the number of ADU counts representing this voltage.
 	 * @exception CCDLibraryFormatException Thrown if the adu value could not be retrieved.
 	 * @see #CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU
 	 */
-	public int getMinusLowVoltageAnalogueADU() throws CCDLibraryNativeException
+	public int getMinusLowVoltageAnalogueADU(String clazz,String source) throws CCDLibraryNativeException
 	{
-		return CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU();
+		return CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(clazz,source);
 	}
 
 	/**
@@ -1072,46 +1147,55 @@ public class CCDLibrary
 // ccd_temperature.h
 	/**
 	 * Routine to get the current CCD temperature.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @return The current temperature is returned, in degrees centigrade.
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 * @see #CCD_Temperature_Get
 	 */
-	public double temperatureGet() throws CCDLibraryNativeException
+	public double temperatureGet(String clazz,String source) throws CCDLibraryNativeException
 	{
-		return CCD_Temperature_Get();
+		return CCD_Temperature_Get(clazz,source);
 	}
 
 	/**
 	 * Routine to set the temperature of the CCD.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @param targetTemperature The temperature in degrees centigrade required for the CCD.
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 * @see #CCD_Temperature_Set
 	 */
-	public void temperatureSet(double targetTemperature) throws CCDLibraryNativeException
+	public void temperatureSet(String clazz,String source,double targetTemperature) 
+		throws CCDLibraryNativeException
 	{
-		CCD_Temperature_Set(targetTemperature);
+		CCD_Temperature_Set(clazz,source,targetTemperature);
 	}
 
 	/**
 	 * Routine to get the Analogue to Digital count from the utility board temperature sensor, 
 	 * a measure of the temperature of the utility board electronics.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 * @see #CCD_Temperature_Get_Utility_Board_ADU
 	 */
-	public int temperatureGetUtilityBoardADU() throws CCDLibraryNativeException
+	public int temperatureGetUtilityBoardADU(String clazz,String source) throws CCDLibraryNativeException
 	{
-		return CCD_Temperature_Get_Utility_Board_ADU();
+		return CCD_Temperature_Get_Utility_Board_ADU(clazz,source);
 	}
 
 	/**
 	 * Routine to get the current CCD heater Analogue to Digital count, a measure of how much
 	 * heat is being put into the dewar to control the temperature.
+	 * @param clazz A string representing the class used for logging messages as a result of this operation. 
+	 * @param source A string representing the source used for logging messages as a result of this operation. 
 	 * @exception CCDLibraryNativeException This method throws a CCDLibraryNativeException if it failed.
 	 * @see #CCD_Temperature_Get_Heater_ADU
 	 */
-	public int temperatureGetHeaterADU() throws CCDLibraryNativeException
+	public int temperatureGetHeaterADU(String clazz,String source) throws CCDLibraryNativeException
 	{
-		return CCD_Temperature_Get_Heater_ADU();
+		return CCD_Temperature_Get_Heater_ADU(clazz,source);
 	}
 
 // ccd_text.h
@@ -1165,6 +1249,10 @@ public class CCDLibrary
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2009/02/05 11:39:58  cjm
+// Swapped Bitwise for Absolute logging levels.
+// y
+//
 // Revision 1.1  2008/11/20 11:34:28  cjm
 // Initial revision
 //
