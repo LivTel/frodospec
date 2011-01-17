@@ -1,5 +1,5 @@
 // TestCCDRedatum.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/test/TestCCDRedatum.java,v 1.2 2011-01-05 14:12:41 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/test/TestCCDRedatum.java,v 1.3 2011-01-17 10:48:05 cjm Exp $
 package ngat.frodospec.ccd.test;
 
 import java.lang.*;
@@ -19,14 +19,14 @@ import ngat.frodospec.ccd.*;
  * This software tests opening and closing connections to the FrodoSpec CCDs - this is currently failing with
  * missing interface pointers from FrodoSpec itself.
  * @author Chris Mottram
- * @version $Revision: 1.2 $
+ * @version $Revision: 1.3 $
  */
 public class TestCCDRedatum
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: TestCCDRedatum.java,v 1.2 2011-01-05 14:12:41 cjm Exp $");
+	public final static String RCSID = new String("$Id: TestCCDRedatum.java,v 1.3 2011-01-17 10:48:05 cjm Exp $");
 	/**
 	 * Default config filename.
 	 */
@@ -232,8 +232,9 @@ public class TestCCDRedatum
 						ccd = blueCCD;
 					ccd.initialise();
 					ccd.setTextPrintLevel(textPrintLevel);
-					ccd.interfaceOpen(deviceNumber,devicePathname);
-					ccd.setup(pciLoadType,pciFilename,
+					ccd.interfaceOpen("TestCCDRedatum",ARM_STRING_LIST[arm],deviceNumber,
+							  devicePathname);
+					ccd.setup("TestCCDRedatum",ARM_STRING_LIST[arm],pciLoadType,pciFilename,
 						  timingLoadType,timingApplicationNumber,timingFilename,
 						  utilityLoadType,utilityApplicationNumber,utilityFilename,
 						  targetTemperature,gain,gainSpeed,idle);
@@ -270,14 +271,14 @@ public class TestCCDRedatum
 		enable = properties.getBoolean("frodospec.ccd.red.enable");
 		if(enable)
 		{
-			redCCD.setupShutdown();
-			redCCD.interfaceClose();
+			redCCD.setupShutdown("TestCCDRedatum","red");
+			redCCD.interfaceClose("TestCCDRedatum","red");
 		}
 		enable = properties.getBoolean("frodospec.ccd.blue.enable");
 		if(enable)
 		{
-			blueCCD.setupShutdown();
-			blueCCD.interfaceClose();
+			blueCCD.setupShutdown("TestCCDRedatum","blue");
+			blueCCD.interfaceClose("TestCCDRedatum","blue");
 		}
 	}
 
@@ -446,6 +447,9 @@ public class TestCCDRedatum
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.2  2011/01/05 14:12:41  cjm
+// Fixed comments
+//
 // Revision 1.1  2009/03/05 12:15:48  cjm
 // Initial revision
 //
