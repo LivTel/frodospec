@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.9 2011-01-12 11:50:03 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.10 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.9 $
+ * @version $Revision: 1.10 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.9 2011-01-12 11:50:03 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.10 2011-01-17 10:48:10 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -530,7 +530,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				      this.getClass().getName()+
 				      ":processCommand:Getting elapsed exposure time for arm "+
 				      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
-			elapsedExposureTime = ccdList[arm].getElapsedExposureTime();
+			elapsedExposureTime = ccdList[arm].getElapsedExposureTime("GET_STATUS",
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			// Always add the exposure time, if we are reading out it has been set to 0
 			hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+".Elapsed Exposure Time",
 				      new Integer(elapsedExposureTime));
@@ -557,7 +558,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 							      this.getClass().getName()+
 							      ":processCommand:Getting temperature for arm "+
 							      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
-						dvalue = ccdList[arm].temperatureGet();
+						dvalue = ccdList[arm].temperatureGet("GET_STATUS",
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
 						hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+".Temperature",
 							      new Double(dvalue+CENTIGRADE_TO_KELVIN));
 						sdsuCommsInstrumentStatus[arm] = GET_STATUS_DONE.VALUE_STATUS_OK;
@@ -594,10 +596,12 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 							      this.getClass().getName()+
 							      ":processCommand:Getting temperature ADUs for arm "+
 							      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
-						adu = ccdList[arm].temperatureGetHeaterADU();
+						adu = ccdList[arm].temperatureGetHeaterADU("GET_STATUS",
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
 						hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+".Heater ADU",
 							      new Integer(adu));
-						adu = ccdList[arm].temperatureGetUtilityBoardADU();
+						adu = ccdList[arm].temperatureGetUtilityBoardADU("GET_STATUS",
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
 						hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							      ".Utility Board Temperature ADU",new Integer(adu));
 					}
@@ -617,13 +621,16 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 							      this.getClass().getName()+
 							      ":processCommand:Getting voltage ADUs for arm "+
 							      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
-						adu = ccdList[arm].getHighVoltageAnalogueADU();
+						adu = ccdList[arm].getHighVoltageAnalogueADU("GET_STATUS",
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
 						hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							      ".High Voltage Supply ADU",new Integer(adu));
-						adu = ccdList[arm].getLowVoltageAnalogueADU();
+						adu = ccdList[arm].getLowVoltageAnalogueADU("GET_STATUS",
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
 						hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							      ".Low Voltage Supply ADU",new Integer(adu));
-						adu = ccdList[arm].getMinusLowVoltageAnalogueADU();
+						adu = ccdList[arm].getMinusLowVoltageAnalogueADU("GET_STATUS",
+								 FrodoSpecConstants.ARM_STRING_LIST[arm]);
 						hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+
 							      ".Minus Low Voltage Supply ADU",
 							      new Integer(adu));
@@ -1224,6 +1231,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.9  2011/01/12 11:50:03  cjm
+// Adding clazz and source logging to PLC/Lamp API.
+//
 // Revision 1.8  2011/01/05 14:07:42  cjm
 // Added class argument to focusStage.getPosition to improve logging
 //

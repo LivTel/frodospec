@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.11 2011-01-12 11:50:03 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.12 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.11 $
+ * @version $Revision: 1.12 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.11 2011-01-12 11:50:03 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.12 2011-01-17 10:48:10 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1055,8 +1055,10 @@ public class FrodoSpec
 						ccd = blueCCD;
 					ccd.initialise();
 					ccd.setTextPrintLevel(textPrintLevel);
-					ccd.interfaceOpen(deviceNumber,devicePathname);
-					ccd.setup(pciLoadType,pciFilename,
+					ccd.interfaceOpen("FrodoSpec",FrodoSpecConstants.ARM_STRING_LIST[arm],
+							  deviceNumber,devicePathname);
+					ccd.setup("FrodoSpec",FrodoSpecConstants.ARM_STRING_LIST[arm],
+						  pciLoadType,pciFilename,
 						  timingLoadType,timingApplicationNumber,timingFilename,
 						  utilityLoadType,utilityApplicationNumber,utilityFilename,
 						  targetTemperature,gain,gainSpeed,idle);
@@ -1146,14 +1148,14 @@ public class FrodoSpec
 		enable = status.getPropertyBoolean("frodospec.ccd.red.enable");
 		if(enable)
 		{
-			redCCD.setupShutdown();
-			redCCD.interfaceClose();
+			redCCD.setupShutdown("FrodoSpec","red");
+			redCCD.interfaceClose("FrodoSpec","red");
 		}
 		enable = status.getPropertyBoolean("frodospec.ccd.blue.enable");
 		if(enable)
 		{
-			blueCCD.setupShutdown();
-			blueCCD.interfaceClose();
+			blueCCD.setupShutdown("FrodoSpec","blue");
+			blueCCD.interfaceClose("FrodoSpec","blue");
 		}
 	}
 
@@ -1979,6 +1981,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.11  2011/01/12 11:50:03  cjm
+// Add overloaded clazz,source log method.
+//
 // Revision 1.10  2011/01/05 14:07:42  cjm
 // *** empty log message ***
 //

@@ -1,5 +1,5 @@
 // CONFIGImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.11 2011-01-12 11:50:03 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/CONFIGImplementation.java,v 1.12 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -18,14 +18,14 @@ import ngat.util.logging.*;
  * Java Message System. It extends SETUPImplementation.
  * @see SETUPImplementation
  * @author Chris Mottram
- * @version $Revision: 1.11 $
+ * @version $Revision: 1.12 $
  */
 public class CONFIGImplementation extends SETUPImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.11 2011-01-12 11:50:03 cjm Exp $");
+	public final static String RCSID = new String("$Id: CONFIGImplementation.java,v 1.12 2011-01-17 10:48:10 cjm Exp $");
 	/**
 	 * Constructor. 
 	 */
@@ -114,8 +114,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		int numberColumns,numberRows,amplifier,deInterlaceSetting,arm;
 		boolean ccdEnable,calibrateBefore,calibrateAfter;
 
-		frodospec.log(Logger.VERBOSITY_VERBOSE,command.getClass().getName(),null,
-			      this.getClass().getName()+":Command:"+
+		frodospec.log(Logger.VERBOSITY_VERBOSE,"CONFIG",null,this.getClass().getName()+":Command:"+
 			     command.getClass().getName()+":processCommand:started.");
 	// test contents of command.
 		configCommand = (CONFIG)command;
@@ -251,16 +250,21 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		{
 			if(ccdEnable)
 			{
-				frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
-					      ":processCommand:Calling setupDimensions.");
-				ccd.setupDimensions(numberColumns,numberRows,detector.getXBin(),detector.getYBin(),
+				frodospec.log(Logger.VERBOSITY_VERBOSE,"CONFIG",
+					      FrodoSpecConstants.ARM_STRING_LIST[arm],
+					      this.getClass().getName()+":processCommand:Calling setupDimensions.");
+				ccd.setupDimensions("CONFIG",FrodoSpecConstants.ARM_STRING_LIST[arm],
+						    numberColumns,numberRows,detector.getXBin(),detector.getYBin(),
 						    amplifier,deInterlaceSetting,detector.getWindowFlags(),windowList);
-				frodospec.log(Logger.VERBOSITY_VERBOSE,this.getClass().getName()+
+				frodospec.log(Logger.VERBOSITY_VERBOSE,"CONFIG",
+					      FrodoSpecConstants.ARM_STRING_LIST[arm],this.getClass().getName()+
 					      ":processCommand:Finished setupDimensions.");
 			}
 			else
 			{
-				frodospec.log(Logger.VERBOSITY_VERY_TERSE,this.getClass().getName()+
+				frodospec.log(Logger.VERBOSITY_VERY_TERSE,"CONFIG",
+					      FrodoSpecConstants.ARM_STRING_LIST[arm],
+					      this.getClass().getName()+
 					      ":processCommand:CCD not enabled:CCD library NOT configured.");
 			}
 			if(testAbort(configCommand,configDone) == true)
@@ -277,18 +281,15 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
        // send grating configuration to the PLC
 		try
 		{
-			frodospec.log(Logger.VERBOSITY_VERBOSE,
-				      command.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			frodospec.log(Logger.VERBOSITY_VERBOSE,"CONFIG",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				      this.getClass().getName()+":processCommand:Finding PLC.");
 			plc = frodospec.getPLC();
-			frodospec.log(Logger.VERBOSITY_VERBOSE,
-				      command.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			frodospec.log(Logger.VERBOSITY_VERBOSE,"CONFIG",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				      this.getClass().getName()+":processCommand:Setting arm "+arm+" to resolution "+
 				      frodospecConfig.getResolution()+".");
-			plc.setGrating(command.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			plc.setGrating("CONFIG",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				       arm,frodospecConfig.getResolution());
-			frodospec.log(Logger.VERBOSITY_VERBOSE,
-				      command.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			frodospec.log(Logger.VERBOSITY_VERBOSE,"CONFIG",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				      this.getClass().getName()+":processCommand:Grating set.");
 		}
 		catch(Exception e)
@@ -303,7 +304,7 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 		try
 		{
 			frodospec.log(Logger.VERBOSITY_VERBOSE,
-				      command.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				      "CONFIG",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				      this.getClass().getName()+":processCommand:Getting focus stage for arm "+
 				      FrodoSpecConstants.ARM_STRING_LIST[arm]+".");
 			focusStage = frodospec.getFocusStage(arm);
@@ -432,6 +433,9 @@ public class CONFIGImplementation extends SETUPImplementation implements JMSComm
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.11  2011/01/12 11:50:03  cjm
+// Adding clazz and source logging to PLC/Lamp API.
+//
 // Revision 1.10  2011/01/05 14:07:42  cjm
 // Added class argument to focusStage.getPosition to improve logging.
 //

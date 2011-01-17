@@ -1,5 +1,5 @@
 // ABORTImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ABORTImplementation.java,v 1.3 2011-01-12 11:50:03 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ABORTImplementation.java,v 1.4 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -12,14 +12,14 @@ import ngat.frodospec.ccd.*;
  * This class provides the implementation for the ABORT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class ABORTImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ABORTImplementation.java,v 1.3 2011-01-12 11:50:03 cjm Exp $");
+	public final static String RCSID = new String("$Id: ABORTImplementation.java,v 1.4 2011-01-17 10:48:10 cjm Exp $");
 
 	/**
 	 * Constructor.
@@ -178,7 +178,7 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 			case CCDLibrary.EXPOSURE_STATUS_EXPOSE:
 				try
 				{
-					ccd.abort();
+					ccd.abort("ABORT",FrodoSpecConstants.ARM_STRING_LIST[arm]);
 				}
 				catch(CCDLibraryNativeException e)
 				{
@@ -202,7 +202,7 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 		}
 	// abort CCD setup
 		if(ccd.getSetupInProgress())
-			ccd.setupAbort();
+			ccd.setupAbort("ABORT",FrodoSpecConstants.ARM_STRING_LIST[arm]);
 	// abort grating movement ops
 		try
 		{
@@ -231,6 +231,9 @@ public class ABORTImplementation extends INTERRUPTImplementation implements JMSC
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2011/01/12 11:50:03  cjm
+// Adding clazz and source logging to PLC/Lamp API.
+//
 // Revision 1.2  2011/01/05 14:07:42  cjm
 // Fixed javadocs.
 //

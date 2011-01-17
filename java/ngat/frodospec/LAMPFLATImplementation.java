@@ -1,5 +1,5 @@
 // LAMPFLATImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.7 2011-01-12 11:50:03 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/LAMPFLATImplementation.java,v 1.8 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the LAMPFLAT command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class LAMPFLATImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.7 2011-01-12 11:50:03 cjm Exp $");
+	public final static String RCSID = new String("$Id: LAMPFLATImplementation.java,v 1.8 2011-01-17 10:48:10 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -303,7 +303,8 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 			try
 			{
 				// diddly window 1 filename only
-				ccd.expose(true,-1,exposureLength,filename);
+				ccd.expose("LAMPFLAT",FrodoSpecConstants.ARM_STRING_LIST[arm],
+					   true,-1,exposureLength,filename);
 			}
 			catch(CCDLibraryNativeException e)
 			{
@@ -364,6 +365,9 @@ public class LAMPFLATImplementation extends CALIBRATEImplementation implements J
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2011/01/12 11:50:03  cjm
+// Adding clazz and source logging to PLC/Lamp API.
+//
 // Revision 1.6  2010/04/07 15:13:15  cjm
 // More documentation.
 // sendBasicAck used to ensure client does not time out when a long ARC exposure length is used.

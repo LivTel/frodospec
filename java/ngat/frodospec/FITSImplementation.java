@@ -1,5 +1,5 @@
 // FITSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.18 2011-01-12 11:50:03 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FITSImplementation.java,v 1.19 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * use the hardware  libraries as this is needed to generate FITS files.
  * @see HardwareImplementation
  * @author Chris Mottram
- * @version $Revision: 1.18 $
+ * @version $Revision: 1.19 $
  */
 public class FITSImplementation extends HardwareImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.18 2011-01-12 11:50:03 cjm Exp $");
+	public final static String RCSID = new String("$Id: FITSImplementation.java,v 1.19 2011-01-17 10:48:10 cjm Exp $");
 	/**
 	 * A reference to the FrodoSpecStatus class instance that holds status information for the FrodoSpec.
 	 */
@@ -493,7 +493,8 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 		try
 		{
 			// actual temperature
-			actualTemperature = ccd.temperatureGet();
+			actualTemperature = ccd.temperatureGet(command.getClass().getName(),
+							       FrodoSpecConstants.ARM_STRING_LIST[arm]);
 			// currently configured binning
 			xbin = ccd.getXBin();
 			ybin = ccd.getYBin();
@@ -1553,6 +1554,9 @@ public class FITSImplementation extends HardwareImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.18  2011/01/12 11:50:03  cjm
+// Adding clazz and source logging to PLC API.
+//
 // Revision 1.17  2011/01/05 14:07:42  cjm
 // focusStage.getPosition API change associated with logging.
 //

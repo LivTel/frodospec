@@ -1,5 +1,5 @@
 // DAY_CALIBRATEImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.6 2010-04-07 15:09:52 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/DAY_CALIBRATEImplementation.java,v 1.7 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.io.*;
@@ -19,14 +19,14 @@ import ngat.util.logging.*;
  * Java Message System. It performs a series of BIAS and DARK frames from a configurable list,
  * taking into account frames done in previous invocations of this command (it saves it's state).
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.6 2010-04-07 15:09:52 cjm Exp $");
+	public final static String RCSID = new String("$Id: DAY_CALIBRATEImplementation.java,v 1.7 2011-01-17 10:48:10 cjm Exp $");
 	/**
 	 * Initial part of a key string, used to create a list of potential day calibrations to
 	 * perform from a Java property file.
@@ -670,7 +670,8 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 		{
 			if(ccdEnable)
 			{
-				ccd.setupDimensions(numberColumns,numberRows,bin,bin,
+				ccd.setupDimensions("DAY_CALIBRATE",FrodoSpecConstants.ARM_STRING_LIST[arm],
+						    numberColumns,numberRows,bin,bin,
 						    amplifier,deInterlaceSetting,0,windowList);
 			}
 			else
@@ -832,11 +833,12 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
 			{
 				if(type == DAY_CALIBRATECalibration.TYPE_BIAS)
 				{
-					ccd.bias(filename);
+					ccd.bias("DAY_CALIBRATE",FrodoSpecConstants.ARM_STRING_LIST[arm],filename);
 				}
 				else if (type == DAY_CALIBRATECalibration.TYPE_DARK)
 				{
-					ccd.expose(false,-1,exposureTime,filename);
+					ccd.expose("DAY_CALIBRATE",FrodoSpecConstants.ARM_STRING_LIST[arm],
+						   false,-1,exposureTime,filename);
 				}
 			}
 			catch(CCDLibraryNativeException e)
@@ -1341,6 +1343,10 @@ public class DAY_CALIBRATEImplementation extends CALIBRATEImplementation impleme
  
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2010/04/07 15:09:52  cjm
+// Removed sendBasicAck method, now in CALIBRATEImplementation as other
+// CALIBRATE commands need this method.
+//
 // Revision 1.5  2010/02/08 11:09:43  cjm
 // Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
 //

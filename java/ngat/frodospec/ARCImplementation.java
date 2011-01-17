@@ -1,5 +1,5 @@
 // ARCImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.10 2011-01-12 11:50:03 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ARCImplementation.java,v 1.11 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -23,14 +23,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the ARC command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.10 $
+ * @version $Revision: 1.11 $
  */
 public class ARCImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.10 2011-01-12 11:50:03 cjm Exp $");
+	public final static String RCSID = new String("$Id: ARCImplementation.java,v 1.11 2011-01-17 10:48:10 cjm Exp $");
 	/**
 	 * Constructor.
 	 */
@@ -158,7 +158,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		plc = frodospec.getPLC();
 		try
 		{
-			resolution = plc.getGratingResolution(this.getClass().getName(),
+			resolution = plc.getGratingResolution("FRODOSPEC_ARC",
 							      FrodoSpecConstants.ARM_STRING_LIST[arm],arm);
 		}
 		catch(EIPNativeException e)
@@ -203,7 +203,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 	// We must do this before saving the FITS headers, if we want the right LAMPFLUX and LAMP<n>SET values.
 		try
 		{
-			frodospec.getLampController().setLampLock(this.getClass().getName(),
+			frodospec.getLampController().setLampLock("FRODOSPEC_ARC",
 								  FrodoSpecConstants.ARM_STRING_LIST[arm],
 								  arm,lampsString,serverConnectionThread);
 		}
@@ -219,7 +219,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		if(testAbort(arcCommand,arcDone) == true)
 		{
 			// turn lamps off
-			turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				     arm,arcCommand,arcDone);
 			return arcDone;
 		}
@@ -228,21 +228,21 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		if(setFitsHeaders(arcCommand,arcDone,arm,FitsHeaderDefaults.OBSTYPE_VALUE_ARC,exposureLength) == false)
 		{
 			// turn lamps off
-			turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				     arm,arcCommand,arcDone);
 			return arcDone;
 		}
 		if(getFitsHeadersFromISS(arcCommand,arcDone,arm) == false)
 		{
 			// turn lamps off
-			turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				     arm,arcCommand,arcDone);
 			return arcDone;
 		}
 		if(testAbort(arcCommand,arcDone) == true)
 		{
 			// turn lamps off
-			turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				     arm,arcCommand,arcDone);
 			return arcDone;
 		}
@@ -260,7 +260,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		catch(Exception e)
 		{
 			// switch lamp off
-			turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+			turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				     arm,arcCommand,arcDone);
 			frodospec.error(this.getClass().getName()+
 				  ":processCommand:"+command+":"+e.toString());
@@ -276,8 +276,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		if(saveFitsHeaders(arcCommand,arcDone,arm,filename) == false)
 		{
 			// switch lamp off
-			turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
-				     arm,arcCommand,arcDone);
+			turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],arm,arcCommand,arcDone);
 			unLockFile(arcCommand,arcDone,filename);
 			return arcDone;
 		}
@@ -286,8 +285,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 				exposureLength+serverConnectionThread.getDefaultAcknowledgeTime()) == false)
 		{
 			// switch lamp off
-			turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
-				     arm,arcCommand,arcDone);
+			turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],arm,arcCommand,arcDone);
 			unLockFile(arcCommand,arcDone,filename);
 			return arcDone;
 		}
@@ -297,13 +295,13 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 		{
 			try
 			{
-				// diddly window 1 filename only
-				ccd.expose(true,-1,exposureLength,filename);
+				ccd.expose("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
+					   true,-1,exposureLength,filename);
 			}
 			catch(CCDLibraryNativeException e)
 			{
 				// switch lamp off
-				turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+				turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
 					     arm,arcCommand,arcDone);
 				unLockFile(arcCommand,arcDone,filename);
 				frodospec.error(this.getClass().getName()+
@@ -321,7 +319,7 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 				      ":processCommand:Did not do arc exposure, ccd enable was false.");
 		}
 		// switch lamp off
-		if(turnLampsOff(this.getClass().getName(),FrodoSpecConstants.ARM_STRING_LIST[arm],
+		if(turnLampsOff("FRODOSPEC_ARC",FrodoSpecConstants.ARM_STRING_LIST[arm],
 				arm,arcCommand,arcDone) == false)
 		{
 			return arcDone;
@@ -361,6 +359,9 @@ public class ARCImplementation extends CALIBRATEImplementation implements JMSCom
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2011/01/12 11:50:03  cjm
+// Adding clazz and source logging to PLC/Lamp API.
+//
 // Revision 1.9  2010/04/07 15:13:16  cjm
 // More documentation.
 // sendBasicAck used to ensure client does not time out when a long ARC exposure length is used.

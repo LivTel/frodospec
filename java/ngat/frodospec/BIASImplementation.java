@@ -1,5 +1,5 @@
 // BIASImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/BIASImplementation.java,v 1.3 2010-02-08 11:09:37 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/BIASImplementation.java,v 1.4 2011-01-17 10:48:10 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the BIAS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.3 $
+ * @version $Revision: 1.4 $
  */
 public class BIASImplementation extends CALIBRATEImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: BIASImplementation.java,v 1.3 2010-02-08 11:09:37 cjm Exp $");
+	public final static String RCSID = new String("$Id: BIASImplementation.java,v 1.4 2011-01-17 10:48:10 cjm Exp $");
 
 	/**
 	 * Constructor.
@@ -148,7 +148,7 @@ public class BIASImplementation extends CALIBRATEImplementation implements JMSCo
 		{
 			try
 			{
-				ccd.bias(filename);
+				ccd.bias("BIAS",FrodoSpecConstants.ARM_STRING_LIST[arm],filename);
 			}
 			catch(CCDLibraryNativeException e)
 			{
@@ -187,6 +187,9 @@ public class BIASImplementation extends CALIBRATEImplementation implements JMSCo
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.3  2010/02/08 11:09:37  cjm
+// Added unLockFile calls as saveFitsHeaders now creates FITS file locks.
+//
 // Revision 1.2  2009/02/05 11:38:59  cjm
 // Swapped Bitwise for Absolute logging levels.
 //
