@@ -1,5 +1,5 @@
 /* ccd_interface.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_interface.h,v 0.4 2008-11-20 11:34:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_interface.h,v 0.5 2011-01-17 10:58:44 cjm Exp $
 */
 
 #ifndef CCD_INTERFACE_H
@@ -37,15 +37,15 @@ typedef struct CCD_Interface_Handle_Struct CCD_Interface_Handle_T;
 
 /* top level implementation of device interface */
 extern void CCD_Interface_Initialise(void);
-extern int CCD_Interface_Open(enum CCD_INTERFACE_DEVICE_ID device_number,char *device_pathname,
-			      CCD_Interface_Handle_T **handle);
+extern int CCD_Interface_Open(char *class,char *source,enum CCD_INTERFACE_DEVICE_ID device_number,
+			      char *device_pathname,CCD_Interface_Handle_T **handle);
 extern int CCD_Interface_Memory_Map(CCD_Interface_Handle_T *handle,int buffer_size);
 extern int CCD_Interface_Memory_UnMap(CCD_Interface_Handle_T *handle);
 extern int CCD_Interface_Command(CCD_Interface_Handle_T *handle,int request,int *argument);
 extern int CCD_Interface_Command_List(CCD_Interface_Handle_T *handle,int request,int *argument_list,
 				      int argument_count);
 extern int CCD_Interface_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short **data);
-extern int CCD_Interface_Close(CCD_Interface_Handle_T **handle);
+extern int CCD_Interface_Close(char *class,char *source,CCD_Interface_Handle_T **handle);
 extern int CCD_Interface_Get_Error_Number(void);
 extern void CCD_Interface_Error(void);
 extern void CCD_Interface_Error_String(char *error_string);

@@ -1,5 +1,5 @@
 /* test_dsp_download.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_dsp_download.c,v 1.4 2008-11-20 11:34:58 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_dsp_download.c,v 1.5 2011-01-17 10:59:05 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +20,7 @@
  * 	-i[nterface_device] &lt;pci|text&gt; -t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 /* hash definitions */
 /**
@@ -38,7 +38,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_dsp_download.c,v 1.4 2008-11-20 11:34:58 cjm Exp $";
+static char rcsid[] = "$Id: test_dsp_download.c,v 1.5 2011-01-17 10:59:05 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
 			break;
 	}
-	retval = CCD_Interface_Open(Interface_Device,device_pathname,&handle);
+	retval = CCD_Interface_Open("test_dsp_download","-",Interface_Device,device_pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -111,13 +111,13 @@ int main(int argc, char *argv[])
 	if(Board == CCD_DSP_TIM_BOARD_ID)
 	{
 		fprintf(stdout,"Downloading to Timing board:Checking whether we are idling the CCD.\n");
-		value = CCD_DSP_Command_RDM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0);
+		value = CCD_DSP_Command_RDM("test_dsp_download","-",handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0);
 		fprintf(stdout,"RDM(Timing,X,0) returned:%#x , checking whether bit 2 set (IDLMODE).\n",value);
 		bit_value = value & SETUP_TIMING_IDLMODE;
 		if(bit_value > 0)
 		{
 			fprintf(stdout,"Sending STP to Timing board.\n");
-			if(CCD_DSP_Command_STP(handle)!= CCD_DSP_DON)
+			if(CCD_DSP_Command_STP("test_dsp_download","-",handle)!= CCD_DSP_DON)
 			{
 				fprintf(stderr,"Timing Board:Failed to load filename '%s':STP failed.",
 					Filename);
@@ -132,7 +132,7 @@ int main(int argc, char *argv[])
 	else
 		fprintf(stdout,"Downloading NULL to %d.\n",Board);
 	fflush(stdout);
-	retval = CCD_DSP_Download(handle,Board,Filename);
+	retval = CCD_DSP_Download("test_dsp_download","-",handle,Board,Filename);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
 		if(bit_value > 0)
 		{
 			fprintf(stdout,"Sending IDL to Timing board.\n");
-			if(CCD_DSP_Command_IDL(handle)!=CCD_DSP_DON)
+			if(CCD_DSP_Command_IDL("test_dsp_download","-",handle)!=CCD_DSP_DON)
 			{
 				fprintf(stderr,"Timing Board:Failed to load filename '%s':IDL failed.",
 					Filename);
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 	}/* end if board is timing */
 /* close interface to SDSU controller */
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close(&handle);
+	CCD_Interface_Close("test_dsp_download","-",&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return retval;
 }
@@ -294,6 +294,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2008/11/20 11:34:58  cjm
+** *** empty log message ***
+**
 ** Revision 1.3  2006/11/06 16:52:49  eng
 ** Added includes to fix implicit function declarations.
 **

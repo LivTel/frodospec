@@ -1,6 +1,6 @@
 /* ccd_temperature.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.14 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_temperature.c,v 0.15 2011-01-17 10:57:54 cjm Exp $
 */
 
 /**
@@ -13,7 +13,7 @@
  * to-voltage conversion factor is needed to use the formula given by
  * Omega Engineering.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.14 $
+ * @version $Revision: 0.15 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -35,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_temperature.c,v 0.14 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_temperature.c,v 0.15 2011-01-17 10:57:54 cjm Exp $";
 
 /**
  * The number of coefficients used to calculate the temperature.
@@ -213,6 +213,8 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[],int n,float vu,float vl,
  * of the voltage from the temperature sensor in it. This is done TEMPERATURE_MAX_CHECKS times.
  * The temperature is calculated from the adu by calling Temperature_Temperature. 
  * If the voltage is out of range an error is returned.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param temperature The address of a variable to hold the calculated temperature to be returned.
  * 	The returned temperature is in degrees centigrade.
@@ -225,7 +227,7 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[],int n,float vu,float vl,
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
+int CCD_Temperature_Get(char *class,char *source,CCD_Interface_Handle_T* handle,double *temperature)
 {
 	struct timespec sleep_time;
 	int adu,retval;
@@ -234,7 +236,7 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
 
 	Temperature_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get() started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get() started.");
 #endif
 	if(temperature == NULL)
 	{
@@ -245,7 +247,7 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
 	adu = 0;
 	for (i = 0; i < TEMPERATURE_MAX_CHECKS; i++)
 	{
-		retval = CCD_DSP_Command_RDM(handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+		retval = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
 					     TEMPERATURE_CURRENT_ADU_ADDRESS);
 		if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 		{
@@ -254,7 +256,7 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
 			return FALSE;
 		}
 #if LOGGING > 9
-		CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():RDM returned %d.",
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():RDM returned %d.",
 			retval);
 #endif
 	/* ensure returned adu in range */
@@ -267,7 +269,7 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
 	}
 
 #if LOGGING > 9
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():%d RDMs returned %d.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():%d RDMs returned %d.",
 			TEMPERATURE_MAX_CHECKS,adu);
 #endif
 
@@ -275,7 +277,7 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
 	adu = adu / TEMPERATURE_MAX_CHECKS;
 
 #if LOGGING > 9
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():Average adu:%d.",adu);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():Average adu:%d.",adu);
 #endif
 
 	/* Calculate the temperature */
@@ -284,20 +286,21 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
 		Temperature_Data.V_Lower,Temperature_Data.Adu_Per_Volt,Temperature_Data.Adu_Offset,(float)adu);
 
 #if LOGGING > 9
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():Temperature:%.2f.",(*temperature));
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():Temperature:%.2f.",
+			      (*temperature));
 #endif
 
 	voltage = (adu - Temperature_Data.Adu_Offset) / Temperature_Data.Adu_Per_Volt; 
 
 #if LOGGING > 9
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():Voltage:%.2f.",voltage);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get():Voltage:%.2f.",voltage);
 #endif
 
 	/* is the voltage in range? */
 	if ((voltage > Temperature_Data.V_Lower) && (voltage < Temperature_Data.V_Upper))
 	{
 #if LOGGING > 0
-		CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get() returned %.2f.",
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get() returned %.2f.",
 			(*temperature));
 #endif
 		return TRUE;
@@ -315,6 +318,8 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
  * This routine gets the current ADU of the utility board temperature sensor.
  * It reads the utility board using CCD_DSP_Command_RDM to read memory which has the digital counts 
  * of the voltage from the utility board temperature sensor in it.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param adu The address of a variable to hold the Analogue Digital Units to be returned.
  * @return TRUE if the operation was successfull, FALSE if a failure occured.
@@ -322,13 +327,13 @@ int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature)
  * @see ccd_dsp.html#CCD_DSP_Command_RDM
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Temperature_Get_Utility_Board_ADU(CCD_Interface_Handle_T* handle,int *adu)
+int CCD_Temperature_Get_Utility_Board_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,int *adu)
 {
 	int retval;
 
 	Temperature_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Utility_Board() started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Utility_Board() started.");
 #endif
 	if(adu == NULL)
 	{
@@ -336,7 +341,7 @@ int CCD_Temperature_Get_Utility_Board_ADU(CCD_Interface_Handle_T* handle,int *ad
 		sprintf(Temperature_Error_String,"CCD_Temperature_Get:adu pointer was NULL.");
 		return FALSE;
 	}
-	retval = CCD_DSP_Command_RDM(handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+	retval = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
 				     TEMPERATURE_UTILITY_BOARD_ADU_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
@@ -347,7 +352,7 @@ int CCD_Temperature_Get_Utility_Board_ADU(CCD_Interface_Handle_T* handle,int *ad
 	}
 	(*adu) = retval;
 #if LOGGING > 9
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Utility_Board():returned %d.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Utility_Board():returned %d.",
 			      (*adu));
 #endif
 	return TRUE;
@@ -359,6 +364,8 @@ int CCD_Temperature_Get_Utility_Board_ADU(CCD_Interface_Handle_T* handle,int *ad
  * is called to get an ADU value for the
  * target_temperature and this is then written to the utility board using a 
  * write memory command using CCD_DSP_Command_WRM.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param target_temperature The temperature we want the CCD cooled to, in degrees centigrade.
  * @return TRUE if the target temperature was set, FALSE if an error occured.
@@ -366,13 +373,13 @@ int CCD_Temperature_Get_Utility_Board_ADU(CCD_Interface_Handle_T* handle,int *ad
  * @see ccd_dsp.html#CCD_DSP_Command_WRM
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Temperature_Set(CCD_Interface_Handle_T* handle,double target_temperature)
+int CCD_Temperature_Set(char *class,char *source,CCD_Interface_Handle_T* handle,double target_temperature)
 {
 	int adu = 0;
 
 	Temperature_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Set(temperature=%.2f) started.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Set(temperature=%.2f) started.",
 		target_temperature);
 #endif
 	/* get the target adu count from target_temperature using the setup data */
@@ -380,7 +387,7 @@ int CCD_Temperature_Set(CCD_Interface_Handle_T* handle,double target_temperature
 		Temperature_Data.V_Upper,Temperature_Data.V_Lower, 
 		Temperature_Data.Adu_Per_Volt,Temperature_Data.Adu_Offset,target_temperature);
 	/* write the target to memory */
-	if(CCD_DSP_Command_WRM(handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+	if(CCD_DSP_Command_WRM(class,source,handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
 			       TEMPERATURE_REQUIRED_ADU_ADDRESS,adu) != CCD_DSP_DON)
 	{
 		Temperature_Error_Number = 2;
@@ -388,7 +395,7 @@ int CCD_Temperature_Set(CCD_Interface_Handle_T* handle,double target_temperature
 		return FALSE;
 	}
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Set() returned TRUE.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Set() returned TRUE.");
 #endif
 	return TRUE;
 }
@@ -397,6 +404,8 @@ int CCD_Temperature_Set(CCD_Interface_Handle_T* handle,double target_temperature
  * This routine gets the current ADU count of the voltage fed into the heater that regulates
  * the CCD temperature.
  * CCD_DSP_Command_RDM is used to read the relevant DSP memory location.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param heater_adu The address of an integer to hold the current heater ADU.
  * @return TRUE if the operation was successfull and the temperature returned was sensible, FALSE
@@ -405,13 +414,13 @@ int CCD_Temperature_Set(CCD_Interface_Handle_T* handle,double target_temperature
  * @see #TEMPERATURE_HEATER_ADDRESS
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Temperature_Get_Heater_ADU(CCD_Interface_Handle_T* handle,int *heater_adu)
+int CCD_Temperature_Get_Heater_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,int *heater_adu)
 {
 	int retval;
 
 	Temperature_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Heater_ADU() started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Heater_ADU() started.");
 #endif
 	if(heater_adu == NULL)
 	{
@@ -419,7 +428,8 @@ int CCD_Temperature_Get_Heater_ADU(CCD_Interface_Handle_T* handle,int *heater_ad
 		sprintf(Temperature_Error_String,"CCD_Temperature_Get_Heater_ADU:adu was NULL.");
 		return FALSE;
 	}
-	retval = CCD_DSP_Command_RDM(handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,TEMPERATURE_HEATER_ADDRESS);
+	retval = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+				     TEMPERATURE_HEATER_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		Temperature_Error_Number = 5;
@@ -428,7 +438,7 @@ int CCD_Temperature_Get_Heater_ADU(CCD_Interface_Handle_T* handle,int *heater_ad
 	}
 	(*heater_adu) = retval;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Heater_ADU() returned %#x.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Temperature_Get_Heater_ADU() returned %#x.",
 		(*heater_adu));
 #endif
 	return TRUE;
@@ -597,6 +607,9 @@ static int Temperature_Calc_Temp_ADU(float temp_coeff[], int n,float vu, float v
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.14  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 0.13  2008/11/20 11:34:46  cjm
 ** *** empty log message ***
 **

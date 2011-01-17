@@ -1,5 +1,5 @@
 /* ccd_exposure.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.11 2008-11-20 11:34:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_exposure.h,v 0.12 2011-01-17 10:58:44 cjm Exp $
 */
 #ifndef CCD_EXPOSURE_H
 #define CCD_EXPOSURE_H
@@ -63,16 +63,16 @@ enum CCD_EXPOSURE_STATUS
 
 extern void CCD_Exposure_Initialise(void);
 extern void CCD_Exposure_Data_Initialise(CCD_Interface_Handle_T* handle);
-extern int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_shutter,
-			       struct timespec start_time,int exposure_time,
+extern int CCD_Exposure_Expose(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       int clear_array,int open_shutter,struct timespec start_time,int exposure_time,
 			       char **filename_list,int filename_count);
-extern int CCD_Exposure_Bias(CCD_Interface_Handle_T* handle,char *filename);
-extern int CCD_Exposure_Open_Shutter(CCD_Interface_Handle_T* handle);
-extern int CCD_Exposure_Close_Shutter(CCD_Interface_Handle_T* handle);
-extern int CCD_Exposure_Pause(CCD_Interface_Handle_T* handle);
-extern int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle);
-extern int CCD_Exposure_Abort(CCD_Interface_Handle_T* handle);
-extern int CCD_Exposure_Read_Out_CCD(CCD_Interface_Handle_T* handle,char *filename);
+extern int CCD_Exposure_Bias(char *class,char *source,CCD_Interface_Handle_T* handle,char *filename);
+extern int CCD_Exposure_Open_Shutter(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Close_Shutter(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Pause(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Resume(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Abort(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_Exposure_Read_Out_CCD(char *class,char *source,CCD_Interface_Handle_T* handle,char *filename);
 
 extern int CCD_Exposure_Set_Exposure_Status(CCD_Interface_Handle_T* handle,enum CCD_EXPOSURE_STATUS status);
 extern enum CCD_EXPOSURE_STATUS CCD_Exposure_Get_Exposure_Status(CCD_Interface_Handle_T* handle);

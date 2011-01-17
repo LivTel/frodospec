@@ -1,6 +1,6 @@
 /* ngat_frodospec_ccd_CCDLibrary.c
 ** implementation of Java Class ngat.frodospec.ccd.CCDLibrary native interfaces
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.4 2009-05-01 14:23:56 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.5 2011-01-17 10:57:54 cjm Exp $
 */
 /**
  * ngat_frodospec_ccd_CCDLibrary.c is the 'glue' between libfrodospec_ccd, 
@@ -8,7 +8,7 @@
  * a Java Class to drive the controller. CCDLibrary specifically
  * contains all the native C routines corresponding to native methods in Java.
  * @author Chris Mottram LJMU
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -134,7 +134,7 @@ struct Handle_Map_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.4 2009-05-01 14:23:56 cjm Exp $";
+static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.5 2011-01-17 10:57:54 cjm Exp $";
 
 /**
  * Copy of the java virtual machine pointer, used for logging back up to the Java layer from C.
@@ -146,7 +146,8 @@ static JavaVM *java_vm = NULL;
  */
 static jobject logger = NULL;
 /**
- * Cached reference to the "ngat.util.logging.Logger" class's log(int level,String message) method.
+ * Cached reference to the "ngat.util.logging.Logger" class's 
+ * log(int level,String clazz,String source,String message) method.
  * Used to log C layer log messages, in conjunction with the logger's object reference logger.
  * @see #logger
  */
@@ -169,7 +170,7 @@ static struct Handle_Map_Struct Handle_Map_List[HANDLE_MAP_SIZE] =
 /* internal routines */
 static void CCDLibrary_Throw_Exception(JNIEnv *env,jobject obj,char *function_name);
 static void CCDLibrary_Throw_Exception_String(JNIEnv *env,jobject obj,char *function_name,char *error_string);
-static void CCDLibrary_Log_Handler(int level,char *string);
+static void CCDLibrary_Log_Handler(char *class,char *source,int level,char *string);
 static int CCDLibrary_Java_String_List_To_C_List(JNIEnv *env,jobject obj,jobject java_list,
 						 jstring **jni_jstring_list,int *jni_jstring_count,
 						 char ***c_list,int *c_list_count);
@@ -230,8 +231,9 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_initialiseLoggerRefere
 	if(cls == NULL)
 		return;
 /* get relevant method id to call */
-/* log(int level,java/lang/String message) */
-	log_method_id = (*env)->GetMethodID(env,cls,"log","(ILjava/lang/String;)V");
+/* log(int level,java/lang/String clazz,java/lang/String source,java/lang/String message) */
+	log_method_id = (*env)->GetMethodID(env,cls,"log",
+					    "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
 	if(log_method_id == NULL)
 	{
 		/* One of the following exceptions has been thrown:
@@ -263,21 +265,39 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_finaliseLoggerReferenc
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_DSP_Command_RET<br>
- * Signature: ()I<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I<br>
  * Java native method to return the elapsed exposure length.
  * @return The elapsed exposure length in milliseconds.
  * @see ccd_dsp.html#CCD_DSP_Command_RET
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Handle_Map_Find
  */
-JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1DSP_1Command_1RET(JNIEnv *env, jobject obj)
+JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1DSP_1Command_1RET(JNIEnv *env,jobject obj,
+								jstring class_jstring, jstring source_jstring)
 {
 	CCD_Interface_Handle_T* handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
+	int retval;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return -1; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	return CCD_DSP_Command_RET(handle);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* real elapsed time */
+	retval = CCD_DSP_Command_RET((char*)class,(char*)source,handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
+	/* return result */
+	return retval;
 }
 
 /* ------------------------------------------------------------------------------
@@ -286,7 +306,7 @@ JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1DSP_1Command_1RET
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Exposure_Expose<br>
- * Signature: (ZJILjava/util/List;)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;ZJILjava/util/List;)V<br>
  * Java Native Interface routine to do an exposure.
  * @see ccd_exposure.html#CCD_Exposure_Expose
  * @see #CCDLibrary_Throw_Exception
@@ -296,9 +316,12 @@ JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1DSP_1Command_1RET
  * @see #CCDLibrary_Handle_Map_Find
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Expose(JNIEnv *env, jobject obj,
-		       jboolean open_shutter, jlong start_time_long, jint exposure_length,jobject filename_list_object)
+	      jstring class_jstring, jstring source_jstring,
+	      jboolean open_shutter, jlong start_time_long, jint exposure_length,jobject filename_list_object)
 {
 	CCD_Interface_Handle_T* handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval,jni_filename_count,filename_count;
 	struct timespec start_time;
 	jstring *jni_filename_list = NULL;
@@ -307,12 +330,25 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Expose(
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
 	/* convert filenameList to filename_list (Java to C) */
 	retval = CCDLibrary_Java_String_List_To_C_List(env,obj,filename_list_object,
 						 &jni_filename_list,&jni_filename_count,
 						 &filename_list,&filename_count);
 	if(retval == FALSE)
+	{
+		/* If we created the C strings we need to free the memory it uses */
+		if(class_jstring != NULL)
+			(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+		if(source_jstring != NULL)
+			(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 		return; /* CCDLibrary_Java_String_List_To_C_List throws exception */
+	}
 	/* convert start_time_long to start_time */
 	if(start_time_long > -1)
 	{
@@ -325,10 +361,16 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Expose(
 		start_time.tv_nsec = 0;
 	}
 	/* do exposure */
-	retval = CCD_Exposure_Expose(handle,TRUE,open_shutter,start_time,exposure_length,filename_list,filename_count);
+	retval = CCD_Exposure_Expose((char*)class,(char*)source,handle,TRUE,open_shutter,start_time,
+				     exposure_length,filename_list,filename_count);
 	/* Free the generated C filename_list, and associated jstring list */
 	CCDLibrary_Java_String_List_Free(env,obj,jni_filename_list,jni_filename_count,
 					    filename_list,filename_count);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 	{
@@ -339,28 +381,40 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Expose(
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Exposure_Bias<br>
- * Signature: (Ljava/lang/String;)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V<br>
  * Java Native Interface routine to take a bias frame.
  * @see ccd_exposure.html#CCD_Exposure_Bias
  * @see #CCDLibrary_Throw_Exception
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Handle_Map_Find
  */
-JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Bias(JNIEnv *env,jobject obj,jstring filename)
+JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Bias(JNIEnv *env,jobject obj,
+						 jstring class_jstring, jstring source_jstring,jstring filename)
 {
 	CCD_Interface_Handle_T* handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 	const char *cfilename = NULL;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	/* Get the filename froma java string to a c null terminated string
-	** If the java String is null the cfilename should be null as well */
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
 	if(filename != NULL)
 		cfilename = (*env)->GetStringUTFChars(env,filename,0);
-	retval = CCD_Exposure_Bias(handle,(char*)cfilename);
-	/* If we created the cfilename string we need to free the memory it uses */
+	/* do bias */
+	retval = CCD_Exposure_Bias((char*)class,(char*)source,handle,(char*)cfilename);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	if(filename != NULL)
 		(*env)->ReleaseStringUTFChars(env,filename,cfilename);
 	/* if an error occured throw an exception. */
@@ -371,21 +425,36 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Bias(JN
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Exposure_Abort<br>
- * Signature: ()V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V<br>
  * Java Native Interface implementation to abort an exposure. 
  * @see ccd_exposure.html#CCD_Exposure_Abort
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Handle_Map_Find
  */
-JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Abort(JNIEnv *env, jobject obj)
+JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Exposure_1Abort(JNIEnv *env, jobject obj,
+								  jstring class_jstring, jstring source_jstring)
 {
 	CCD_Interface_Handle_T* handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Exposure_Abort(handle);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* abort exposure */
+	retval = CCD_Exposure_Abort((char*)class,(char*)source,handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Exposure_Abort");
@@ -499,7 +568,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Global_1Set_1Log_
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Interface_Open<br>
- * Signature: (ILjava/lang/String;)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;)V<br>
  * Java Native Interface implementation of <a href="ccd_interface.html#CCD_Interface_Open">CCD_Interface_Open</a>,
  * which opens the specified interface.
  * If an error occurs a CCDLibraryNativeException is thrown.
@@ -510,19 +579,30 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Global_1Set_1Log_
  * @see #CCDLibrary_Throw_Exception
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Interface_1Open(JNIEnv *env, jobject obj, 
-								jint device_number, jstring filename)
+				 jstring class_jstring,jstring source_jstring,jint device_number, jstring filename)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 	const char *cfilename = NULL;
 
-	/* Get the filename froma java string to a c null terminated string
-	** If the java String is null the cfilename should be null as well */
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
 	if(filename != NULL)
 		cfilename = (*env)->GetStringUTFChars(env,filename,0);
-
-	retval = CCD_Interface_Open((enum CCD_INTERFACE_DEVICE_ID)device_number,(char*)cfilename,&handle);
-	/* If we created the cfilename string we need to free the memory it uses */
+	/* create handle to interface */
+	retval = CCD_Interface_Open((char*)class,(char*)source,(enum CCD_INTERFACE_DEVICE_ID)device_number,
+				    (char*)cfilename,&handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	if(filename != NULL)
 		(*env)->ReleaseStringUTFChars(env,filename,cfilename);
 	/* if an error occured throw an exception. */
@@ -543,7 +623,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Interface_1Open(J
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Interface_Close<br>
- * Signature: ()V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V<br>
  * JNI interface to libfrodospec_ccd routine.
  * @see ccd_interface.html#CCD_Interface_Close
  * @see #CCDLibrary_Throw_Exception
@@ -551,15 +631,30 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Interface_1Open(J
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Handle_Map_Find
  */
-JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Interface_1Close(JNIEnv *env, jobject obj)
+JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Interface_1Close(JNIEnv *env, jobject obj,
+								   jstring class_jstring, jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Interface_Close(&handle);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* close handle */
+	retval = CCD_Interface_Close((char*)class,(char*)source,&handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 	{
@@ -581,7 +676,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Interface_1Close(
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Startup<br>
- * Signature: (ILjava/lang/String;IILjava/lang/String;IILjava/lang/String;DIZZ)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;IILjava/lang/String;IILjava/lang/String;DIZZ)V<br>
  * Java Native Interface implementation of <a href="ccd_setup.html#CCD_Setup_Startup">CCD_Setup_Startup</a>,
  * a routine to setup the SDSU CCD Controller for exposures. This routine translates the pci_filename_string, 
  * timing_filename_string and utility_filename_string parameters from Java Strings to C Strings.
@@ -592,12 +687,14 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Interface_1Close(
  * @see #CCDLibrary_Throw_Exception
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Startup(JNIEnv *env, jobject obj, 
-	jint pci_load_type, jstring pci_filename_string,
+	jstring class_jstring, jstring source_jstring,jint pci_load_type, jstring pci_filename_string,
 	jint timing_load_type, jint timing_application_number, jstring timing_filename_string,
         jint utility_load_type, jint utility_application_number, jstring utility_filename_string, 
         jdouble target_temperature, jint gain, jboolean gain_speed, jboolean idle)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 	const char *pci_filename = NULL;
 	const char *timing_filename = NULL;
@@ -606,19 +703,28 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Startup(JN
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	/* Convert java strings to c null terminated strings.
-	** If the java String is null the c filename should be null as well */
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
 	if(pci_filename_string != NULL)
 		pci_filename = (*env)->GetStringUTFChars(env,pci_filename_string,0);
 	if(timing_filename_string != NULL)
 		timing_filename = (*env)->GetStringUTFChars(env,timing_filename_string,0);
 	if(utility_filename_string != NULL)
 		utility_filename = (*env)->GetStringUTFChars(env,utility_filename_string,0);
-	retval = CCD_Setup_Startup(handle,pci_load_type,(char*)pci_filename,
+	/* do setup */
+	retval = CCD_Setup_Startup((char*)class,(char*)source,handle,pci_load_type,(char*)pci_filename,
 		timing_load_type,timing_application_number,(char*)timing_filename,
 		utility_load_type,utility_application_number,(char*)utility_filename,
 		target_temperature,gain,gain_speed,idle);
-	/* free any c strings allocated */
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	if(pci_filename_string != NULL)
 		(*env)->ReleaseStringUTFChars(env,pci_filename_string,pci_filename);
 	if(timing_filename_string != NULL)
@@ -632,7 +738,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Startup(JN
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Shutdown<br>
- * Signature: ()V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V<br>
  * Java Native Interface implementation of <a href="ccd_setup.html#CCD_Setup_Shutdown">CCD_Setup_Shutdown</a>,
  * a routine to shutdown the connection to a SDSU CCD Controller.
  * If an error occurs a CCDLibraryNativeException is thrown.
@@ -641,15 +747,30 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Startup(JN
  * @see #CCDLibrary_Handle_Map_Find
  * @see #CCDLibrary_Throw_Exception
  */
-JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Shutdown(JNIEnv *env, jobject obj)
+JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Shutdown(JNIEnv *env, jobject obj,
+								  jstring class_jstring, jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Setup_Shutdown(handle);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* shutdown */
+	retval = CCD_Setup_Shutdown((char*)class,(char*)source,handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Setup_Shutdown");
@@ -658,7 +779,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Shutdown(J
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Dimensions<br>
- * Signature: (IIIIIII[Lngat/frodospec/ccd/CCDLibrarySetupWindow;)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;IIIIIII[Lngat/frodospec/ccd/CCDLibrarySetupWindow;)V<br>
  * Java Native Interface implementation of <a href="ccd_setup.html#CCD_Setup_Dimensions">CCD_Setup_Dimensions</a>,
  * a routine to setup the SDSU CCD Controller dimensions.
  * If an error occurs a CCDLibraryNativeException is thrown.
@@ -670,9 +791,12 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Shutdown(J
  * @see #CCDLibrary_Throw_Exception
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions(JNIEnv *env, jobject obj, 
-            jint ncols, jint nrows, jint nsbin, jint npbin, jint amplifier, jint deinterlace_setting, jint window_flags, jobjectArray window_object_list)
+            jstring class_jstring, jstring source_jstring,jint ncols, jint nrows, jint nsbin, jint npbin, 
+	    jint amplifier, jint deinterlace_setting, jint window_flags, jobjectArray window_object_list)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
 	char error_string[256];
 	int retval,i;
@@ -684,6 +808,12 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
 /* convert window_object_list to window_list */
 	/* check size of array */
 	window_count = (*env)->GetArrayLength(env,(jarray)window_object_list);
@@ -749,8 +879,13 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
 		window_list[i].Y_End = (int)((*env)->CallIntMethod(env,window_object,get_y_end_method_id));
 	}
 /* call dimension setup routine */
-	retval = CCD_Setup_Dimensions(handle,ncols,nrows,nsbin,npbin,amplifier,deinterlace_setting,
-				      window_flags,window_list);
+	retval = CCD_Setup_Dimensions((char*)class,(char*)source,handle,ncols,nrows,nsbin,npbin,amplifier,
+				      deinterlace_setting,window_flags,window_list);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Setup_Dimensions");
@@ -759,7 +894,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Hardware_Test<br>
- * Signature: (I)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;I)V<br>
  * Java Native Interface implementation of 
  * <a href="ccd_setup.html#CCD_Setup_Hardware_Test">CCD_Setup_Hardware_Test</a>,
  * which tests the hardware data links to the controller boards.
@@ -769,15 +904,29 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
  * @see #CCDLibrary_Throw_Exception
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Hardware_1Test(JNIEnv *env, jobject obj, 
-										     jint test_count)
+						    jstring class_jstring, jstring source_jstring,jint test_count)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Setup_Hardware_Test(handle,test_count);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* hardware test */
+	retval = CCD_Setup_Hardware_Test((char*)class,(char*)source,handle,test_count);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Setup_Hardware_Test");
@@ -786,19 +935,35 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Hardware_1
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Abort<br>
- * Signature: ()V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)V<br>
  * @see #CCDLibrary_Handle_Map_Find
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Throw_Exception
  * @see ccd_setup.html#CCD_Setup_Abort
  */
-JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Abort(JNIEnv *env, jobject obj)
+JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Abort(JNIEnv *env, jobject obj,
+							    jstring class_jstring, jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
+
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	CCD_Setup_Abort(handle);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* abort setup */
+	CCD_Setup_Abort((char*)class,(char*)source,handle);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 }
 
 /**
@@ -901,6 +1066,7 @@ JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Get_1Ampli
 		return -1; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
 	return (jint)CCD_Setup_Get_Amplifier(handle);
 }
+
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Get_DeInterlace_Type<br>
@@ -1032,21 +1198,35 @@ JNIEXPORT jboolean JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Get_1S
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Get_High_Voltage_Analogue_ADU<br>
- * Signature: ()I<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I<br>
  * @see ccd_setup.html#CCD_Setup_Get_High_Voltage_Analogue_ADU
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Handle_Map_Find
  */
 JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Get_1High_1Voltage_1Analogue_1ADU(JNIEnv *env, 
-													jobject obj)
+						     jobject obj,jstring class_jstring,jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval,adu;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return -1; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Setup_Get_High_Voltage_Analogue_ADU(handle,&adu);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* get high voltage ADU */
+	retval = CCD_Setup_Get_High_Voltage_Analogue_ADU((char*)class,(char*)source,handle,&adu);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Setup_Get_High_Voltage_Analogue_ADU");
@@ -1057,21 +1237,35 @@ JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Get_1High_
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Get_Low_Voltage_Analogue_ADU<br>
- * Signature: ()I<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I<br>
  * @see ccd_setup.html#CCD_Setup_Get_Low_Voltage_Analogue_ADU
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Handle_Map_Find
  */
 JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Get_1Low_1Voltage_1Analogue_1ADU(JNIEnv *env, 
-												       jobject obj)
+						       jobject obj,jstring class_jstring,jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval,adu;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return -1; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Setup_Get_Low_Voltage_Analogue_ADU(handle,&adu);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* get low voltage ADU */
+	retval = CCD_Setup_Get_Low_Voltage_Analogue_ADU((char*)class,(char*)source,handle,&adu);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Setup_Get_Low_Voltage_Analogue_ADU");
@@ -1081,21 +1275,35 @@ JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Get_1Low_1
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU<br>
- * Signature: ()I<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I<br>
  * @see ccd_setup.html#CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU
  * @see ccd_interface.html#CCD_Interface_Handle_T
  * @see #CCDLibrary_Handle_Map_Find
  */
 JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Get_1Minus_1Low_1Voltage_1Analogue_1ADU(
-JNIEnv *env,jobject obj)
+				    JNIEnv *env,jobject obj,jstring class_jstring,jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval,adu;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return -1; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(handle,&adu);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* get voltage ADU */
+	retval = CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU((char*)class,(char*)source,handle,&adu);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU");
@@ -1109,7 +1317,7 @@ JNIEnv *env,jobject obj)
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Temperature_Get<br>
- * Signature: ()D<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)D<br>
  * Java Native Interface implementation of <a href="ccd_temperature.html#CCD_Temperature_Get">CCD_Temperature_Get</a>,
  * which gets the current temperature of the CCD. 
  * @see ccd_interface.html#CCD_Interface_Handle_T
@@ -1117,16 +1325,31 @@ JNIEnv *env,jobject obj)
  * @see #CCDLibrary_Throw_Exception
   * @see #CCDLibrary_Handle_Map_Find
  */
-JNIEXPORT jdouble JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Get(JNIEnv *env, jobject obj)
+JNIEXPORT jdouble JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Get(JNIEnv *env,jobject obj,
+								     jstring class_jstring,jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	double dvalue;
 	int retval;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return -1.0; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Temperature_Get(handle,&dvalue);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* get temperature */
+	retval = CCD_Temperature_Get((char*)class,(char*)source,handle,&dvalue);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 	{
@@ -1140,7 +1363,7 @@ JNIEXPORT jdouble JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1G
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Temperature_Set<br>
- * Signature: (D)V<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;D)V<br>
  * Java Native Interface implementation of <a href="ccd_temperature.html#CCD_Temperature_Set">CCD_Temperature_Set</a>,
  * which sets the temperature of the CCD. 
  * If an error occurs a CCDLibraryNativeException is thrown.
@@ -1150,15 +1373,29 @@ JNIEXPORT jdouble JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1G
  * @see #CCDLibrary_Handle_Map_Find
  */
 JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Set(JNIEnv *env, jobject obj,
-										jdouble target_temperature)
+					 jstring class_jstring,jstring source_jstring,jdouble target_temperature)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Temperature_Set(handle,target_temperature);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* set temperature */
+	retval = CCD_Temperature_Set((char*)class,(char*)source,handle,target_temperature);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Temperature_Set");
@@ -1167,7 +1404,7 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Set(
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Temperature_Get_Utility_Board_ADU<br>
- * Signature: ()I<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I<br>
  * Java Native Interface implementation of CCD_Temperature_Get_Utility_Board_ADU,
  * which gets the Analogue to Digital counts from the utility board mounted temperature sensor. 
  * If an error occurs a CCDLibraryNativeException is thrown.
@@ -1181,15 +1418,29 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Set(
  * @see #CCDLibrary_Handle_Map_Find
  */
 JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Get_1Utility_1Board_1ADU(JNIEnv *env,
-												     jobject obj)
+							    jobject obj,jstring class_jstring,jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval,adu = -1;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return -1; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Temperature_Get_Utility_Board_ADU(handle,&adu);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* get utility board ADU */
+	retval = CCD_Temperature_Get_Utility_Board_ADU((char*)class,(char*)source,handle,&adu);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 	{
@@ -1202,7 +1453,7 @@ JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Get_
 /**
  * Class:     ngat_frodospec_ccd_CCDLibrary<br>
  * Method:    CCD_Temperature_Get_Heater_ADU<br>
- * Signature: ()I<br>
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I<br>
  * Java Native Interface implementation of CCD_Temperature_Get_Heater_ADU,
  * which gets the current heater Analogue to Digital counts from the utility board. 
  * If an error occurs a CCDLibraryNativeException is thrown.
@@ -1213,15 +1464,30 @@ JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Get_
  * @see #CCDLibrary_Throw_Exception
  * @see #CCDLibrary_Handle_Map_Find
  */
-JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Get_1Heater_1ADU(JNIEnv *env, jobject obj)
+JNIEXPORT jint JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Temperature_1Get_1Heater_1ADU(JNIEnv *env, jobject obj,
+								   jstring class_jstring,jstring source_jstring)
 {
 	CCD_Interface_Handle_T *handle = NULL;
+	const char *class = NULL;
+	const char *source = NULL;
 	int retval,adu = -1;
 
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return -1; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
-	retval = CCD_Temperature_Get_Heater_ADU(handle,&adu);
+	/* Change the java strings to a c null terminated string
+	** If the java String is null the C string should be null as well */
+	if(class_jstring != NULL)
+		class = (*env)->GetStringUTFChars(env,class_jstring,0);
+	if(source_jstring != NULL)
+		source = (*env)->GetStringUTFChars(env,source_jstring,0);
+	/* get heater ADU */
+	retval = CCD_Temperature_Get_Heater_ADU((char*)class,(char*)source,handle,&adu);
+	/* If we created the C strings we need to free the memory it uses */
+	if(class_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+	if(source_jstring != NULL)
+		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
 	if(retval == FALSE)
 	{
@@ -1335,20 +1601,26 @@ static void CCDLibrary_Throw_Exception_String(JNIEnv *env,jobject obj,char *func
 /**
  * libfrodospec_ccd Log Handler for the Java layer interface. 
  * This calls the ngat.frodospec.ccd.CCDLibrary logger's 
- * log(int level,String message) method with the parameters supplied to this routine.
+ * log(int level,String clazz,String source,String message) method with the parameters supplied to this routine.
  * If the logger instance is NULL, or the log_method_id is NULL the call is not made.
  * Otherwise, A java.lang.String instance is constructed from the string parameter,
  * and the JNI CallVoidMEthod routine called to call log().
+ * @param class A string representing the class that caused this message to be logged - used to fill in the 
+ *        class field in the log record.
+ * @param source A string representing the source that caused this message to be logged - used to fill in the 
+ *        source field in the log record.
  * @param level The log level of the message.
  * @param string The message to log.
  * @see #java_vm
  * @see #logger
  * @see #log_method_id
  */
-static void CCDLibrary_Log_Handler(int level,char *string)
+static void CCDLibrary_Log_Handler(char *class,char *source,int level,char *string)
 {
 	JNIEnv *env = NULL;
 	jstring java_string = NULL;
+	jstring java_class = NULL;
+	jstring java_source = NULL;
 
 	if(logger == NULL)
 	{
@@ -1379,8 +1651,16 @@ static void CCDLibrary_Log_Handler(int level,char *string)
 	}
 /* convert C to Java String */
 	java_string = (*env)->NewStringUTF(env,string);
+	if(class != NULL)
+		java_class = (*env)->NewStringUTF(env,class);
+	else
+		java_class = (*env)->NewStringUTF(env,"-");
+	if(source != NULL)
+		java_source = (*env)->NewStringUTF(env,source);
+	else
+		java_source = (*env)->NewStringUTF(env,"-");
 /* call log method on logger instance */
-	(*env)->CallVoidMethod(env,logger,log_method_id,(jint)level,java_string);
+	(*env)->CallVoidMethod(env,logger,log_method_id,(jint)level,java_class,java_source,java_string);
 }
 
 /**
@@ -1689,6 +1969,9 @@ static int CCDLibrary_Handle_Map_Find(JNIEnv *env,jobject instance,CCD_Interface
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2009/05/01 14:23:56  cjm
+** Removed diddly.
+**
 ** Revision 1.3  2009/04/30 14:15:34  cjm
 ** Changed CCD_Setup_Abort implementation as it now needs a handle.
 **

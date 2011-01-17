@@ -1,5 +1,5 @@
 /* ccd_dsp.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.30 2009-04-30 14:17:16 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_dsp.h,v 0.31 2011-01-17 10:58:44 cjm Exp $
 */
 #ifndef CCD_DSP_H
 #define CCD_DSP_H
@@ -317,44 +317,55 @@ enum CCD_DSP_AMPLIFIER
 extern int CCD_DSP_Initialise(void);
 extern void CCD_DSP_Data_Initialise(CCD_Interface_Handle_T* handle);
 /* Boot commands */
-extern int CCD_DSP_Command_LDA(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int application_number);
-extern int CCD_DSP_Command_RDM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address);
-extern int CCD_DSP_Command_TDL(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,int data);
-extern int CCD_DSP_Command_WRM(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data);
+extern int CCD_DSP_Command_LDA(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_DSP_BOARD_ID board_id,int application_number);
+extern int CCD_DSP_Command_RDM(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address);
+extern int CCD_DSP_Command_TDL(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_DSP_BOARD_ID board_id,int data);
+extern int CCD_DSP_Command_WRM(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int address,int data);
 /* timing board commands */
-extern int CCD_DSP_Command_ABR(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_CLR(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_RDC(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_IDL(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_SBV(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_SGN(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed);
-extern int CCD_DSP_Command_SOS(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier);
-extern int CCD_DSP_Command_SSP(CCD_Interface_Handle_T* handle,int y_offset,int x_offset,int bias_x_offset);
-extern int CCD_DSP_Command_SSS(CCD_Interface_Handle_T* handle,int bias_width,int box_width,int box_height);
-extern int CCD_DSP_Command_STP(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_ABR(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_CLR(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_RDC(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_IDL(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SBV(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SGN(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_DSP_GAIN gain,int speed);
+extern int CCD_DSP_Command_SOS(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_DSP_AMPLIFIER amplifier);
+extern int CCD_DSP_Command_SSP(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       int y_offset,int x_offset,int bias_x_offset);
+extern int CCD_DSP_Command_SSS(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       int bias_width,int box_width,int box_height);
+extern int CCD_DSP_Command_STP(char *class,char *source,CCD_Interface_Handle_T* handle);
 
-extern int CCD_DSP_Command_AEX(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_CSH(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_OSH(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_PEX(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_PON(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_POF(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_REX(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_SEX(CCD_Interface_Handle_T* handle,struct timespec start_time,int exposure_length);
-extern int CCD_DSP_Command_Reset(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_Get_HSTR(CCD_Interface_Handle_T* handle,int *value);
-extern int CCD_DSP_Command_Get_Readout_Progress(CCD_Interface_Handle_T* handle,int *value);
-extern int CCD_DSP_Command_RCC(CCD_Interface_Handle_T* handle,int *value);
-extern int CCD_DSP_Command_PCI_Download(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_PCI_Download_Wait(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_PCI_PC_Reset(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Command_SET(CCD_Interface_Handle_T* handle,int msecs);
-extern int CCD_DSP_Command_RET(CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_AEX(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_CSH(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_OSH(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PEX(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PON(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_POF(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_REX(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SEX(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       struct timespec start_time,int exposure_length);
+extern int CCD_DSP_Command_Reset(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_Get_HSTR(char *class,char *source,CCD_Interface_Handle_T* handle,int *value);
+extern int CCD_DSP_Command_Get_Readout_Progress(char *class,char *source,CCD_Interface_Handle_T* handle,int *value);
+extern int CCD_DSP_Command_RCC(char *class,char *source,CCD_Interface_Handle_T* handle,int *value);
+extern int CCD_DSP_Command_PCI_Download(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PCI_Download_Wait(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_PCI_PC_Reset(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_DSP_Command_SET(char *class,char *source,CCD_Interface_Handle_T* handle,int msecs);
+extern int CCD_DSP_Command_RET(char *class,char *source,CCD_Interface_Handle_T* handle);
 extern int CCD_DSP_Get_Abort(CCD_Interface_Handle_T* handle);
-extern int CCD_DSP_Set_Abort(CCD_Interface_Handle_T* handle,int value);
+extern int CCD_DSP_Set_Abort(char *class,char *source,CCD_Interface_Handle_T* handle,int value);
 extern int CCD_DSP_Get_Error_Number(void);
 extern void CCD_DSP_Error(void);
 extern void CCD_DSP_Error_String(char *error_string);
 extern void CCD_DSP_Warning(void);
-
+/*
+** $Log: not supported by cvs2svn $
+*/
 #endif

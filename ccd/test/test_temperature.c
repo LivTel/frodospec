@@ -1,5 +1,5 @@
 /* test_temperature.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_temperature.c,v 1.4 2008-11-20 11:34:58 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_temperature.c,v 1.5 2011-01-17 10:59:05 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +26,7 @@
  * 	-u[tility_board] -t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 /* hash definitions */
 /**
@@ -54,7 +54,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_temperature.c,v 1.4 2008-11-20 11:34:58 cjm Exp $";
+static char rcsid[] = "$Id: test_temperature.c,v 1.5 2011-01-17 10:59:05 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
-	retval = CCD_Interface_Open(Interface_Device,Device_Pathname,&handle);
+	retval = CCD_Interface_Open("test_temperature",NULL,Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
 	{
 		case COMMAND_ID_GET:
 			fprintf(stdout,"Calling CCD_Temperature_Get.\n");
-			retval = CCD_Temperature_Get(handle,&temperature);
+			retval = CCD_Temperature_Get("test_temperature",NULL,handle,&temperature);
 			if(retval == FALSE)
 			{
 				CCD_Global_Error();
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
 			break;
 		case COMMAND_ID_GET_UTILITY_BOARD:
 			fprintf(stdout,"Calling CCD_Temperature_Get_Utility_Board_ADU.\n");
-			retval = CCD_Temperature_Get_Utility_Board_ADU(handle,&adu);
+			retval = CCD_Temperature_Get_Utility_Board_ADU("test_temperature",NULL,handle,&adu);
 			if(retval == FALSE)
 			{
 				CCD_Global_Error();
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
 			break;
 		case COMMAND_ID_SET:
 			fprintf(stdout,"Calling CCD_Temperature_Set.\n");
-			retval = CCD_Temperature_Set(handle,Target_Temperature);
+			retval = CCD_Temperature_Set("test_temperature",NULL,handle,Target_Temperature);
 			if(retval == FALSE)
 			{
 				CCD_Global_Error();
@@ -165,7 +165,7 @@ int main(int argc, char *argv[])
 			break;
 		case COMMAND_ID_HEATER_ADUS:
 			fprintf(stdout,"Calling CCD_Temperature_Get_Heater_ADU.\n");
-			retval = CCD_Temperature_Get_Heater_ADU(handle,&adu);
+			retval = CCD_Temperature_Get_Heater_ADU("test_temperature",NULL,handle,&adu);
 			if(retval == FALSE)
 			{
 				CCD_Global_Error();
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
 	}
 	fprintf(stdout,"Command Completed.\n");
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close(&handle);
+	CCD_Interface_Close("test_temperature",NULL,&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return retval;
 }
@@ -334,6 +334,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2008/11/20 11:34:58  cjm
+** *** empty log message ***
+**
 ** Revision 1.3  2006/11/06 16:52:49  eng
 ** Added includes to fix implicit function declarations.
 **

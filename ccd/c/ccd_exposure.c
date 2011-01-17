@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.39 2009-09-14 15:08:33 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.40 2011-01-17 10:57:54 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.39 $
+ * @version $Revision: 0.40 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -111,7 +111,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.39 2009-09-14 15:08:33 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.40 2011-01-17 10:57:54 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -137,25 +137,26 @@ static struct Exposure_Struct Exposure_Data =
 
 
 /* internal functions */
-static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int value);
-static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
-						   char *filename);
-static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
-					       char **filename_list,int filename_count);
+static int Exposure_Shutter_Control(char *class,char *source,CCD_Interface_Handle_T* handle,int value);
+static int Exposure_Expose_Post_Readout_Full_Frame(char *class,char *source,CCD_Interface_Handle_T* handle,
+						   unsigned short *exposure_data,char *filename);
+static int Exposure_Expose_Post_Readout_Window(char *class,char *source,CCD_Interface_Handle_T* handle,
+					       unsigned short *exposure_data,char **filename_list,int filename_count);
 /* we should provide an alternative for these two routines if the library is not using short ints. */
 #if CCD_GLOBAL_BYTES_PER_PIXEL == 2
-static void Exposure_Byte_Swap(unsigned short *svalues,long nvals);
-static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
+static void Exposure_Byte_Swap(char *class,char *source,unsigned short *svalues,long nvals);
+static int Exposure_DeInterlace(char *class,char *source,int ncols,int nrows,unsigned short *old_iptr,
+				enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
 #else
 #error CCD_GLOBAL_BYTES_PER_PIXEL uses illegal value.
 #endif
-static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows,struct timespec start_time);
+static int Exposure_Save(char *class,char *source,char *filename,unsigned short *exposure_data,int ncols,int nrows,
+			 struct timespec start_time);
 static void Exposure_TimeSpec_To_Date_String(struct timespec time,char *time_string);
 static void Exposure_TimeSpec_To_Date_Obs_String(struct timespec time,char *time_string);
 static void Exposure_TimeSpec_To_UtStart_String(struct timespec time,char *time_string);
 static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correction,double *mjd);
-static int Exposure_Expose_Delete_Fits_Images(char **filename_list,int filename_count);
+static int Exposure_Expose_Delete_Fits_Images(char *class,char *source,char **filename_list,int filename_count);
 #ifdef CCD_CFITSIO_MUTEXED
 static int Exposure_FITS_Mutex_Lock(void);
 static int Exposure_FITS_Mutex_Unlock(void);
@@ -239,6 +240,8 @@ void CCD_Exposure_Data_Initialise(CCD_Interface_Handle_T* handle)
  * The Exposure_Data.Exposure_Status is changed to reflect the operation being performed on the CCD.
  * If the exposure is aborted at any stage the routine returns. Exposure_Expose_Delete_Fits_Images is
  * called to attempt to delete the blank FITS files, if the routine fails or is aborted.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param clear_array An integer representing a boolean. This should be set to TRUE if we wish to
  * 	manually clear the array before the exposure starts, FALSE if we do not. This is usually TRUE.
@@ -278,7 +281,7 @@ void CCD_Exposure_Data_Initialise(CCD_Interface_Handle_T* handle)
  * @see ccd_interface.html#CCD_Interface_Get_Reply_Data
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_shutter,
+int CCD_Exposure_Expose(char *class,char *source,CCD_Interface_Handle_T* handle,int clear_array,int open_shutter,
 			struct timespec start_time,int exposure_time,
 			char **filename_list,int filename_count)
 {
@@ -293,16 +296,16 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p,clear_array=%d,"
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p,clear_array=%d,"
 			      "open_shutter=%d,start_time_sec=%ld,exposure_time=%d,filename_count=%d) started.",
 			      handle,clear_array,open_shutter,start_time.tv_sec,exposure_time,filename_count);
 #endif
 /* reset abort flag */
-	CCD_DSP_Set_Abort(handle,FALSE);
+	CCD_DSP_Set_Abort(class,source,handle,FALSE);
 /* we shouldn't be able to expose until setup has been successfully completed - check this */
 	if(!CCD_Setup_Get_Setup_Complete(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 1;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Exposure failed:Setup was not complete");
 		return FALSE;
@@ -310,7 +313,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* check parameter ranges */
 	if(!CCD_GLOBAL_IS_BOOLEAN(clear_array))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 6;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:clear_array = %d.",
 			clear_array);
@@ -318,7 +321,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	}
 	if(!CCD_GLOBAL_IS_BOOLEAN(open_shutter))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 2;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:open_shutter = %d.",
 			open_shutter);
@@ -326,14 +329,14 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	}
 	if((exposure_time < 0)||(exposure_time > CCD_DSP_EXPOSURE_MAX_LENGTH))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 3;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:exposure_time = %d",exposure_time);
 		return FALSE;
 	}
 	if(filename_count < 0)
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 7;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal value:filename_count = %d",filename_count);
 		return FALSE;
@@ -341,7 +344,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	window_flags = CCD_Setup_Get_Window_Flags(handle);
 	if((window_flags == 0)&&(filename_count > 1))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 8;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Too many filenames for window_flags %d:"
 			"filename_count = %d",window_flags,filename_count);
@@ -351,7 +354,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	expected_pixel_count = CCD_Setup_Get_Readout_Pixel_Count(handle);
 	if(expected_pixel_count <= 0)
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 9;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Illegal expected pixel count '%d'.",
 			expected_pixel_count);
@@ -360,7 +363,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* if we have aborted - stop here */
 	if(CCD_DSP_Get_Abort(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 4;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -368,31 +371,31 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* setup the shutter control bit - which determines whether the SEX command has
 ** control to open and close the shutter at the appropriate times */
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 			      "CCD_Exposure_Expose(handle=%p):Setting shutter control(%d).",
 			      handle,open_shutter);
 #endif
-	if(!Exposure_Shutter_Control(handle,open_shutter))
+	if(!Exposure_Shutter_Control(class,source,handle,open_shutter))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		return FALSE;
 	}
 	if(CCD_DSP_Get_Abort(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 5;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
 	}
 /* write the time to memory so that SEX can read it */
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 			      "CCD_Exposure_Expose(handle=%p):Setting exposure length(%d).",
 			      handle,exposure_time);
 #endif
-	if(!CCD_DSP_Command_SET(handle,exposure_time))
+	if(!CCD_DSP_Command_SET(class,source,handle,exposure_time))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 23;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Setting exposure time failed.");
 		return FALSE;
@@ -400,7 +403,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	handle->Exposure_Data.Exposure_Length = exposure_time;
 	if(CCD_DSP_Get_Abort(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 25;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted");
 		return FALSE;
@@ -423,7 +426,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			current_time.tv_nsec = gtod_current_time.tv_usec*CCD_GLOBAL_ONE_MICROSECOND_NS;
 #endif
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				       "CCD_Exposure_Expose(handle=%p):Waiting for exposure start time (%ld,%ld).",
 				       handle,current_time.tv_sec,start_time.tv_sec);
 #endif
@@ -439,7 +442,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		/* check - have we been aborted? */
 			if(CCD_DSP_Get_Abort(handle))
 			{
-				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+				Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 				Exposure_Error_Number = 37;
 				sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -452,14 +455,14 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	{
 #if LOGGING > 4
 		/*		CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose():Clearing CCD array.");*/
-		CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				    "CCD_Exposure_Expose(handle=%p):Clearing is commented out at the moment.",handle);
 #endif
 		/* diddly
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_CLEAR;
-		if(!CCD_DSP_Command_CLR(handle))
+		if(!CCD_DSP_Command_CLR(class,source,handle))
 		{
-			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+			Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 38;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Clear Array failed.");
@@ -471,7 +474,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* check - have we been aborted? */
 	if(CCD_DSP_Get_Abort(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 20;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -479,13 +482,14 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	}
 /* Send the command to start the exposure, and monitor for completion. */
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p):Starting Exposure.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			      "CCD_Exposure_Expose(handle=%p):Starting Exposure.",handle);
 #endif
 	/* Exposure status is set in CCD_DSP_Command_SEX, as this routine sleeps before starting
 	** the exposure. */
-	if(!CCD_DSP_Command_SEX(handle,start_time,exposure_time))
+	if(!CCD_DSP_Command_SEX(class,source,handle,start_time,exposure_time))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 39;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:SEX command failed(%ld,%ld,%d).",
@@ -500,24 +504,24 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	while(done == FALSE)
 	{
 #if LOGGING > 4
-		CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 			       "CCD_Exposure_Expose(handle=%p):Getting Host Status Transfer Register.",handle);
 #endif
-		if(!CCD_DSP_Command_Get_HSTR(handle,&status))
+		if(!CCD_DSP_Command_Get_HSTR(class,source,handle,&status))
 		{
-			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+			Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 40;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Getting HSTR failed.");
 			return FALSE;
 		}
 #if LOGGING > 9
-		CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p):HSTR is %#x.",
-				      handle,status);
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				      "CCD_Exposure_Expose(handle=%p):HSTR is %#x.",handle,status);
 #endif
 		status = (status & EXPOSURE_HSTR_HTF_BITS) >> CCD_EXPOSURE_HSTR_BIT_SHIFT;
 #if LOGGING > 9
-		CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				      "CCD_Exposure_Expose(handle=%p):HSTR reply bits %#x.",handle,status);
 #endif
 		if(status != CCD_EXPOSURE_HSTR_READOUT)
@@ -526,13 +530,13 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			if((exposure_time - elapsed_exposure_time) >= handle->Exposure_Data.Readout_Remaining_Time)
 			{
 #if LOGGING > 4
-				CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				       "CCD_Exposure_Expose(handle=%p):Getting Elapsed exposure time.",handle);
 #endif
 				/* get elapsed time from controller */
-				elapsed_exposure_time = CCD_DSP_Command_RET(handle);
+				elapsed_exposure_time = CCD_DSP_Command_RET(class,source,handle);
 #if LOGGING > 9
-				CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				       "CCD_Exposure_Expose(handle=%p):Elapsed exposure time is %#x.",
 						      handle,elapsed_exposure_time);
 #endif
@@ -557,7 +561,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 				** may change before we check it again. */
 				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_PRE_READOUT;
 #if LOGGING > 4
-				CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 						      "CCD_Exposure_Expose(handle=%p):Exposure Status "
 						      "changed to PRE_READOUT %d milliseconds before readout starts.",
 						      handle,(exposure_time - elapsed_exposure_time));
@@ -578,7 +582,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		if(status == CCD_EXPOSURE_HSTR_READOUT)
 		{
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				       "CCD_Exposure_Expose(handle=%p):HSTR Status is READOUT.",handle);
 #endif
 			/* is this the first time through the loop we have detected readout mode? */
@@ -586,7 +590,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			{
 				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
 #if LOGGING > 4
-				CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				 "CCD_Exposure_Expose(handle=%p):Exposure Status changed to READOUT(HSTR).",handle);
 #endif
 			}
@@ -600,20 +604,20 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		** However we can miss detecting readout mode, if the whole readout takes less than 1 second.
 		*/
 #if LOGGING > 4
-		CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 			       "CCD_Exposure_Expose(handle=%p):Getting Readout Progress.",handle);
 #endif
 		last_pixel_count = current_pixel_count;
-		if(!CCD_DSP_Command_Get_Readout_Progress(handle,&current_pixel_count))
+		if(!CCD_DSP_Command_Get_Readout_Progress(class,source,handle,&current_pixel_count))
 		{
-			Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+			Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 			Exposure_Error_Number = 41;
 			sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Get Readout Progress failed.");
 			return FALSE;
 		}
 #if LOGGING > 9
-		CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				      "CCD_Exposure_Expose(handle=%p):Readout progress is %#x of %#x pixels.",
 				      handle,current_pixel_count,expected_pixel_count);
 #endif
@@ -628,7 +632,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			{
 				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_READOUT;
 #if LOGGING > 4
-				CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 						      "CCD_Exposure_Expose(handle=%p):"
 						   "Exposure Status changed to READOUT(current_pixel_count).",handle);
 #endif
@@ -645,9 +649,9 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 			/* have we timed out? If so, exit loop. */
 			if(readout_timeout_count == EXPOSURE_READ_TIMEOUT)
 			{
-				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+				Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 #if LOGGING > 9
-				CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				       "CCD_Exposure_Expose(handle=%p):Readout timeout has occured.",handle);
 #endif
 				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -660,24 +664,24 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		if(CCD_DSP_Get_Abort(handle))
 		{
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 					      "CCD_Exposure_Expose(handle=%p):Abort detected.",handle);
 #endif
 			if(handle->Exposure_Data.Exposure_Status == CCD_EXPOSURE_STATUS_EXPOSE)
 			{
 #if LOGGING > 4
-				CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 						      "CCD_Exposure_Expose(handle=%p):Trying AEX.",handle);
 #endif
-				if(CCD_DSP_Command_AEX(handle) != CCD_DSP_DON)
+				if(CCD_DSP_Command_AEX(class,source,handle) != CCD_DSP_DON)
 				{
-					Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+					Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 					handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 					Exposure_Error_Number = 15;
 					sprintf(Exposure_Error_String,"CCD_Exposure_Expose:AEX Abort command failed.");
 					return FALSE;
 				}
-				Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+				Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 				/* we now only abort when exposure status is STATUS_EXPOSE. */
 				handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 				Exposure_Error_Number = 42;
@@ -695,7 +699,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 		if(current_pixel_count >= expected_pixel_count)
 		{
 #if LOGGING > 9
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 					      "CCD_Exposure_Expose(handle=%p):Readout completed.",handle);
 #endif
 			done = TRUE;
@@ -708,7 +712,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	/* did the readout time out?*/
 	if(readout_timeout_count == EXPOSURE_READ_TIMEOUT)
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 30;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Readout timed out.");
@@ -717,19 +721,20 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* check - have we been aborted? */
 	if(CCD_DSP_Get_Abort(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 24;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
 		return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p):Getting reply data.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			      "CCD_Exposure_Expose(handle=%p):Getting reply data.",handle);
 #endif
 	/* get data */
 	if(!CCD_Interface_Get_Reply_Data(handle,&exposure_data))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 44;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Failed to get reply data.");
@@ -739,7 +744,7 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* did we abort? */
 	if(CCD_DSP_Get_Abort(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 26;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -748,14 +753,15 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* byte swap to get into right order */
 #ifdef CCD_EXPOSURE_BYTE_SWAP
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p):Byte swapping.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			      "CCD_Exposure_Expose(handle=%p):Byte swapping.",handle);
 #endif
-	Exposure_Byte_Swap(exposure_data,expected_pixel_count);
+	Exposure_Byte_Swap(class,source,exposure_data,expected_pixel_count);
 #endif
 /* did we abort? */
 	if(CCD_DSP_Get_Abort(handle))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 		Exposure_Error_Number = 29;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Expose:Aborted.");
@@ -764,7 +770,8 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* post-readout processing depends on whether we are windowing or not. */
 	if(window_flags == 0)
 	{
-		if(Exposure_Expose_Post_Readout_Full_Frame(handle,exposure_data,filename_list[0]) == FALSE)
+		if(Exposure_Expose_Post_Readout_Full_Frame(class,source,handle,exposure_data,
+							   filename_list[0]) == FALSE)
 		{
 			/* Do not call Exposure_Expose_Delete_Fits_Images here - we may have saved to disk */
 			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -773,7 +780,8 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 	}
 	else
 	{
-		if(Exposure_Expose_Post_Readout_Window(handle,exposure_data,filename_list,filename_count) == FALSE)
+		if(Exposure_Expose_Post_Readout_Window(class,source,handle,exposure_data,filename_list,
+						       filename_count) == FALSE)
 		{
 			/* Do not call Exposure_Expose_Delete_Fits_Images here - we may have saved to disk */
 			handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
@@ -783,7 +791,8 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /* reset exposure status */
 	handle->Exposure_Data.Exposure_Status = CCD_EXPOSURE_STATUS_NONE;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p) returned TRUE.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Expose(handle=%p) returned TRUE.",
+			      handle);
 #endif
 	return TRUE;
 }
@@ -791,12 +800,14 @@ int CCD_Exposure_Expose(CCD_Interface_Handle_T* handle,int clear_array,int open_
 /**
  * Routine to take a bias frame. Calls CCD_Exposure_Expose with clear_array TRUE, open_shutter FALSE and 
  * zero exposure length. Note assumes single readout filename, will not work if setup is windowed.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param filename The filename to save the resultant data (in FITS format) to.
  * @return The routine returns TRUE if the operation was completed successfully, FALSE if it failed.
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Bias(CCD_Interface_Handle_T* handle,char *filename)
+int CCD_Exposure_Bias(char *class,char *source,CCD_Interface_Handle_T* handle,char *filename)
 {
 	struct timespec start_time;
 	char *filename_list[1];
@@ -804,24 +815,26 @@ int CCD_Exposure_Bias(CCD_Interface_Handle_T* handle,char *filename)
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
 	filename_list[0] = filename;
-	return CCD_Exposure_Expose(handle,TRUE,FALSE,start_time,0,filename_list,1);
+	return CCD_Exposure_Expose(class,source,handle,TRUE,FALSE,start_time,0,filename_list,1);
 }
 
 /**
  * This routine would not normally be called as part of an exposure sequence. It simply opens the shutter by 
  * executing an Open Shutter command.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see ccd_dsp.html#CCD_DSP_Command_OSH
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Open_Shutter(CCD_Interface_Handle_T* handle)
+int CCD_Exposure_Open_Shutter(char *class,char *source,CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
-	if(!CCD_DSP_Command_OSH(handle))
+	if(!CCD_DSP_Command_OSH(class,source,handle))
 	{
-		CCD_DSP_Set_Abort(handle,FALSE);
+		CCD_DSP_Set_Abort(class,source,handle,FALSE);
 		Exposure_Error_Number = 11;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Open_Shutter:Open shutter failed.");
 		return FALSE;
@@ -832,18 +845,20 @@ int CCD_Exposure_Open_Shutter(CCD_Interface_Handle_T* handle)
 /**
  * This routine would not normally be called as part of an exposure sequence. It simply closes the shutter by 
  * executing a close shutter command.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see ccd_dsp.html#CCD_DSP_Command_CSH
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Close_Shutter(CCD_Interface_Handle_T* handle)
+int CCD_Exposure_Close_Shutter(char *class,char *source,CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
-	if(!CCD_DSP_Command_CSH(handle))
+	if(!CCD_DSP_Command_CSH(class,source,handle))
 	{
-		CCD_DSP_Set_Abort(handle,FALSE);
+		CCD_DSP_Set_Abort(class,source,handle,FALSE);
 		Exposure_Error_Number = 12;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Close_Shutter:Close shutter failed.");
 		return FALSE;
@@ -855,28 +870,30 @@ int CCD_Exposure_Close_Shutter(CCD_Interface_Handle_T* handle)
  * This routine pauses an exposure currently underway by 
  * executing a pause exposure command.
  * The timer is paused until the exposure is resumed.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see #CCD_Exposure_Resume
  * @see ccd_dsp.html#CCD_DSP_Command_PEX
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Pause(CCD_Interface_Handle_T* handle)
+int CCD_Exposure_Pause(char *class,char *source,CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Pause() started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Pause() started.");
 #endif
-	if(!CCD_DSP_Command_PEX(handle))
+	if(!CCD_DSP_Command_PEX(class,source,handle))
 	{
-		CCD_DSP_Set_Abort(handle,FALSE);
+		CCD_DSP_Set_Abort(class,source,handle,FALSE);
 		Exposure_Error_Number = 13;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Pause:Pause command failed.");
 		return FALSE;
 	}
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Pause() returned TRUE.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Pause() returned TRUE.");
 #endif
 	return TRUE;
 }
@@ -884,28 +901,30 @@ int CCD_Exposure_Pause(CCD_Interface_Handle_T* handle)
 /**
  * This routine resumes a paused exposure by 
  * executing a resume exposure command.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the operation succeeded, FALSE if it fails.
  * @see #CCD_Exposure_Pause
  * @see ccd_dsp.html#CCD_DSP_Command_REX
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle)
+int CCD_Exposure_Resume(char *class,char *source,CCD_Interface_Handle_T* handle)
 /* a seperarate command to the main exposure sequence */
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Resume() started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Resume() started.");
 #endif
-	if(!CCD_DSP_Command_REX(handle))
+	if(!CCD_DSP_Command_REX(class,source,handle))
 	{
-		CCD_DSP_Set_Abort(handle,FALSE);
+		CCD_DSP_Set_Abort(class,source,handle,FALSE);
 		Exposure_Error_Number = 14;
 		sprintf(Exposure_Error_String,"CCD_Exposure_Resume:Resume command failed.");
 		return FALSE;
 	}
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Resume() returned TRUE.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Resume() returned TRUE.");
 #endif
 	return TRUE;
 }
@@ -913,6 +932,8 @@ int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle)
 /**
  * This routine aborts an exposure currenly underway, whether it is reading out or not.
  * This routine sets the Abort flag to true by calling CCD_DSP_Set_Abort(handle,TRUE).
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the abort succeeds  returns FALSE if an error occurs.
  * @see ccd_exposure_private.html#CCD_Exposure_Struct
@@ -923,16 +944,17 @@ int CCD_Exposure_Resume(CCD_Interface_Handle_T* handle)
  * @see ccd_dsp.html#CCD_EXPOSURE_STATUS
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Abort(CCD_Interface_Handle_T* handle)
+int CCD_Exposure_Abort(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
 	Exposure_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Abort() started with exposure status %d.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			      "CCD_Exposure_Abort() started with exposure status %d.",
 			      handle->Exposure_Data.Exposure_Status);
 #endif
-	CCD_DSP_Set_Abort(handle,TRUE);
+	CCD_DSP_Set_Abort(class,source,handle,TRUE);
 #if LOGGING > 0
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Abort() finished.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"CCD_Exposure_Abort() finished.");
 #endif
 	return TRUE;
 }
@@ -945,6 +967,8 @@ int CCD_Exposure_Abort(CCD_Interface_Handle_T* handle)
  * Note assumes single readout filename, will not work if setup is windowed.
  * This routine just calls CCD_Exposure_Expose, with clear_array FALSE (to prevent destruction of the image),
  * open_shutter FALSE, and an exposure length of zero.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param filename The filename to save the exposure into.
  * @return Returns TRUE if the readout succeeds and the file is saved, returns FALSE if an error
@@ -952,7 +976,7 @@ int CCD_Exposure_Abort(CCD_Interface_Handle_T* handle)
  * @see #CCD_Exposure_Expose
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Exposure_Read_Out_CCD(CCD_Interface_Handle_T* handle,char *filename)
+int CCD_Exposure_Read_Out_CCD(char *class,char *source,CCD_Interface_Handle_T* handle,char *filename)
 {
 	struct timespec start_time;
 	char *filename_list[1];
@@ -960,7 +984,7 @@ int CCD_Exposure_Read_Out_CCD(CCD_Interface_Handle_T* handle,char *filename)
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
 	filename_list[0] = filename;
-	return CCD_Exposure_Expose(handle,FALSE,FALSE,start_time,0,filename_list,1);
+	return CCD_Exposure_Expose(class,source,handle,FALSE,FALSE,start_time,0,filename_list,1);
 }
 
 /**
@@ -1195,6 +1219,8 @@ void CCD_Exposure_Warning(void)
 /**
  * Internal exposure routine that sets the shutter bit. The SDSU SEX command looks
  * at this bit to determine whether to open and close the shutter whilst performing an exposure.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param open_shutter If it is TRUE, the SDSU SEX command will open/close the 
  * 	shutter at the relevant places during an exposure. If it is FALSE, the shutter will remain in it's 
@@ -1207,12 +1233,12 @@ void CCD_Exposure_Warning(void)
  * @see ccd_dsp.html#CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int open_shutter)
+static int Exposure_Shutter_Control(char *class,char *source,CCD_Interface_Handle_T* handle,int open_shutter)
 {
 	int current_status;
 
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Shutter_Control:Started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Shutter_Control:Started.");
 #endif
 /* check parameter */
 	if(!CCD_GLOBAL_IS_BOOLEAN(open_shutter))
@@ -1223,7 +1249,7 @@ static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int open_shut
 		return FALSE;
 	}
 /* get current controller status */
-	current_status = CCD_DSP_Command_RDM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
+	current_status = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
 					     EXPOSURE_ADDRESS_CONTROLLER_STATUS);
 	if((current_status == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
@@ -1237,7 +1263,7 @@ static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int open_shut
 	else
 		current_status &= ~(CCD_DSP_CONTROLLER_STATUS_OPEN_SHUTTER_BIT);
 /* write new controller status value */
-	if(CCD_DSP_Command_WRM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
+	if(CCD_DSP_Command_WRM(class,source,handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,
 			       EXPOSURE_ADDRESS_CONTROLLER_STATUS,current_status) != CCD_DSP_DON)
 	{
 		Exposure_Error_Number = 22;
@@ -1245,7 +1271,7 @@ static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int open_shut
 		return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Shutter_Control:Completed.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Shutter_Control:Completed.");
 #endif
 	return TRUE;
 }
@@ -1254,10 +1280,12 @@ static int Exposure_Shutter_Control(CCD_Interface_Handle_T* handle,int open_shut
 /**
  * Swap the bytes in the input unsigned short integers: ( 0 1 -> 1 0 ).
  * Based on CFITSIO's ffswap2 routine. This routine only works for CCD_GLOBAL_BYTES_PER_PIXEL == 2.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param svalues A list of unsigned short values to byte swap.
  * @param nvals The number of values in svalues.
  */
-static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
+static void Exposure_Byte_Swap(char *class,char *source,unsigned short *svalues,long nvals)
 {
 	register char *cvalues;
 	register long i;
@@ -1269,7 +1297,7 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
 		unsigned short sval;
 	} u;
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Byte_Swap:Started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Byte_Swap:Started.");
 #endif
 /* copy the initial pointer value */
 	cvalues = (char *) svalues;
@@ -1283,7 +1311,7 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
 		*cvalues++ = u.cvals[0];
 	}
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Byte_Swap:Completed.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Byte_Swap:Completed.");
 #endif
 }
 #else
@@ -1299,6 +1327,8 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
  * </ul>
  * If an error occurs BEFORE saving the read out frame to disk, Exposure_Expose_Delete_Fits_Images is called
  * to delete any 'blank' FITS files.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param exposure_data The data read out from the CCD.
  * @param filename The FITS filename (which should already contain relevant headers), in which to write 
@@ -1311,8 +1341,8 @@ static void Exposure_Byte_Swap(unsigned short *svalues,long nvals)
  * @see ccd_setup.html#CCD_Setup_Get_NRows
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
-						   char *filename)
+static int Exposure_Expose_Post_Readout_Full_Frame(char *class,char *source,CCD_Interface_Handle_T* handle,
+						   unsigned short *exposure_data,char *filename)
 {
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	char *filename_list[1];
@@ -1326,7 +1356,7 @@ static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handl
 	if(ncols <= 0)
 	{
 		filename_list[0] = filename;
-		Exposure_Expose_Delete_Fits_Images(filename_list,1);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,1);
 		Exposure_Error_Number = 27;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Illegal ncols '%d'.",ncols);
 		return FALSE;
@@ -1335,7 +1365,7 @@ static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handl
 	if(nrows <= 0)
 	{
 		filename_list[0] = filename;
-		Exposure_Expose_Delete_Fits_Images(filename_list,1);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,1);
 		Exposure_Error_Number = 31;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Illegal nrows '%d'.",nrows);
 		return FALSE;
@@ -1343,7 +1373,7 @@ static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handl
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
 		filename_list[0] = filename;
-		Exposure_Expose_Delete_Fits_Images(filename_list,1);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,1);
 		Exposure_Error_Number = 36;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:"
 			"Illegal deinterlace type '%d'.",deinterlace_type);
@@ -1353,29 +1383,30 @@ static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handl
 ** if the CCD was readout from multiple places etc. The deinterlace routine reorders the image
 ** so that it is back in the right order. */
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Post_Readout_Full_Frame:De-Interlacing.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,
+		       "Exposure_Expose_Post_Readout_Full_Frame:De-Interlacing.");
 #endif
-	if(!Exposure_DeInterlace(ncols,nrows,exposure_data,deinterlace_type))
+	if(!Exposure_DeInterlace(class,source,ncols,nrows,exposure_data,deinterlace_type))
 	{
 		filename_list[0] = filename;
-		Exposure_Expose_Delete_Fits_Images(filename_list,1);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,1);
 		return FALSE;
 	}
 /* if we have aborted stop and return */
 	if(CCD_DSP_Get_Abort(handle))
 	{
 		filename_list[0] = filename;
-		Exposure_Expose_Delete_Fits_Images(filename_list,1);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,1);
 		Exposure_Error_Number = 45;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Full_Frame:Aborted.");
 		return FALSE;
 	}
 /* save the resultant image to disk */
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Post_Readout_Full_Frame:"
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Post_Readout_Full_Frame:"
 			      "Saving to filename %s.",filename);
 #endif
-	if(!Exposure_Save(filename,exposure_data,ncols,nrows,handle->Exposure_Data.Exposure_Start_Time))
+	if(!Exposure_Save(class,source,filename,exposure_data,ncols,nrows,handle->Exposure_Data.Exposure_Start_Time))
 	{
 		/* Exposure_Save can fail but still have saved the exposure_data to disk OK */
 		return FALSE;
@@ -1398,6 +1429,8 @@ static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handl
  * <li>We increment the filename index.
  * <li>We free the sub-image data.
  * </ul>
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param exposure_data The data read out from the CCD.
  * @param filename_list The list of FITS filenames (which should already contain relevant headers), in which to write 
@@ -1416,8 +1449,8 @@ static int Exposure_Expose_Post_Readout_Full_Frame(CCD_Interface_Handle_T* handl
  * @see ccd_dsp.html#CCD_DSP_Get_Abort
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,unsigned short *exposure_data,
-					       char **filename_list,int filename_count)
+static int Exposure_Expose_Post_Readout_Window(char *class,char *source,CCD_Interface_Handle_T* handle,
+					       unsigned short *exposure_data,char **filename_list,int filename_count)
 {
 	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type;
 	unsigned short *subimage_data = NULL;
@@ -1430,7 +1463,7 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
 	deinterlace_type = CCD_Setup_Get_DeInterlace_Type(handle);
 	if(!CCD_DSP_IS_DEINTERLACE_TYPE(deinterlace_type))
 	{
-		Exposure_Expose_Delete_Fits_Images(filename_list,filename_count);
+		Exposure_Expose_Delete_Fits_Images(class,source,filename_list,filename_count);
 		Exposure_Error_Number = 10;
 		sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
 			"Illegal deinterlace type '%d'.",deinterlace_type);
@@ -1459,14 +1492,15 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
 				return FALSE;
 			}
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Post_Readout_Window:"
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+					      "Exposure_Expose_Post_Readout_Window:"
 			      "Window %d(%s) active:ncols = %d,nrows = %d,pixel_count = %d.",
 					      window_number,filename_list[filename_index],ncols,nrows,pixel_count);
 #endif
 			subimage_data = (unsigned short*)malloc(pixel_count*CCD_GLOBAL_BYTES_PER_PIXEL);
 			if(subimage_data == NULL)
 			{
-				Exposure_Expose_Delete_Fits_Images(filename_list+filename_index,
+				Exposure_Expose_Delete_Fits_Images(class,source,filename_list+filename_index,
 								   filename_count-filename_index);
 				Exposure_Error_Number = 18;
 				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:"
@@ -1475,13 +1509,13 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
 			}
 			memcpy(subimage_data,exposure_data+exposure_data_index,pixel_count*CCD_GLOBAL_BYTES_PER_PIXEL);
 #if LOGGING > 4
-			CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,
+			CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,
 				       "Exposure_Expose_Post_Readout_Window:De-Interlacing.");
 #endif
-			if(!Exposure_DeInterlace(ncols,nrows,subimage_data,deinterlace_type))
+			if(!Exposure_DeInterlace(class,source,ncols,nrows,subimage_data,deinterlace_type))
 			{
 				free(subimage_data);
-				Exposure_Expose_Delete_Fits_Images(filename_list+filename_index,
+				Exposure_Expose_Delete_Fits_Images(class,source,filename_list+filename_index,
 								   filename_count-filename_index);
 				return FALSE;
 			}
@@ -1489,7 +1523,7 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
 			if(CCD_DSP_Get_Abort(handle))
 			{
 				free(subimage_data);
-				Exposure_Expose_Delete_Fits_Images(filename_list+filename_index,
+				Exposure_Expose_Delete_Fits_Images(class,source,filename_list+filename_index,
 								   filename_count-filename_index);
 				Exposure_Error_Number = 19;
 				sprintf(Exposure_Error_String,"Exposure_Expose_Post_Readout_Window:Aborted.");
@@ -1497,10 +1531,11 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
 			}
 /* save the resultant image to disk */
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Post_Readout_Window:"
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+					      "Exposure_Expose_Post_Readout_Window:"
 			      "Saving to filename %s.",filename_list[filename_index]);
 #endif
-			if(!Exposure_Save(filename_list[filename_index],subimage_data,ncols,nrows,
+			if(!Exposure_Save(class,source,filename_list[filename_index],subimage_data,ncols,nrows,
 					  handle->Exposure_Data.Exposure_Start_Time))
 			{
 				free(subimage_data);
@@ -1538,6 +1573,8 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
  *  ----------------            ----------------        ----------------     
  * </pre>
  * <em>Note: This routine assumes CCD_GLOBAL_BYTES_PER_PIXEL == 2 e.g. 16 bits per pixel.</em>
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param ncols The number of columns on the CCD.
  * @param nrows The number of rows on the CCD.
  * @param old_iptr The interlaced image data received from the CCD. Once deinterlaced the image data is copied back
@@ -1552,14 +1589,15 @@ static int Exposure_Expose_Post_Readout_Window(CCD_Interface_Handle_T* handle,un
  * @see ccd_global.html#CCD_GLOBAL_BYTES_PER_PIXEL
  * @see ccd_setup.html#CCD_DSP_DEINTERLACE_TYPE
  */
-static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
-	enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
+static int Exposure_DeInterlace(char *class,char *source,int ncols,int nrows,unsigned short *old_iptr,
+				enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
 {
 	unsigned short *new_iptr = NULL;
 
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_DeInterlace:Started with dimensions (%d,%d), "
-			      "type %d.",ncols,nrows,deinterlace_type);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+			      "Exposure_DeInterlace:Started with dimensions (%d,%d), type %d.",
+			      ncols,nrows,deinterlace_type);
 #endif
 	switch(deinterlace_type)
 	{
@@ -1724,6 +1762,8 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
  * It currently uses Exposure_FITS_Mutex_Lock / Exposure_FITS_Mutex_UnLock to lock CFITSIO file writing,
  * as the CFITSIO library we are currently using (3.006) does not appear to be thread safe and causes crashes/
  * WRITE_ERROR errors when both arms try to write data at the same time.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param filename The filename to save the data into.
  * @param exposure_data The data to save.
  * @param ncols The number of columns in the image data.
@@ -1737,7 +1777,8 @@ static int Exposure_DeInterlace(int ncols,int nrows,unsigned short *old_iptr,
  * @see #Exposure_FITS_Mutex_Lock
  * @see #Exposure_FITS_Mutex_UnLock
  */
-static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows,struct timespec start_time)
+static int Exposure_Save(char *class,char *source,char *filename,unsigned short *exposure_data,int ncols,int nrows,
+			 struct timespec start_time)
 {
 	fitsfile *fp = NULL;
 	int retval=0,status=0;
@@ -1746,7 +1787,7 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	double mjd;
 
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Started.");
 #endif
 #ifdef CCD_CFITSIO_MUTEXED
 	if(!Exposure_FITS_Mutex_Lock())
@@ -1868,7 +1909,7 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 #endif
 
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Completed.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Completed.");
 #endif
 	return TRUE;
 }
@@ -1876,6 +1917,8 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 /**
  * This routine takes some image data and saves it in a file on disc.
  * This routine does not update the DATE-OBS keyword, unlike the CFITSIO routine.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param filename The filename to save the data into.
  * @param exposure_data The data to save.
  * @param ncols The number of columns in the image data.
@@ -1883,13 +1926,14 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
  * @param start_time The start time of the exposure.
  * @return Returns TRUE if the image is saved successfully, FALSE if it fails.
  */
-static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,int nrows,struct timespec start_time)
+static int Exposure_Save(char *class,char *source,char *filename,unsigned short *exposure_data,int ncols,int nrows,
+			 struct timespec start_time)
 {
 	FILE *fp = NULL;
 	int retval,error_number,nitems;
 
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Started.");
 #endif
 	/* try to open file */
 	fp = fopen(filename,"rb+");
@@ -1922,7 +1966,7 @@ static int Exposure_Save(char *filename,unsigned short *exposure_data,int ncols,
 	}
 	fclose(fp);
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Completed.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Save:Completed.");
 #endif
 	return TRUE;
 }
@@ -2066,6 +2110,8 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
  * This is done as part of aborting or when an error occurs during an exposure sequence.
  * This stops FITS images being left on disk with blank image data within them, which the data pipeline
  * does not like.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param filename_list A list of strings, containing filenames to delete. These filenames should be
  *        a list of FITS images passed to the CCD_Exposure_Expose routine (a list of windows to readout to).
  * @param filename_count The number of filenames in filename_list.
@@ -2073,19 +2119,20 @@ static int Exposure_TimeSpec_To_Mjd(struct timespec time,int leap_second_correct
  * @see #CCD_Exposure_Expose
  * @see #fexist
  */
-static int Exposure_Expose_Delete_Fits_Images(char **filename_list,int filename_count)
+static int Exposure_Expose_Delete_Fits_Images(char *class,char *source,char **filename_list,int filename_count)
 {
 	int i,retval,local_errno;
 
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Delete_Fits_Images:Started.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Delete_Fits_Images:Started.");
 #endif
 	for(i=0;i<filename_count; i++)
 	{
 		if(fexist(filename_list[i]))
 		{
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Delete_Fits_Images:"
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+					      "Exposure_Expose_Delete_Fits_Images:"
 					      "Removing file %s (index %d).",filename_list[i],i);
 #endif
 			retval = remove(filename_list[i]);
@@ -2102,13 +2149,14 @@ static int Exposure_Expose_Delete_Fits_Images(char **filename_list,int filename_
 		else
 		{
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Delete_Fits_Images:"
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+					      "Exposure_Expose_Delete_Fits_Images:"
 					      "file %s (index %d) does not exist?",filename_list[i],i);
 #endif
 		}
 	}/* end for */
 #if LOGGING > 4
-	CCD_Global_Log(LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Delete_Fits_Images:Finished.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Exposure_Expose_Delete_Fits_Images:Finished.");
 #endif
 	return TRUE;
 }
@@ -2174,6 +2222,12 @@ static int fexist(char *filename)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.39  2009/09/14 15:08:33  cjm
+** Exposure Save now uses Exposure_FITS_Mutex_Lock / Exposure_FITS_Mutex_UnLock
+** around CFITSIO calls. This should reduce multi-threaded problems with the
+** CFITSIO library (3.006) until we can install a thread-safe one. FITS header
+** saving may still be a problem however.
+**
 ** Revision 0.38  2009/08/17 14:42:43  cjm
 ** Added de-interlace debug.
 **

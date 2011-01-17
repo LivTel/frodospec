@@ -1,5 +1,5 @@
 /* test.c
-** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.17 2008-11-20 11:34:58 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/test/test.c,v 1.18 2011-01-17 10:59:05 cjm Exp $
 */
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +23,7 @@
  * Note the setup is performed by downloading two DSP .lod files, tim.lod and util.lod,
  * which must be present in the bin directory otherwise an error is returned.
  * @author $Author: cjm $
- * @version $Revision: 1.17 $
+ * @version $Revision: 1.18 $
  */
 
 /* hash defines */
@@ -56,7 +56,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: test.c,v 1.17 2008-11-20 11:34:58 cjm Exp $";
+static char rcsid[] = "$Id: test.c,v 1.18 2011-01-17 10:59:05 cjm Exp $";
 
 /* internal functions */
 static int Test_Save_Fits_Headers(int exposure_time,int ncols,int nrows,char *filename);
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 	if(strcmp(argv[1],"pci")==0)
 	{
 		fprintf(stdout,"Test:CCD_Interface_Open\n");
-		if(!CCD_Interface_Open(CCD_INTERFACE_DEVICE_PCI,CCD_PCI_DEFAULT_DEVICE_ZERO,&handle))
+		if(!CCD_Interface_Open("test",NULL,CCD_INTERFACE_DEVICE_PCI,CCD_PCI_DEFAULT_DEVICE_ZERO,&handle))
 		{
 			CCD_Global_Error();
 			exit(3);
@@ -119,7 +119,8 @@ int main(int argc, char *argv[])
 	else if(strcmp(argv[1],"text")==0)
 	{
 		fprintf(stdout,"Test:CCD_Interface_Open\n");
-		if(!CCD_Interface_Open(CCD_INTERFACE_DEVICE_TEXT,"/home/dev/tmp/frodospec_ccd_test.txt",&handle))
+		if(!CCD_Interface_Open("test",NULL,CCD_INTERFACE_DEVICE_TEXT,"/home/dev/tmp/frodospec_ccd_test.txt",
+				       &handle))
 		{
 			CCD_Global_Error();
 			exit(3);
@@ -131,7 +132,7 @@ int main(int argc, char *argv[])
 		exit(2);
 	}
 	fprintf(stdout,"Test:CCD_Setup_Startup\n");
-	if(!CCD_Setup_Startup(handle,CCD_SETUP_LOAD_ROM,NULL,
+	if(!CCD_Setup_Startup("test",NULL,handle,CCD_SETUP_LOAD_ROM,NULL,
 		CCD_SETUP_LOAD_FILENAME,0,TIMING_FILENAME,
 		CCD_SETUP_LOAD_FILENAME,1,UTILITY_FILENAME,-107.0,
 		CCD_DSP_GAIN_FOUR,TRUE,TRUE))
@@ -142,7 +143,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Test:CCD_Setup_Startup completed\n");
 
 	fprintf(stdout,"Test:CCD_Temperature_Get\n");
-	if(!CCD_Temperature_Get(handle,&temperature))
+	if(!CCD_Temperature_Get("test",NULL,handle,&temperature))
 	{
 		CCD_Global_Error();
 		exit(5);
@@ -150,7 +151,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Test:CCD_Temperature_Get returned %.2f\n",temperature);
 
 	fprintf(stdout,"Test:CCD_Setup_Dimensions\n");
-	if(!CCD_Setup_Dimensions(handle,CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
+	if(!CCD_Setup_Dimensions("test",NULL,handle,CCD_X_SIZE,CCD_Y_SIZE,CCD_XBIN_SIZE,CCD_YBIN_SIZE,
 		CCD_DSP_AMPLIFIER_LEFT,CCD_DSP_DEINTERLACE_SINGLE,0,window_list))
 	{
 		CCD_Global_Error();
@@ -168,21 +169,21 @@ int main(int argc, char *argv[])
 	start_time.tv_sec = 0;
 	start_time.tv_nsec = 0;
 	filename_list[0] = "test.fits";
-	if(!CCD_Exposure_Expose(handle,TRUE,TRUE,start_time,10000,filename_list,1))
+	if(!CCD_Exposure_Expose("test",NULL,handle,TRUE,TRUE,start_time,10000,filename_list,1))
 	{
 		CCD_Global_Error();
 		exit(10);
 	}
 	fprintf(stdout,"Test:CCD_Exposure_Expose finished\n");
 
-	if(!CCD_Setup_Shutdown(handle))
+	if(!CCD_Setup_Shutdown("test",NULL,handle))
 	{
 		CCD_Global_Error();
 		exit(11);
 	}
 	fprintf(stdout,"Test:CCD_Setup_Shutdown completed\n");
 
-	if(!CCD_Interface_Close(&handle))
+	if(!CCD_Interface_Close("test",NULL,&handle))
 	{
 		CCD_Global_Error();
 		exit(12);
@@ -299,6 +300,9 @@ static void Test_Fits_Header_Error(int status)
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.17  2008/11/20 11:34:58  cjm
+** *** empty log message ***
+**
 ** Revision 1.16  2006/11/06 16:52:49  eng
 ** Added includes to fix implicit function declarations.
 **

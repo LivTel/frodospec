@@ -1,5 +1,5 @@
 /* test_exposure.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.6 2009-02-05 11:40:55 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_exposure.c,v 1.7 2011-01-17 10:59:05 cjm Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -32,7 +32,7 @@
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 /* hash definitions */
 /**
@@ -79,7 +79,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_exposure.c,v 1.6 2009-02-05 11:40:55 cjm Exp $";
+static char rcsid[] = "$Id: test_exposure.c,v 1.7 2011-01-17 10:59:05 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
-	retval = CCD_Interface_Open(Interface_Device,Device_Pathname,&handle);
+	retval = CCD_Interface_Open("test_exposure","-",Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 	else
 		fprintf(stdout,"Utility Type:%d:Filename:NULL\n",Utility_Load_Type);
 	fprintf(stdout,"Temperature:%.2f\n",Temperature);
-	if(!CCD_Setup_Startup(handle,PCI_Load_Type,PCI_Filename,Timing_Load_Type,0,Timing_Filename,
+	if(!CCD_Setup_Startup("test_exposure","-",handle,PCI_Load_Type,PCI_Filename,Timing_Load_Type,0,Timing_Filename,
 		Utility_Load_Type,0,Utility_Filename,Temperature,CCD_DSP_GAIN_ONE,TRUE,TRUE))
 	{
 		CCD_Global_Error();
@@ -285,7 +285,8 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Binning:(%d,%d)\n",Bin_X,Bin_Y);
 	fprintf(stdout,"Amplifier:%d:De-Interlace:%d\n",Amplifier,DeInterlace_Type);
 	fprintf(stdout,"Window Flags:%d\n",Window_Flags);
-	if(!CCD_Setup_Dimensions(handle,Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,DeInterlace_Type,Window_Flags,Window_List))
+	if(!CCD_Setup_Dimensions("test_exposure","-",handle,Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,DeInterlace_Type,
+				 Window_Flags,Window_List))
 	{
 		CCD_Global_Error();
 		return 3;
@@ -335,16 +336,16 @@ int main(int argc, char *argv[])
 	{
 		case COMMAND_ID_BIAS:
 			fprintf(stdout,"Calling CCD_Exposure_Bias.\n");
-			retval = CCD_Exposure_Bias(handle,Filename);
+			retval = CCD_Exposure_Bias("test_exposure","-",handle,Filename);
 			break;
 		case COMMAND_ID_DARK:
 			fprintf(stdout,"Calling CCD_Exposure_Expose with open_shutter FALSE.\n");
-			retval = CCD_Exposure_Expose(handle,TRUE,FALSE,start_time,Exposure_Length,
+			retval = CCD_Exposure_Expose("test_exposure","-",handle,TRUE,FALSE,start_time,Exposure_Length,
 						     filename_list,filename_count);
 			break;
 		case COMMAND_ID_EXPOSURE:
 			fprintf(stdout,"Calling CCD_Exposure_Expose with open_shutter TRUE.\n");
-			retval = CCD_Exposure_Expose(handle,TRUE,TRUE,start_time,Exposure_Length,
+			retval = CCD_Exposure_Expose("test_exposure","-",handle,TRUE,TRUE,start_time,Exposure_Length,
 						     filename_list,filename_count);
 			break;
 		case COMMAND_ID_NONE:
@@ -362,7 +363,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Command Completed.\n");
 /* close interface to SDSU controller */
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close(&handle);
+	CCD_Interface_Close("test_exposure","-",&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return 0;
 }
@@ -941,6 +942,9 @@ static void Test_Fits_Header_Error(int status)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.6  2009/02/05 11:40:55  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 1.5  2008/11/20 11:34:58  cjm
 ** *** empty log message ***
 **

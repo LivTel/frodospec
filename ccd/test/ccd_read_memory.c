@@ -1,5 +1,5 @@
 /* ccd_read_memory.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.7 2008-11-20 11:34:58 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/ccd_read_memory.c,v 1.8 2011-01-17 10:59:05 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +21,7 @@
  * 	-i[nterface_device] &lt;pci|text&gt; -t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 /* hash definitions */
 /**
@@ -33,7 +33,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: ccd_read_memory.c,v 1.7 2008-11-20 11:34:58 cjm Exp $";
+static char rcsid[] = "$Id: ccd_read_memory.c,v 1.8 2011-01-17 10:59:05 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 				break;
 		}
 	}
-	retval = CCD_Interface_Open(Interface_Device,Device_Pathname,&handle);
+	retval = CCD_Interface_Open("ccd_read_memory","-",Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 
 	fprintf(stdout,"Reading memory at address %#x.\n",Memory_Address);
-	retval = CCD_DSP_Command_RDM(handle,Board,Memory_Space,Memory_Address);
+	retval = CCD_DSP_Command_RDM("ccd_read_memory","-",handle,Board,Memory_Space,Memory_Address);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		CCD_Global_Error();
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
 	}
 	fprintf(stdout,"Result = %#x\n",retval);
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close(&handle);
+	CCD_Interface_Close("ccd_read_memory","-",&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return retval;
 }
@@ -306,6 +306,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.7  2008/11/20 11:34:58  cjm
+** *** empty log message ***
+**
 ** Revision 1.6  2006/11/06 16:52:49  eng
 ** Added includes to fix implicit function declarations.
 **

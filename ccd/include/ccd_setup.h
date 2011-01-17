@@ -1,5 +1,5 @@
 /* ccd_setup.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.15 2009-04-30 14:22:45 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_setup.h,v 0.16 2011-01-17 10:58:44 cjm Exp $
 */
 #ifndef CCD_SETUP_H
 #define CCD_SETUP_H
@@ -88,16 +88,18 @@ struct CCD_Setup_Window_Struct
 
 extern void CCD_Setup_Initialise(void);
 extern void CCD_Setup_Data_Initialise(CCD_Interface_Handle_T* handle);
-extern int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
+extern int CCD_Setup_Startup(char *class,char *source,CCD_Interface_Handle_T* handle,
+        enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_application_number,char *timing_filename,
 	enum CCD_SETUP_LOAD_TYPE utility_load_type,int utility_application_number,char *utility_filename,
 	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle);
-extern int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle);
-extern int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int nsbin,int npbin,
+extern int CCD_Setup_Shutdown(char *class,char *source,CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Dimensions(char *class,char *source,CCD_Interface_Handle_T* handle,
+        int ncols,int nrows,int nsbin,int npbin,
 	enum CCD_DSP_AMPLIFIER amplifier,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_setting,
 	int window_flags,struct CCD_Setup_Window_Struct window_list[]);
-extern int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count);
-extern void CCD_Setup_Abort(CCD_Interface_Handle_T* handle);
+extern int CCD_Setup_Hardware_Test(char *class,char *source,CCD_Interface_Handle_T* handle,int test_count);
+extern void CCD_Setup_Abort(char *class,char *source,CCD_Interface_Handle_T* handle);
 extern int CCD_Setup_Get_NCols(CCD_Interface_Handle_T* handle);
 extern int CCD_Setup_Get_NRows(CCD_Interface_Handle_T* handle);
 extern int CCD_Setup_Get_NSBin(CCD_Interface_Handle_T* handle);
@@ -115,9 +117,11 @@ extern int CCD_Setup_Get_Window(CCD_Interface_Handle_T* handle,int window_index,
 				struct CCD_Setup_Window_Struct *window);
 extern int CCD_Setup_Get_Setup_Complete(CCD_Interface_Handle_T* handle);
 extern int CCD_Setup_Get_Setup_In_Progress(CCD_Interface_Handle_T* handle);
-extern int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *hv_adu);
-extern int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *lv_adu);
-extern int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *minus_lv_adu);
+extern int CCD_Setup_Get_High_Voltage_Analogue_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,
+						   int *hv_adu);
+extern int CCD_Setup_Get_Low_Voltage_Analogue_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,int *lv_adu);
+extern int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,
+							int *minus_lv_adu);
 extern int CCD_Setup_Get_Error_Number(void);
 extern void CCD_Setup_Error(void);
 extern void CCD_Setup_Error_String(char *error_string);

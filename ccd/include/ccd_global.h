@@ -1,5 +1,5 @@
 /* ccd_global.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.9 2009-02-05 11:40:43 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_global.h,v 0.10 2011-01-17 10:58:44 cjm Exp $
 */
 
 #ifndef CCD_GLOBAL_H
@@ -63,21 +63,21 @@ extern void CCD_Global_Error_String(char *error_string);
 extern void CCD_Global_Get_Current_Time_String(char *time_string,int string_length);
 
 /* logging routines */
-extern void CCD_Global_Log_Format(int level,char *format,...);
-extern void CCD_Global_Log(int level,char *string);
-extern void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(int level,char *string));
-extern void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string));
-extern void CCD_Global_Log_Handler_Stdout(int level,char *string);
+extern void CCD_Global_Log_Format(char *class,char *source,int level,char *format,...);
+extern void CCD_Global_Log(char *class,char *source,int level,char *string);
+extern void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(char *class,char *source,int level,char *string));
+extern void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(char *class,char *source,int level,char *string));
+extern void CCD_Global_Log_Handler_Stdout(char *class,char *source,int level,char *string);
 extern void CCD_Global_Set_Log_Filter_Level(int level);
-extern int CCD_Global_Log_Filter_Level_Absolute(int level,char *string);
-extern int CCD_Global_Log_Filter_Level_Bitwise(int level,char *string);
+extern int CCD_Global_Log_Filter_Level_Absolute(char *class,char *source,int level,char *string);
+extern int CCD_Global_Log_Filter_Level_Bitwise(char *class,char *source,int level,char *string);
 
 /* readout process priority and memory locking */
-extern int CCD_Global_Increase_Priority(void);
-extern int CCD_Global_Decrease_Priority(void);
-extern int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size);
-extern int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size);
-extern int CCD_Global_Memory_Lock_All(void);
-extern int CCD_Global_Memory_UnLock_All(void);
+extern int CCD_Global_Increase_Priority(char *class,char *source);
+extern int CCD_Global_Decrease_Priority(char *class,char *source);
+extern int CCD_Global_Memory_Lock(char *class,char *source,unsigned short *image_data,int image_data_size);
+extern int CCD_Global_Memory_UnLock(char *class,char *source,unsigned short *image_data,int image_data_size);
+extern int CCD_Global_Memory_Lock_All(char *class,char *source);
+extern int CCD_Global_Memory_UnLock_All(char *class,char *source);
 
 #endif

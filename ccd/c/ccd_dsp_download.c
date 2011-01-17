@@ -1,11 +1,11 @@
 /* ccd_dsp_download.c
 ** ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.7 2009-04-30 14:22:51 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_dsp_download.c,v 1.8 2011-01-17 10:57:54 cjm Exp $
 */
 /**
  * ccd_dsp_download.c contains the code to download DSP code to the SDSU controller.
  * @author SDSU, Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -35,7 +35,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.7 2009-04-30 14:22:51 cjm Exp $";
+static char rcsid[] = "$Id: ccd_dsp_download.c,v 1.8 2011-01-17 10:57:54 cjm Exp $";
 
 /* defines */
 /**
@@ -94,14 +94,15 @@ static int DSP_Download_Error_Number = 0;
 static char DSP_Download_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 
 /* internal functions */
-static int DSP_Download_Timing_Utility(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,char *filename);
-static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filename);
-static int DSP_Download_PCI_Finish(CCD_Interface_Handle_T* handle);
+static int DSP_Download_Timing_Utility(char *class,char *source,CCD_Interface_Handle_T* handle,
+				       enum CCD_DSP_BOARD_ID board_id,char *filename);
+static int DSP_Download_PCI_Interface(char *class,char *source,CCD_Interface_Handle_T* handle,char *filename);
+static int DSP_Download_PCI_Finish(char *class,char *source,CCD_Interface_Handle_T* handle);
 static int DSP_Download_Read_Line(FILE *fp, char *buff);
 static int DSP_Download_Get_Type(FILE *fp);
 static int DSP_Download_Address_Char_To_Mem_Space(char ch,enum CCD_DSP_MEM_SPACE *mem_space);
-static int DSP_Download_Process_Data(CCD_Interface_Handle_T* handle,FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
-	enum CCD_DSP_MEM_SPACE mem_space,int addr);
+static int DSP_Download_Process_Data(char *class,char *source,CCD_Interface_Handle_T* handle,FILE *download_fp,
+				     enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int addr);
 
 /* external functions */
 /**
@@ -120,6 +121,8 @@ int CCD_DSP_Download_Initialise(void)
 
 /**
  * Downloads some DSP code to one of the boards from filename.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board The board to send the command to.
  * @param filename The filename of compiled DSP commends to send to the board.
@@ -129,7 +132,8 @@ int CCD_DSP_Download_Initialise(void)
  * @see #DSP_Download_Timing_Utility
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_DSP_Download(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,char *filename)
+int CCD_DSP_Download(char *class,char *source,CCD_Interface_Handle_T* handle,
+		     enum CCD_DSP_BOARD_ID board_id,char *filename)
 {
 	int retval;
 
@@ -147,7 +151,7 @@ int CCD_DSP_Download(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_
 		return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download(%#x,%s) started.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download(%#x,%s) started.",
 		board_id,filename);
 #endif
 /* depending on the board type, call a sub-routine */
@@ -159,11 +163,11 @@ int CCD_DSP_Download(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_
 				"CCD_DSP_Download:Can't download DSP code to Host computer.");
 			return FALSE;
 		case CCD_DSP_INTERFACE_BOARD_ID:
-			retval = DSP_Download_PCI_Interface(handle,filename);
+			retval = DSP_Download_PCI_Interface(class,source,handle,filename);
 			break;
 		case CCD_DSP_TIM_BOARD_ID:
 		case CCD_DSP_UTIL_BOARD_ID:
-			retval = DSP_Download_Timing_Utility(handle,board_id,filename);
+			retval = DSP_Download_Timing_Utility(class,source,handle,board_id,filename);
 			break;
 		default:
 			DSP_Download_Error_Number = 4;
@@ -171,7 +175,7 @@ int CCD_DSP_Download(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_
 			return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download(%#x,%s) returned %#x.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download(%#x,%s) returned %#x.",
 		board_id,filename,retval);
 #endif
 	return retval;
@@ -234,6 +238,8 @@ void CCD_DSP_Download_Error_String(char *error_string)
 ** ---------------------------------------------------------------- */
 /**
  * Downloads some DSP code to either the timing or utility board from filename.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board The board to send the command to.
  * @param filename The filename of compiled DSP commends to send to the board.
@@ -245,7 +251,8 @@ void CCD_DSP_Download_Error_String(char *error_string)
  * @see #DSP_Download_Process_Data
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Download_Timing_Utility(CCD_Interface_Handle_T* handle,enum CCD_DSP_BOARD_ID board_id,char *filename)
+static int DSP_Download_Timing_Utility(char *class,char *source,CCD_Interface_Handle_T* handle,
+				       enum CCD_DSP_BOARD_ID board_id,char *filename)
 {
 	FILE *download_fp;
 	enum CCD_DSP_MEM_SPACE mem_space;
@@ -295,7 +302,7 @@ static int DSP_Download_Timing_Utility(CCD_Interface_Handle_T* handle,enum CCD_D
 			}
 			if (addr < DSP_DOWNLOAD_ADDR_MAX)
 			{
-				if(!DSP_Download_Process_Data(handle,download_fp,board_id,mem_space,addr))
+				if(!DSP_Download_Process_Data(class,source,handle,download_fp,board_id,mem_space,addr))
 				{
 					fclose(download_fp);
 					return FALSE;
@@ -311,6 +318,8 @@ static int DSP_Download_Timing_Utility(CCD_Interface_Handle_T* handle,enum CCD_D
  * Downloads some DSP code to the PCI interface board from filename. This is done by setting the PCI interface
  * DSP chip to slave mode, and using HCVR_DATA calls to download program data. The PCI interface board must
  * be set back to master mode on completion.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param board The board to download the program to.
  * @param filename The filename of compiled DSP commends to send to the board.
@@ -332,7 +341,7 @@ static int DSP_Download_Timing_Utility(CCD_Interface_Handle_T* handle,enum CCD_D
  * @see ccd_pci.html#CCD_PCI_IOCTL_HCVR_DATA
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filename)
+static int DSP_Download_PCI_Interface(char *class,char *source,CCD_Interface_Handle_T* handle,char *filename)
 {
 	FILE *download_fp = NULL;
 	char buff[81];
@@ -370,9 +379,9 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 		return FALSE;
 	}
 /* Inform the DSP that new pci boot code will be downloaded.*/
-	if(!CCD_DSP_Command_PCI_Download(handle))
+	if(!CCD_DSP_Command_PCI_Download(class,source,handle))
 	{
-		DSP_Download_PCI_Finish(handle);
+		DSP_Download_PCI_Finish(class,source,handle);
 		fclose(download_fp);
 		DSP_Download_Error_Number = 11;
 		sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:Sending PCI download command failed.");
@@ -382,7 +391,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 	argument = DSP_DOWNLOAD_PCI_BOOT_LOAD;
 	if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_HCVR_DATA,&argument))
 	{
-		DSP_Download_PCI_Finish(handle);
+		DSP_Download_PCI_Finish(class,source,handle);
 		fclose(download_fp);
 		DSP_Download_Error_Number = 12;
 		sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:Sending PCI magic number failed.");
@@ -391,7 +400,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 /* get first line from input file, check file is a PCIBOOT DSP code file */
 	if(!DSP_Download_Read_Line(download_fp,buff))
 	{
-		DSP_Download_PCI_Finish(handle);
+		DSP_Download_PCI_Finish(class,source,handle);
 		fclose(download_fp);
 		DSP_Download_Error_Number = 13;
 		sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:Reading first line from '%s failed.",
@@ -399,11 +408,11 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 		return FALSE;
 	}
 #if LOGGING > 4
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:First Line:%s.",buff);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:First Line:%s.",buff);
 #endif
 	if(strstr(buff,DSP_DOWNLOAD_PCI_BOOT_STRING) == NULL)
 	{
-		DSP_Download_PCI_Finish(handle);
+		DSP_Download_PCI_Finish(class,source,handle);
 		fclose(download_fp);
 		DSP_Download_Error_Number = 14;
 		sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:"
@@ -416,7 +425,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 	{
 		if(!DSP_Download_Read_Line(download_fp,buff))
 		{
-			DSP_Download_PCI_Finish(handle);
+			DSP_Download_PCI_Finish(class,source,handle);
 			fclose(download_fp);
 			DSP_Download_Error_Number = 15;
 			sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:Reading line from '%s failed.",
@@ -424,13 +433,13 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 			return FALSE;
 		}
 #if LOGGING > 4
-		CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Read Line:%s.",buff);
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Read Line:%s.",buff);
 #endif
 		if(strstr(buff,DSP_DOWNLOAD_PCI_DATA_PROGRAM_STRING) != NULL)
 		{
 			if(!DSP_Download_Read_Line(download_fp,buff))
 			{
-				DSP_Download_PCI_Finish(handle);
+				DSP_Download_PCI_Finish(class,source,handle);
 				fclose(download_fp);
 				DSP_Download_Error_Number = 16;
 				sprintf(DSP_Download_Error_String,
@@ -439,12 +448,13 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 				return FALSE;
 			}
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Read _DATA P Line:%s.",buff);
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+					      "CCD_DSP_Download:Read _DATA P Line:%s.",buff);
 #endif
 			retval = sscanf(buff,"%x %x",(unsigned int *)&word_count,(unsigned int *)&address);
 			if(retval != 2)
 			{
-				DSP_Download_PCI_Finish(handle);
+				DSP_Download_PCI_Finish(class,source,handle);
 				fclose(download_fp);
 				DSP_Download_Error_Number = 17;
 				sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:"
@@ -452,13 +462,13 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 				return FALSE;
 			}
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Word Count %d:Address:%#x.",
-				word_count,address);
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+					      "CCD_DSP_Download:Word Count %d:Address:%#x.",word_count,address);
 #endif
 		/* send word count */
 			if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_HCVR_DATA,&word_count))
 			{
-				DSP_Download_PCI_Finish(handle);
+				DSP_Download_PCI_Finish(class,source,handle);
 				fclose(download_fp);
 				DSP_Download_Error_Number = 18;
 				sprintf(DSP_Download_Error_String,
@@ -469,7 +479,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 		/* send address */
 			if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_HCVR_DATA,&address))
 			{
-				DSP_Download_PCI_Finish(handle);
+				DSP_Download_PCI_Finish(class,source,handle);
 				fclose(download_fp);
 				DSP_Download_Error_Number = 19;
 				sprintf(DSP_Download_Error_String,
@@ -480,7 +490,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 		/* throw away next line (e.g. _DATA P 000002) - this does not make sense to me. */
 			if(!DSP_Download_Read_Line(download_fp,buff))
 			{
-				DSP_Download_PCI_Finish(handle);
+				DSP_Download_PCI_Finish(class,source,handle);
 				fclose(download_fp);
 				DSP_Download_Error_Number = 20;
 				sprintf(DSP_Download_Error_String,
@@ -489,13 +499,14 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 				return FALSE;
 			}
 #if LOGGING > 4
-			CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Throw away Line:%s.",buff);
+			CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+					      "CCD_DSP_Download:Throw away Line:%s.",buff);
 #endif
 			while(word_number < word_count)
 			{
 				if(!DSP_Download_Read_Line(download_fp,buff))
 				{
-					DSP_Download_PCI_Finish(handle);
+					DSP_Download_PCI_Finish(class,source,handle);
 					fclose(download_fp);
 					DSP_Download_Error_Number = 21;
 					sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:"
@@ -503,8 +514,8 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 					return FALSE;
 				}
 #if LOGGING > 4
-				CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_DSP_Download:Read data Line:%s.",
-					buff);
+				CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+						      "CCD_DSP_Download:Read data Line:%s.",buff);
 #endif
 			/* if line does not contain "_DATA P", it must contain program data */
 				if(strstr(buff,DSP_DOWNLOAD_PCI_DATA_PROGRAM_STRING) == NULL)
@@ -516,13 +527,13 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 						if (word_number >= word_count)
 							break;
 #if LOGGING > 4
-						CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,
+						CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
 							"CCD_DSP_Download:Memory Value:%s.",value_string);
 #endif
 						retval = sscanf(value_string,"%x",(unsigned int *)&argument);
 						if(retval != 1)
 						{
-							DSP_Download_PCI_Finish(handle);
+							DSP_Download_PCI_Finish(class,source,handle);
 							fclose(download_fp);
 							DSP_Download_Error_Number = 22;
 							sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:"
@@ -531,14 +542,14 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 							return FALSE;
 						}
 #if LOGGING > 4
-						CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,
+						CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
 							"CCD_DSP_Download:Memory Value:%#x Word (%d of %d).",
 							argument,word_number,word_count);
 #endif
 					/* send program word. */
 						if(!CCD_Interface_Command(handle,CCD_PCI_IOCTL_HCVR_DATA,&argument))
 						{
-							DSP_Download_PCI_Finish(handle);
+							DSP_Download_PCI_Finish(class,source,handle);
 							fclose(download_fp);
 							DSP_Download_Error_Number = 23;
 							sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Interface:"
@@ -556,7 +567,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 		}/* end if string is DATA _P */
 	}/* end while on done */
 /* return PCI interface DSP from slave mode */
-	if(!DSP_Download_PCI_Finish(handle))
+	if(!DSP_Download_PCI_Finish(class,source,handle))
 	{
 		fclose(download_fp);
 		return FALSE;
@@ -570,6 +581,8 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
 /**
  * Routine to finish a DSP program download to the PCI interface board. This involves clearing
  * the HTF bits so the PCI DSP returns from slave mode, and setting bit 3.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE if the reset succeeded, FALSE if it failed (an error is set).
  * @see #CCD_DSP_Command_PCI_Download_Wait
@@ -578,7 +591,7 @@ static int DSP_Download_PCI_Interface(CCD_Interface_Handle_T* handle,char *filen
  * @see ccd_pci.html#CCD_PCI_IOCTL_SET_HCTR
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Download_PCI_Finish(CCD_Interface_Handle_T* handle)
+static int DSP_Download_PCI_Finish(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
 	int host_control_reg;
 
@@ -601,7 +614,7 @@ static int DSP_Download_PCI_Finish(CCD_Interface_Handle_T* handle)
 		return FALSE;
 	}
 /* wait for PCI to complete download */
-	if(CCD_DSP_Command_PCI_Download_Wait(handle) != CCD_DSP_DON)
+	if(CCD_DSP_Command_PCI_Download_Wait(class,source,handle) != CCD_DSP_DON)
 	{
 		DSP_Download_Error_Number = 24;
 		sprintf(DSP_Download_Error_String,"DSP_Download_PCI_Finish:Waiting for PCI download failed.");
@@ -697,6 +710,8 @@ static int DSP_Download_Address_Char_To_Mem_Space(char ch,enum CCD_DSP_MEM_SPACE
 /**
  * This routine reads DSP program code from file download_fp and writes it to DSP memory
  * using the <a href="#CCD_DSP_WRM">WRM</a> command to board board_id, memory space type address addr
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param download_fp The file pointer of the .lod file we are loading the program from.
  * @param board_id The board to send the command to. One of
@@ -711,8 +726,8 @@ static int DSP_Download_Address_Char_To_Mem_Space(char ch,enum CCD_DSP_MEM_SPACE
  * @return Returns TRUE if the operation succeeds, FALSE if it fails.
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int DSP_Download_Process_Data(CCD_Interface_Handle_T* handle,FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,
-	enum CCD_DSP_MEM_SPACE mem_space,int addr)
+static int DSP_Download_Process_Data(char *class,char *source,CCD_Interface_Handle_T* handle,
+	      FILE *download_fp,enum CCD_DSP_BOARD_ID board_id,enum CCD_DSP_MEM_SPACE mem_space,int addr)
 { 
 	int finished, value;
 	char c;
@@ -737,7 +752,7 @@ static int DSP_Download_Process_Data(CCD_Interface_Handle_T* handle,FILE *downlo
 			/* read the whole word of hexadecimal data */
 			fscanf(download_fp, "%x", (unsigned int *)&value);
 			/* try writing it to a board */
-			if(!CCD_DSP_Command_WRM(handle,board_id,mem_space,addr,value))
+			if(!CCD_DSP_Command_WRM(class,source,handle,board_id,mem_space,addr,value))
 			{
 				DSP_Download_Error_Number = 28;
 				sprintf(DSP_Download_Error_String,
@@ -753,6 +768,9 @@ static int DSP_Download_Process_Data(CCD_Interface_Handle_T* handle,FILE *downlo
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.7  2009/04/30 14:22:51  cjm
+** Added handle to CCD_DSP_Get_Abort calls.
+**
 ** Revision 1.6  2009/02/05 11:40:27  cjm
 ** Swapped Bitwise for Absolute logging levels.
 **

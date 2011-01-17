@@ -1,13 +1,13 @@
 /* ccd_interface.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.10 2009-04-30 14:19:31 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_interface.c,v 0.11 2011-01-17 10:57:54 cjm Exp $
 */
 /**
  * ccd_interface.c is a generic interface for communicating with the underlying hardware interface to the
  * SDSU CCD Controller hardware. A device is selected, then the generic routines in this module call the
  * interface specific routines to perform the task.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.10 $
+ * @version $Revision: 0.11 $
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -32,7 +32,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_interface.c,v 0.10 2009-04-30 14:19:31 cjm Exp $";
+static char rcsid[] = "$Id: ccd_interface.c,v 0.11 2011-01-17 10:57:54 cjm Exp $";
 
 /* external variables */
 
@@ -63,6 +63,8 @@ void CCD_Interface_Initialise(void)
 
 /**
  * This routine opens the interface for the device the library is currently using.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param device_number The device the library will talk to. One of
  * <a href="#CCD_INTERFACE_DEVICE_ID">CCD_INTERFACE_DEVICE_ID</a>:
  * CCD_INTERFACE_DEVICE_NONE,
@@ -81,7 +83,7 @@ void CCD_Interface_Initialise(void)
  * @see ccd_pci.html#CCD_PCI_Open
  * @see ccd_setup.html#CCD_Setup_Data_Initialise
  */
-int CCD_Interface_Open(enum CCD_INTERFACE_DEVICE_ID device_number,char *device_pathname,
+int CCD_Interface_Open(char *class,char *source,enum CCD_INTERFACE_DEVICE_ID device_number,char *device_pathname,
 			      CCD_Interface_Handle_T **handle)
 {
 	Interface_Error_Number = 0;
@@ -120,7 +122,8 @@ int CCD_Interface_Open(enum CCD_INTERFACE_DEVICE_ID device_number,char *device_p
 	CCD_Exposure_Data_Initialise((*handle));
         CCD_Setup_Data_Initialise((*handle));
 #if LOGGING > 1
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_Interface_Open() %s of type %d using handle %p.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+			      "CCD_Interface_Open() %s of type %d using handle %p.",
 			      device_pathname,device_number,(*handle));
 #endif
 	/* call the device specific open routine */
@@ -323,6 +326,8 @@ int CCD_Interface_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short *
 
 /**
  * This routine closes the interface for the device the library is currently using.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a pointer to a CCD_Interface_Handle_T to 
  *      store the device connection specific information into.
  * @return The routine returns the return value from the close routine it called. This will normally be TRUE
@@ -331,7 +336,7 @@ int CCD_Interface_Get_Reply_Data(CCD_Interface_Handle_T *handle,unsigned short *
  * @see ccd_text.html#CCD_Text_Close
  * @see ccd_pci.html#CCD_PCI_Close
  */
-int CCD_Interface_Close(CCD_Interface_Handle_T **handle)
+int CCD_Interface_Close(char *class,char *source,CCD_Interface_Handle_T **handle)
 {
 	Interface_Error_Number = 0;
 	/* check parameters */
@@ -365,7 +370,8 @@ int CCD_Interface_Close(CCD_Interface_Handle_T **handle)
 			return FALSE;
 	}
 #if LOGGING > 1
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERY_VERBOSE,"CCD_Interface_Close(): Closing handle %p of type %d.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERY_VERBOSE,
+			      "CCD_Interface_Close(): Closing handle %p of type %d.",
 			      (*handle),(*handle)->Interface_Device);
 #endif
 	/* free alocated handle */
@@ -424,6 +430,9 @@ void CCD_Interface_Error_String(char *error_string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.10  2009/04/30 14:19:31  cjm
+** Added call to CCD_DSP_Data_Initialise to initialise new per-handle DSP data.
+**
 ** Revision 0.9  2009/02/05 11:40:27  cjm
 ** Swapped Bitwise for Absolute logging levels.
 **

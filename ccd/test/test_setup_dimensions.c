@@ -1,5 +1,5 @@
 /* test_setup_dimensions.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_dimensions.c,v 1.5 2008-11-20 11:34:58 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_dimensions.c,v 1.6 2011-01-17 10:59:05 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +24,7 @@
  * 	[-t[ext_print_level] &lt;commands|replies|values|all&gt;][-h[elp]]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /* hash definitions */
 /**
@@ -52,7 +52,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_setup_dimensions.c,v 1.5 2008-11-20 11:34:58 cjm Exp $";
+static char rcsid[] = "$Id: test_setup_dimensions.c,v 1.6 2011-01-17 10:59:05 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
 			break;
 	}
-	retval = CCD_Interface_Open(Interface_Device,device_pathname,&handle);
+	retval = CCD_Interface_Open("test_setup_dimensions",NULL,Interface_Device,device_pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -159,7 +159,8 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"Binning:(%d,%d)\n",Bin_X,Bin_Y);
 	fprintf(stdout,"Amplifier:%d:De-Interlace:%d\n",Amplifier,DeInterlace_Type);
 	fprintf(stdout,"Window Flags:%d\n",Window_Flags);
-	if(!CCD_Setup_Dimensions(handle,Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,DeInterlace_Type,Window_Flags,Window_List))
+	if(!CCD_Setup_Dimensions("test_setup_dimensions",NULL,handle,Size_X,Size_Y,Bin_X,Bin_Y,Amplifier,
+				 DeInterlace_Type,Window_Flags,Window_List))
 	{
 		CCD_Global_Error();
 		return 3;
@@ -167,7 +168,7 @@ int main(int argc, char *argv[])
 	fprintf(stdout,"CCD_Setup_Dimensions completed\n");
 /* close interface to SDSU controller */
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close(&handle);
+	CCD_Interface_Close("test_setup_dimensions",NULL,&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return 0;
 }
@@ -461,6 +462,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2008/11/20 11:34:58  cjm
+** *** empty log message ***
+**
 ** Revision 1.4  2006/11/06 16:52:49  eng
 ** Added includes to fix implicit function declarations.
 **

@@ -1,20 +1,23 @@
 /* ccd_temperature.h
-** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_temperature.h,v 0.5 2008-11-20 11:34:52 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/include/ccd_temperature.h,v 0.6 2011-01-17 10:58:44 cjm Exp $
 */
 #ifndef CCD_TEMPERATURE_H
 #define CCD_TEMPERATURE_H
 #include "ccd_interface.h"
 
-extern int CCD_Temperature_Get(CCD_Interface_Handle_T* handle,double *temperature);
-extern int CCD_Temperature_Get_Utility_Board_ADU(CCD_Interface_Handle_T* handle,int *adu);
-extern int CCD_Temperature_Set(CCD_Interface_Handle_T* handle,double target_temperature);
-extern int CCD_Temperature_Get_Heater_ADU(CCD_Interface_Handle_T* handle,int *heater_adu);
+extern int CCD_Temperature_Get(char *class,char *source,CCD_Interface_Handle_T* handle,double *temperature);
+extern int CCD_Temperature_Get_Utility_Board_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,int *adu);
+extern int CCD_Temperature_Set(char *class,char *source,CCD_Interface_Handle_T* handle,double target_temperature);
+extern int CCD_Temperature_Get_Heater_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,int *heater_adu);
 extern int CCD_Temperature_Get_Error_Number(void);
 extern void CCD_Temperature_Error(void);
 extern void CCD_Temperature_Error_String(char *error_string);
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.5  2008/11/20 11:34:52  cjm
+** *** empty log message ***
+**
 ** Revision 0.4  2006/05/16 14:15:33  cjm
 ** gnuify: Added GNU General Public License.
 **

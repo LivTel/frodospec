@@ -1,11 +1,11 @@
 /* ccd_global.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.14 2009-02-05 11:40:27 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_global.c,v 0.15 2011-01-17 10:57:54 cjm Exp $
 */
 /**
  * ccd_global.c contains routines that tie together all the modules that make up libccd.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.14 $
+ * @version $Revision: 0.15 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -132,8 +132,8 @@ struct Global_Struct
 #elif CCD_GLOBAL_READOUT_PRIORITY == 2
 	int Old_Priority;
 #endif
-	void (*Global_Log_Handler)(int level,char *string);
-	int (*Global_Log_Filter)(int level,char *string);
+	void (*Global_Log_Handler)(char *class,char *source,int level,char *string);
+	int (*Global_Log_Filter)(char *class,char *source,int level,char *string);
 	int Global_Log_Filter_Level;
 };
 
@@ -141,7 +141,7 @@ struct Global_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_global.c,v 0.14 2009-02-05 11:40:27 cjm Exp $";
+static char rcsid[] = "$Id: ccd_global.c,v 0.15 2011-01-17 10:57:54 cjm Exp $";
 /**
  * Variable holding error code of last operation performed by ccd_dsp.
  */
@@ -422,6 +422,8 @@ void CCD_Global_Get_Current_Time_String(char *time_string,int string_length)
  * and uses vsprintf to format them i.e. like fprintf. A buffer is used to hold the created string,
  * therefore the total length of the generated string should not be longer than CCD_GLOBAL_ERROR_STRING_LENGTH.
  * CCD_Global_Log is then called to handle the log message.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level An integer, used to decide whether this particular message has been selected for
  * 	logging or not.
  * @param format A string, with formatting statements the same as fprintf would use to determine the type
@@ -429,7 +431,7 @@ void CCD_Global_Get_Current_Time_String(char *time_string,int string_length)
  * @see #CCD_Global_Log
  * @see #CCD_GLOBAL_ERROR_STRING_LENGTH
  */
-void CCD_Global_Log_Format(int level,char *format,...)
+void CCD_Global_Log_Format(char *class,char *source,int level,char *format,...)
 {
 	char buff[512];
 	va_list ap;
@@ -439,19 +441,21 @@ void CCD_Global_Log_Format(int level,char *format,...)
 	vsprintf(buff,format,ap);
 	va_end(ap);
 /* call the log routine to log the results */
-	CCD_Global_Log(level,buff);
+	CCD_Global_Log(class,source,level,buff);
 }
 
 /**
  * Routine to log a message to a defined logging mechanism. If the string or Global_Data.Global_Log_Handler are NULL
  * the routine does not log the message. If the Global_Data.Global_Log_Filter function pointer is non-NULL, the
  * message is passed to it to determine whether to log the message.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level An integer, used to decide whether this particular message has been selected for
  * 	logging or not.
  * @param string The message to log.
  * @see #Global_Data
  */
-void CCD_Global_Log(int level,char *string)
+void CCD_Global_Log(char *class,char *source,int level,char *string)
 {
 /* If the string is NULL, don't log. */
 	if(string == NULL)
@@ -462,11 +466,11 @@ void CCD_Global_Log(int level,char *string)
 /* If there's a log filter, check it returns TRUE for this message */
 	if(Global_Data.Global_Log_Filter != NULL)
 	{
-		if(Global_Data.Global_Log_Filter(level,string) == FALSE)
+		if(Global_Data.Global_Log_Filter(class,source,level,string) == FALSE)
 			return;
 	}
 /* We can log the message */
-	(*Global_Data.Global_Log_Handler)(level,string);
+	(*Global_Data.Global_Log_Handler)(class,source,level,string);
 }
 
 /**
@@ -475,7 +479,7 @@ void CCD_Global_Log(int level,char *string)
  * @see #Global_Data
  * @see #CCD_Global_Log
  */
-void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(int level,char *string))
+void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(char *class,char *source,int level,char *string))
 {
 	Global_Data.Global_Log_Handler = log_fn;
 }
@@ -486,7 +490,7 @@ void CCD_Global_Set_Log_Handler_Function(void (*log_fn)(int level,char *string))
  * @see #Global_Data
  * @see #CCD_Global_Log
  */
-void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string))
+void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(char *class,char *source,int level,char *string))
 {
 	Global_Data.Global_Log_Filter = filter_fn;
 }
@@ -494,14 +498,16 @@ void CCD_Global_Set_Log_Filter_Function(int (*filter_fn)(int level,char *string)
 /**
  * A log handler to be used for the Global_Data.Global_Log_Handler function.
  * Just prints the message to stdout, terminated by a newline.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level The log level for this message.
  * @param string The log message to be logged. 
  */
-void CCD_Global_Log_Handler_Stdout(int level,char *string)
+void CCD_Global_Log_Handler_Stdout(char *class,char *source,int level,char *string)
 {
 	if(string == NULL)
 		return;
-	fprintf(stdout,"%s\n",string);
+	fprintf(stdout,"%s : %s : %s\n",class,source,string);
 }
 
 /**
@@ -515,26 +521,30 @@ void CCD_Global_Set_Log_Filter_Level(int level)
 
 /**
  * A log message filter routine, to be used for the Global_Data.Global_Log_Filter function pointer.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level The log level of the message to be tested.
  * @param string The log message to be logged, not used in this filter. 
  * @return The routine returns TRUE if the level is less than or equal to the Global_Data.Global_Log_Filter_Level,
  * 	otherwise it returns FALSE.
  * @see #Global_Data
  */
-int CCD_Global_Log_Filter_Level_Absolute(int level,char *string)
+int CCD_Global_Log_Filter_Level_Absolute(char *class,char *source,int level,char *string)
 {
 	return (level <= Global_Data.Global_Log_Filter_Level);
 }
 
 /**
  * A log message filter routine, to be used for the Global_Data.Global_Log_Filter function pointer.
+ * @param class The class that produced this log message.
+ * @param source The source that produced this log message.
  * @param level The log level of the message to be tested.
  * @param string The log message to be logged, not used in this filter. 
  * @return The routine returns TRUE if the level has bits set that are also set in the 
  * 	Global_Data.Global_Log_Filter_Level, otherwise it returns FALSE.
  * @see #Global_Data
  */
-int CCD_Global_Log_Filter_Level_Bitwise(int level,char *string)
+int CCD_Global_Log_Filter_Level_Bitwise(char *class,char *source,int level,char *string)
 {
 	return ((level & Global_Data.Global_Log_Filter_Level) > 0);
 }
@@ -543,14 +553,15 @@ int CCD_Global_Log_Filter_Level_Bitwise(int level,char *string)
  * This routine increases the scheduling/priority
  * of this process. It is called whilst reading out images from the camera, and this reduces the 
  * chance of this process being interrupted during a readout, which can cause the readout to fail.
- * The process scheduling/priority is only changed if CCD_GLOBAL_READOUT_PRIORITY is defined to be 
- * non-zero.
+ * The process scheduling/priority is only changed if CCD_GLOBAL_READOUT_PRIORITY is defined to be non-zero.
+ * @param class The class to use in log messages generated by this operation.
+ * @param source The source to use in log messages generated by this operation.
  * @return The routine returns TRUE if it succeeds, FALSE if it fails.
  * @see #Global_Data
  * @see #CCD_Global_Decrease_Priority
  * @see #GLOBAL_PRIORITY_OFFSET
  */
-int CCD_Global_Increase_Priority(void)
+int CCD_Global_Increase_Priority(char *class,char *source)
 {
 #if CCD_GLOBAL_READOUT_PRIORITY == 1
 	struct sched_param scheduling_parameters;
@@ -561,12 +572,12 @@ int CCD_Global_Increase_Priority(void)
 
 #if CCD_GLOBAL_READOUT_PRIORITY == 0
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_PRIORITY is 0 (normal priority).");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_PRIORITY is 0 (normal priority).");
 #endif /* LOGGING */
 #elif CCD_GLOBAL_READOUT_PRIORITY == 1
 #ifdef _POSIX_PRIORITY_SCHEDULING
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_PRIORITY is 1 (POSIX.4 sched).");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_PRIORITY is 1 (POSIX.4 sched).");
 #endif /* LOGGING */
 /* get current priority and save */
 	Global_Data.Saved_Scheduling_Algorithm = sched_getscheduler(0);
@@ -588,7 +599,7 @@ int CCD_Global_Increase_Priority(void)
 		return FALSE;
 	}
 #if LOGGING > 3
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"Current scheduling:scheduler=%d,priority=%d.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"Current scheduling:scheduler=%d,priority=%d.",
 		Global_Data.Saved_Scheduling_Algorithm,Global_Data.Saved_Scheduling_Parameters.sched_priority);
 #endif /* LOGGING */
 /* increase priority to maximum */
@@ -604,8 +615,9 @@ int CCD_Global_Increase_Priority(void)
 	}
 	scheduling_parameters.sched_priority = retval-GLOBAL_PRIORITY_OFFSET;
 #if LOGGING > 3
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"Setting scheduling to:scheduler=SCHED_FIFO,priority=%d.",
-		scheduling_parameters.sched_priority);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,
+			      "Setting scheduling to:scheduler=SCHED_FIFO,priority=%d.",
+			      scheduling_parameters.sched_priority);
 #endif /* LOGGING */
 	retval = sched_setscheduler(0,SCHED_FIFO,&scheduling_parameters);
 	if(retval < 0)
@@ -622,12 +634,12 @@ int CCD_Global_Increase_Priority(void)
 #endif /* _POSIX_PRIORITY_SCHEDULING defined */
 #elif CCD_GLOBAL_READOUT_PRIORITY == 2
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_PRIORITY is 2 (SVr4/BSD priority).");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_PRIORITY is 2 (SVr4/BSD priority).");
 #endif /* LOGGING */
 /* get current priority into old_Priority of our process (0) */
 	Global_Data.Old_Priority = getpriority(PRIO_PROCESS,0);
 #if LOGGING > 3
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"Current priority=%d.",Global_Data.Old_Priority);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"Current priority=%d.",Global_Data.Old_Priority);
 #endif /* LOGGING */
 /* set to highest priority */
 	retval = setpriority(PRIO_PROCESS,0,-20);
@@ -640,7 +652,7 @@ int CCD_Global_Increase_Priority(void)
 		return FALSE;
 	}
 #if LOGGING > 3
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"Set priority=%d.",getpriority(PRIO_PROCESS,0));
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"Set priority=%d.",getpriority(PRIO_PROCESS,0));
 #endif /* LOGGING */
 #endif /* CCD_GLOBAL_READOUT_PRIORITY */
 	return TRUE;
@@ -651,11 +663,13 @@ int CCD_Global_Increase_Priority(void)
  * of this process, using values saved during CCD_Global_Increase_Priority. 
  * The process scheduling/priority is only changed if CCD_GLOBAL_READOUT_PRIORITY is defined to be 
  * non-zero.
+ * @param class The class to use in log messages generated by this operation.
+ * @param source The source to use in log messages generated by this operation.
  * @return The routine returns TRUE if it succeeds, FALSE if it fails.
  * @see #Global_Data
  * @see #CCD_Global_Increase_Priority
  */
-int CCD_Global_Decrease_Priority(void)
+int CCD_Global_Decrease_Priority(char *class,char *source)
 {
 #if CCD_GLOBAL_READOUT_PRIORITY > 0
 	int scheduling_errno,retval;
@@ -664,7 +678,7 @@ int CCD_Global_Decrease_Priority(void)
 #if CCD_GLOBAL_READOUT_PRIORITY == 1
 #ifdef _POSIX_PRIORITY_SCHEDULING
 #if LOGGING > 3
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"Resetting scheduling to:scheduler=%d,priority=%d.",
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"Resetting scheduling to:scheduler=%d,priority=%d.",
 		Global_Data.Saved_Scheduling_Algorithm,Global_Data.Saved_Scheduling_Parameters.sched_priority);
 #endif /* LOGGING */
 	retval = sched_setscheduler(0,Global_Data.Saved_Scheduling_Algorithm,
@@ -695,7 +709,7 @@ int CCD_Global_Decrease_Priority(void)
 		return FALSE;
 	}
 #if LOGGING > 3
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"Reset priority=%d.",getpriority(PRIO_PROCESS,0));
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"Reset priority=%d.",getpriority(PRIO_PROCESS,0));
 #endif /* LOGGING */
 #endif /* CCD_GLOBAL_READOUT_PRIORITY */
 	return TRUE;
@@ -707,13 +721,15 @@ int CCD_Global_Decrease_Priority(void)
  * The memory is locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
  * supports _POSIX_MEMLOCK_RANGE. The actual address range locked is done in complete pages, for
  * portability considerations.
+ * @param class The class to use in log messages generated by this operation.
+ * @param source The source to use in log messages generated by this operation.
  * @param image_data A pointer to the image data.
  * @param image_data_size The size of the image data.
  * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
  * @see #GLOBAL_ROUND_DOWN_TO_PAGE
  * @see #GLOBAL_ROUND_UP_TO_PAGE
  */
-int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size)
+int CCD_Global_Memory_Lock(char *class,char *source,unsigned short *image_data,int image_data_size)
 {
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 	int mlock_errno,retval;
@@ -722,7 +738,8 @@ int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size)
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK_RANGE
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK is defined: locking readout memory.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,
+		       "CCD_GLOBAL_READOUT_MLOCK is defined: locking readout memory.");
 #endif /* LOGGING */
 	retval = mlock((unsigned short *)GLOBAL_ROUND_DOWN_TO_PAGE(image_data),
 		GLOBAL_ROUND_UP_TO_PAGE(image_data_size));
@@ -738,7 +755,7 @@ int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size)
 
 	}
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK:readout memory locked.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK:readout memory locked.");
 #endif /* LOGGING */
 #else
 #error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK_RANGE Support not present."
@@ -751,13 +768,15 @@ int CCD_Global_Memory_Lock(unsigned short *image_data,int image_data_size)
  * This routine un-locks the image data memory passed in, which was locked in CCD_Global_Memory_Lock.
  * The memory is un-locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
  * supports _POSIX_MEMLOCK_RANGE.
+ * @param class The class to use in log messages generated by this operation.
+ * @param source The source to use in log messages generated by this operation.
  * @param image_data A pointer to the image data.
  * @param image_data_size The size of the image data.
  * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
  * @see #GLOBAL_ROUND_DOWN_TO_PAGE
  * @see #GLOBAL_ROUND_UP_TO_PAGE
  */
-int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size)
+int CCD_Global_Memory_UnLock(char *class,char *source,unsigned short *image_data,int image_data_size)
 {
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 	int munlock_errno,retval;
@@ -766,7 +785,8 @@ int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size)
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK_RANGE
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK is defined:unlocking readout memory.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,
+		       "CCD_GLOBAL_READOUT_MLOCK is defined:unlocking readout memory.");
 #endif /* LOGGING */
 	retval = munlock((unsigned short *)GLOBAL_ROUND_DOWN_TO_PAGE(image_data),
 		GLOBAL_ROUND_UP_TO_PAGE(image_data_size));
@@ -781,7 +801,8 @@ int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size)
 		return FALSE;
 	}
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_EXPOSURE_READOUT_MLOCK:readout memory is unlocked.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,
+		       "CCD_GLOBAL_EXPOSURE_READOUT_MLOCK:readout memory is unlocked.");
 #endif /* LOGGING */
 #else
 #error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK_RANGE Support not present."
@@ -794,10 +815,12 @@ int CCD_Global_Memory_UnLock(unsigned short *image_data,int image_data_size)
  * This routine locks all the processes memory, to stop it being paged out during readout.
  * The memory is locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
  * supports _POSIX_MEMLOCK. 
+ * @param class The class to use in log messages generated by this operation.
+ * @param source The source to use in log messages generated by this operation.
  * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
  * @see #CCD_Global_Memory_UnLock_All
  */
-int CCD_Global_Memory_Lock_All(void)
+int CCD_Global_Memory_Lock_All(char *class,char *source)
 {
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 	int mlock_errno,retval;
@@ -806,7 +829,7 @@ int CCD_Global_Memory_Lock_All(void)
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK is defined: locking all memory.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK is defined: locking all memory.");
 #endif /* LOGGING */
 	retval = mlockall(MCL_CURRENT|MCL_FUTURE);
 	if(retval == -1)
@@ -819,7 +842,7 @@ int CCD_Global_Memory_Lock_All(void)
 
 	}
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK:all memory locked.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK:all memory locked.");
 #endif /* LOGGING */
 #else
 #error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK Support not present."
@@ -832,10 +855,12 @@ int CCD_Global_Memory_Lock_All(void)
  * This routine un-locks the all the processes memory, which was locked in CCD_Global_Memory_Lock_All.
  * The memory is un-locked only if CCD_GLOBAL_READOUT_MLOCK has been defined, and the operating system
  * supports _POSIX_MEMLOCK.
+ * @param class The class to use in log messages generated by this operation.
+ * @param source The source to use in log messages generated by this operation.
  * @return The routine returns TRUE if it suceeded and FALSE if an error occured.
  * @see #CCD_Global_Memory_Lock_All
  */
-int CCD_Global_Memory_UnLock_All(void)
+int CCD_Global_Memory_UnLock_All(char *class,char *source)
 {
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 	int munlock_errno,retval;
@@ -844,7 +869,7 @@ int CCD_Global_Memory_UnLock_All(void)
 #ifdef CCD_GLOBAL_READOUT_MLOCK
 #ifdef _POSIX_MEMLOCK
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK is defined:unlocking all memory.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_READOUT_MLOCK is defined:unlocking all memory.");
 #endif /* LOGGING */
 	retval = munlockall();
 	if(retval == -1)
@@ -856,7 +881,7 @@ int CCD_Global_Memory_UnLock_All(void)
 		return FALSE;
 	}
 #if LOGGING > 3
-	CCD_Global_Log(LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_EXPOSURE_READOUT_MLOCK:all memory is unlocked.");
+	CCD_Global_Log(class,source,LOG_VERBOSITY_VERBOSE,"CCD_GLOBAL_EXPOSURE_READOUT_MLOCK:all memory is unlocked.");
 #endif /* LOGGING */
 #else
 #error "ccd_global.c:compiled with CCD_GLOBAL_READOUT_MLOCK but POSIX.4 MEMLOCK Support not present."
@@ -867,6 +892,9 @@ int CCD_Global_Memory_UnLock_All(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.14  2009/02/05 11:40:27  cjm
+** Swapped Bitwise for Absolute logging levels.
+**
 ** Revision 0.13  2008/12/11 16:42:50  cjm
 ** Changed CCD_Global_Log_Format to not use Global_Buff.
 **

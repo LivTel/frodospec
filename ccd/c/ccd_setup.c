@@ -1,12 +1,12 @@
 /* ccd_setup.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.33 2009-08-17 11:00:13 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_setup.c,v 0.34 2011-01-17 10:57:54 cjm Exp $
 */
 /**
  * ccd_setup.c contains routines to perform the setting of the SDSU CCD Controller, prior to performing
  * exposures.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.33 $
+ * @version $Revision: 0.34 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -40,7 +40,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_setup.c,v 0.33 2009-08-17 11:00:13 cjm Exp $";
+static char rcsid[] = "$Id: ccd_setup.c,v 0.34 2011-01-17 10:57:54 cjm Exp $";
 
 /* #defines */
 /**
@@ -132,23 +132,26 @@ static int Setup_Error_Number = 0;
 static char Setup_Error_String[CCD_GLOBAL_ERROR_STRING_LENGTH] = "";
 
 /* local function definitions */
-static int Setup_Reset_Controller(CCD_Interface_Handle_T* handle);
-static int Setup_PCI_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE load_type,char *filename);
-static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE load_type,
+static int Setup_Reset_Controller(char *class,char *source,CCD_Interface_Handle_T* handle);
+static int Setup_PCI_Board(char *class,char *source,CCD_Interface_Handle_T* handle,
+			   enum CCD_SETUP_LOAD_TYPE load_type,char *filename);
+static int Setup_Timing_Board(char *class,char *source,CCD_Interface_Handle_T* handle,
+			      enum CCD_SETUP_LOAD_TYPE load_type,
 			      int load_application_number,char *filename);
-static int Setup_Utility_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE load_type,
+static int Setup_Utility_Board(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_SETUP_LOAD_TYPE load_type,
 			       int load_application_number,char *filename);
-static int Setup_Power_On(CCD_Interface_Handle_T* handle);
-static int Setup_Power_Off(CCD_Interface_Handle_T* handle);
-static int Setup_Gain(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed);
-static int Setup_Idle(CCD_Interface_Handle_T* handle,int idle);
-static int Setup_Binning(CCD_Interface_Handle_T* handle,int nsbin,int npbin);
-static int Setup_DeInterlace(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier,
+static int Setup_Power_On(char *class,char *source,CCD_Interface_Handle_T* handle);
+static int Setup_Power_Off(char *class,char *source,CCD_Interface_Handle_T* handle);
+static int Setup_Gain(char *class,char *source,CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed);
+static int Setup_Idle(char *class,char *source,CCD_Interface_Handle_T* handle,int idle);
+static int Setup_Binning(char *class,char *source,CCD_Interface_Handle_T* handle,int nsbin,int npbin);
+static int Setup_DeInterlace(char *class,char *source,CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier,
 			     enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type);
-static int Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows);
-static int Setup_Window_List(CCD_Interface_Handle_T* handle,int window_flags,
+static int Setup_Dimensions(char *class,char *source,CCD_Interface_Handle_T* handle,int ncols,int nrows);
+static int Setup_Window_List(char *class,char *source,CCD_Interface_Handle_T* handle,int window_flags,
 			     struct CCD_Setup_Window_Struct window_list[]);
-static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle);
+static int Setup_Controller_Windows(char *class,char *source,CCD_Interface_Handle_T* handle);
 
 /* external functions */
 /**
@@ -219,6 +222,8 @@ void CCD_Setup_Data_Initialise(CCD_Interface_Handle_T* handle)
  * Array dimension information also needs to be setup before the controller can take exposures 
  * (see CCD_Setup_Dimensions).
  * This routine can be aborted with CCD_Setup_Abort.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param pci_load_type Where the routine is going to load the timing board application from. One of
  * 	<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
@@ -267,31 +272,33 @@ void CCD_Setup_Data_Initialise(CCD_Interface_Handle_T* handle)
  * @see ccd_dsp.html#CCD_DSP_Command_Flush_Reply_Buffer
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
+int CCD_Setup_Startup(char *class,char *source,CCD_Interface_Handle_T* handle,
+	enum CCD_SETUP_LOAD_TYPE pci_load_type,char *pci_filename,
 	enum CCD_SETUP_LOAD_TYPE timing_load_type,int timing_application_number,char *timing_filename,
 	enum CCD_SETUP_LOAD_TYPE utility_load_type,int utility_application_number,char *utility_filename,
 	double target_temperature,enum CCD_DSP_GAIN gain,int gain_speed,int idle)
 {
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup(handle=%p,pci_load_type=%d,"
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup(handle=%p,pci_load_type=%d,"
 		"timing_load_type=%d,timing_application=%d,utility_load_type=%d,utility_application=%d,"
 		"temperature=%.2f,gain=%d,gain_speed=%d,idle=%d) started.",handle,pci_load_type,
 		timing_load_type,timing_application_number,utility_load_type,utility_application_number,
 		target_temperature,gain,gain_speed,idle);
 	if(pci_filename != NULL)
-		CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup has pci_filename=%s.",pci_filename);
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup has pci_filename=%s.",
+				      pci_filename);
 	if(timing_filename != NULL)
-		CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup has timing_filename=%s.",
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup has timing_filename=%s.",
 				      timing_filename);
 	if(utility_filename != NULL)
-		CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup has utility_filename=%s.",
+		CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup has utility_filename=%s.",
 				      utility_filename);
 #endif
 /* we are in a setup routine */
 	handle->Setup_Data.Setup_In_Progress = TRUE;
 /* reset abort flag - we havn't aborted yet! */
-	CCD_DSP_Set_Abort(handle,FALSE);
+	CCD_DSP_Set_Abort(class,source,handle,FALSE);
 /* reset completion flags - even dimension flag is reset, as the controller itself is reset */
 	handle->Setup_Data.Power_Complete = FALSE;
 	handle->Setup_Data.PCI_Complete = FALSE;
@@ -307,7 +314,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* load a PCI interface board ROM or a filename */
-	if(!Setup_PCI_Board(handle,pci_load_type,pci_filename))
+	if(!Setup_PCI_Board(class,source,handle,pci_load_type,pci_filename))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -342,7 +349,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* reset controller */
-	if(!Setup_Reset_Controller(handle))
+	if(!Setup_Reset_Controller(class,source,handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return(FALSE);
@@ -356,7 +363,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* do a hardware test (data link) */
-	if(!CCD_Setup_Hardware_Test(handle,SETUP_SHORT_TEST_COUNT))
+	if(!CCD_Setup_Hardware_Test(class,source,handle,SETUP_SHORT_TEST_COUNT))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -370,7 +377,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* load a timing board application from ROM or a filename */
-	if(!Setup_Timing_Board(handle,timing_load_type,timing_application_number,timing_filename))
+	if(!Setup_Timing_Board(class,source,handle,timing_load_type,timing_application_number,timing_filename))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -386,7 +393,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* load a utility board application from ROM or a filename */
-	if(!Setup_Utility_Board(handle,utility_load_type,utility_application_number,utility_filename))
+	if(!Setup_Utility_Board(class,source,handle,utility_load_type,utility_application_number,utility_filename))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -402,7 +409,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* turn analogue power on */
-	if(!Setup_Power_On(handle))
+	if(!Setup_Power_On(class,source,handle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -418,7 +425,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* setup gain */
-	if(!Setup_Gain(handle,gain,gain_speed))
+	if(!Setup_Gain(class,source,handle,gain,gain_speed))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -432,7 +439,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* set the temperature */
-	if(!CCD_Temperature_Set(handle,target_temperature))
+	if(!CCD_Temperature_Set(class,source,handle,target_temperature))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		Setup_Error_Number = 2;
@@ -449,7 +456,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 		return FALSE;
 	}
 /* setup idling of the readout clocks */
-	if(!Setup_Idle(handle,idle))
+	if(!Setup_Idle(class,source,handle,idle))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -457,7 +464,7 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
 /* tidy up flags and return */
 	handle->Setup_Data.Setup_In_Progress = FALSE;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup(handle=%p) returned TRUE.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Startup(handle=%p) returned TRUE.",handle);
 #endif
 	return TRUE;
 }
@@ -469,22 +476,24 @@ int CCD_Setup_Startup(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE pc
  * <li>Performing a power off command to switch off analogue voltages.
  * </ul>
  * It then just remains to close the connection to the astro device driver.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @see #CCD_Setup_Startup
  * @see ccd_setup_private.html#CCD_Setup_Struct
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle)
+int CCD_Setup_Shutdown(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Stutdown(handle=%p) started.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Stutdown(handle=%p) started.",handle);
 #endif
 /* reset abort flag */
-	CCD_DSP_Set_Abort(handle,FALSE);
+	CCD_DSP_Set_Abort(class,source,handle,FALSE);
 /* perform a power off */
-	if(!Setup_Power_Off(handle))
+	if(!Setup_Power_Off(class,source,handle))
 	{
 		return FALSE;
 	}
@@ -510,7 +519,8 @@ int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle)
 	handle->Setup_Data.Utility_Complete = FALSE;
 	handle->Setup_Data.Dimension_Complete = FALSE;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Stutdown(handle=%p) returned TRUE.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Stutdown(handle=%p) returned TRUE.",
+			      handle);
 #endif
 	return TRUE;
 }
@@ -519,6 +529,8 @@ int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle)
  * Routine to setup dimension information in the controller. This needs to be setup before an exposure
  * can take place. This routine must be called <b>after</b> the CCD_Setup_Startup routine.
  * This routine can be aborted with CCD_Setup_Abort.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param ncols The number of columns in the image.
  * @param nrows The number of rows in the image to be readout from the CCD.
@@ -553,20 +565,21 @@ int CCD_Setup_Shutdown(CCD_Interface_Handle_T* handle)
  * @see ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int nsbin,int npbin,
+int CCD_Setup_Dimensions(char *class,char *source,CCD_Interface_Handle_T* handle,
+        int ncols,int nrows,int nsbin,int npbin,
 	enum CCD_DSP_AMPLIFIER amplifier,enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type,
 	int window_flags,struct CCD_Setup_Window_Struct window_list[])
 {
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Dimensions(handle=%p,ncols=%d,nrows=%d,"
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Dimensions(handle=%p,ncols=%d,nrows=%d,"
 			      "nsbin=%d,npbin=%d,amplifier=%d,deinterlace_type=%d,window_flags=%d) started.",
 			      handle,ncols,nrows,nsbin,npbin,amplifier,deinterlace_type,window_flags);
 #endif
 /* we are in a setup routine */
 	handle->Setup_Data.Setup_In_Progress = TRUE;
 /* reset abort flag - we havn't aborted yet! */
-	CCD_DSP_Set_Abort(handle,FALSE);
+	CCD_DSP_Set_Abort(class,source,handle,FALSE);
 /* reset dimension flag */
 	handle->Setup_Data.Dimension_Complete = FALSE;
 /* The binning needs to be done first to set the final
@@ -594,7 +607,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 		return FALSE;
 	}
 	handle->Setup_Data.NCols = ncols;
-	if(!Setup_Binning(handle,nsbin,npbin))
+	if(!Setup_Binning(class,source,handle,nsbin,npbin))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE; 
@@ -608,7 +621,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 		return FALSE;
 	}
 /* do de-interlacing/ amplifier setup */
-	if(!Setup_DeInterlace(handle,amplifier,deinterlace_type))
+	if(!Setup_DeInterlace(class,source,handle,amplifier,deinterlace_type))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -622,7 +635,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 		return FALSE;
 	}
 /* setup final calculated dimensions */
-	if(!Setup_Dimensions(handle,handle->Setup_Data.NCols,handle->Setup_Data.NRows))
+	if(!Setup_Dimensions(class,source,handle,handle->Setup_Data.NCols,handle->Setup_Data.NRows))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -638,7 +651,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 		return FALSE;
 	}
 /* setup windowing data */
-	if(!Setup_Window_List(handle,window_flags,window_list))
+	if(!Setup_Window_List(class,source,handle,window_flags,window_list))
 	{
 		handle->Setup_Data.Setup_In_Progress = FALSE;
 		return FALSE;
@@ -646,7 +659,8 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
 /* reset in progress information */
 	handle->Setup_Data.Setup_In_Progress = FALSE;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Dimensions(handle=%p) returned TRUE.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Dimensions(handle=%p) returned TRUE.",
+			      handle);
 #endif
 	return TRUE;
 }
@@ -655,6 +669,8 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
  * Routine that performs a hardware test on the PCI, timing and utility boards. It does this by doing 
  * sending TDL commands to the boards and testing the results. This routine is called from
  * CCD_Setup_Startup.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param test_count The number of times to perform the TDL command <b>on each board</b>. The test is performed on
  * 	three boards, PCI, timing and utility.
@@ -664,7 +680,7 @@ int CCD_Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows,int 
  * @see #CCD_Setup_Startup
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
+int CCD_Setup_Hardware_Test(char *class,char *source,CCD_Interface_Handle_T* handle,int test_count)
 {
 	int i;				/* loop number */
 	int value;			/* value sent to tdl */
@@ -673,7 +689,7 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 	int pci_errno,tim_errno,util_errno;	/* num of test encountered, per board */
 
 	Setup_Error_Number = 0;
-	CCD_DSP_Set_Abort(handle,FALSE);
+	CCD_DSP_Set_Abort(class,source,handle,FALSE);
 	value_increment = TDL_MAX_VALUE/test_count;
 
 	/* test the PCI board test_count times */
@@ -681,7 +697,7 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 	value = 0;
 	for(i=1; i<=test_count; i++)
 	{
-		retval = CCD_DSP_Command_TDL(handle,CCD_DSP_INTERFACE_BOARD_ID,value);
+		retval = CCD_DSP_Command_TDL(class,source,handle,CCD_DSP_INTERFACE_BOARD_ID,value);
 		if(retval != value)
 			pci_errno++;
 		value += value_increment;
@@ -699,7 +715,7 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 	value = 0;
 	for(i=1; i<=test_count; i++)
 	{
-		retval = CCD_DSP_Command_TDL(handle,CCD_DSP_TIM_BOARD_ID,value);
+		retval = CCD_DSP_Command_TDL(class,source,handle,CCD_DSP_TIM_BOARD_ID,value);
 		if(retval != value)
 			tim_errno++;
 		value += value_increment;
@@ -717,7 +733,7 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 	value = 0;	
 	for(i=1; i<=test_count; i++)
 	{
-		retval = CCD_DSP_Command_TDL(handle,CCD_DSP_UTIL_BOARD_ID,value);
+		retval = CCD_DSP_Command_TDL(class,source,handle,CCD_DSP_UTIL_BOARD_ID,value);
 		if(retval != value)
 			util_errno++;
 		value += value_increment;
@@ -769,16 +785,18 @@ int CCD_Setup_Hardware_Test(CCD_Interface_Handle_T* handle,int test_count)
 /**
  * Routine to abort a setup that is underway. This will cause CCD_Setup_Startup and CCD_Setup_Dimensions
  * to return FALSE as it will fail to complete the setup.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @see #CCD_Setup_Startup
  * @see #CCD_Setup_Dimensions
  */
-void CCD_Setup_Abort(CCD_Interface_Handle_T* handle)
+void CCD_Setup_Abort(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Abort(handle=%p) started.",handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,"CCD_Setup_Abort(handle=%p) started.",handle);
 #endif
-	CCD_DSP_Set_Abort(handle,TRUE);
+	CCD_DSP_Set_Abort(class,source,handle,TRUE);
 }
 
 /**
@@ -1146,6 +1164,8 @@ int CCD_Setup_Get_Setup_In_Progress(CCD_Interface_Handle_T* handle)
 /**
  * Routine to get the Analogue to Digital digitized value of the High Voltage (+36v) supply voltage.
  * This is read from the SETUP_HIGH_VOLTAGE_ADDRESS memory location, in Y memory space on the utility board.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param hv_adu The address of an integer to store the adus.
  * return Returns TRUE if the adus were read, FALSE otherwise.
@@ -1157,14 +1177,14 @@ int CCD_Setup_Get_Setup_In_Progress(CCD_Interface_Handle_T* handle)
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *hv_adu)
+int CCD_Setup_Get_High_Voltage_Analogue_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,int *hv_adu)
 {
 	int retval;
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Get_High_Voltage_Analogue_ADU(handle=%p) started.",
-			      handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,
+			      "CCD_Setup_Get_High_Voltage_Analogue_ADU(handle=%p) started.",handle);
 #endif
 	if(hv_adu == NULL)
 	{
@@ -1172,7 +1192,8 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *
 		sprintf(Setup_Error_String,"CCD_Setup_Get_High_Voltage_Analogue_ADU:adu was NULL.");
 		return FALSE;
 	}
-	retval = CCD_DSP_Command_RDM(handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_HIGH_VOLTAGE_ADDRESS);
+	retval = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+				     SETUP_HIGH_VOLTAGE_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		Setup_Error_Number = 52;
@@ -1181,7 +1202,7 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *
 	}
 	(*hv_adu) = retval;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,
 			      "CCD_Setup_Get_High_Voltage_Analogue_ADU(handle=%p) returned %#x.",
 			      handle,(*hv_adu));
 #endif
@@ -1191,6 +1212,8 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *
 /**
  * Routine to get the Analogue to Digital digitized value of the Low Voltage (+15v) supply voltage.
  * This is read from the SETUP_LOW_VOLTAGE_ADDRESS memory location, in Y memory space on the utility board.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param lv_adu The address of an integer to store the adus.
  * return Returns TRUE if the adus were read, FALSE otherwise.
@@ -1202,14 +1225,14 @@ int CCD_Setup_Get_High_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *lv_adu)
+int CCD_Setup_Get_Low_Voltage_Analogue_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,int *lv_adu)
 {
 	int retval;
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,"CCD_Setup_Get_Low_Voltage_Analogue_ADU(handle=%p) started.",
-			      handle);
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,
+			      "CCD_Setup_Get_Low_Voltage_Analogue_ADU(handle=%p) started.",handle);
 #endif
 	if(lv_adu == NULL)
 	{
@@ -1217,7 +1240,8 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *l
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Low_Voltage_Analogue_ADU:adu was NULL.");
 		return FALSE;
 	}
-	retval = CCD_DSP_Command_RDM(handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_LOW_VOLTAGE_ADDRESS);
+	retval = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+				     SETUP_LOW_VOLTAGE_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		Setup_Error_Number = 54;
@@ -1226,7 +1250,7 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *l
 	}
 	(*lv_adu) = retval;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,
 			      "CCD_Setup_Get_Low_Voltage_Analogue_ADU(handle=%p) returned %#x.",
 			      handle,(*lv_adu));
 #endif
@@ -1236,6 +1260,8 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *l
 /**
  * Routine to get the Analogue to Digital digitized value of the Low Voltage Negative (-15v) supply voltage.
  * This is read from the SETUP_MINUS_LOW_VOLTAGE_ADDRESS memory location, in Y memory space on the utility board.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param minus_lv_adu The address of an integer to store the adus.
  * return Returns TRUE if the adus were read, FALSE otherwise.
@@ -1247,13 +1273,14 @@ int CCD_Setup_Get_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *l
  * @see ccd_global.html#CCD_Global_Log
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,int *minus_lv_adu)
+int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(char *class,char *source,CCD_Interface_Handle_T* handle,
+						 int *minus_lv_adu)
 {
 	int retval;
 
 	Setup_Error_Number = 0;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,
 			      "CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(handle=%p) started.",handle);
 #endif
 	if(minus_lv_adu == NULL)
@@ -1262,7 +1289,8 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,
 		sprintf(Setup_Error_String,"CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU:adu was NULL.");
 		return FALSE;
 	}
-	retval = CCD_DSP_Command_RDM(handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_MINUS_LOW_VOLTAGE_ADDRESS);
+	retval = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_UTIL_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+				     SETUP_MINUS_LOW_VOLTAGE_ADDRESS);
 	if((retval == 0)&&(CCD_DSP_Get_Error_Number() != 0))
 	{
 		Setup_Error_Number = 56;
@@ -1271,7 +1299,7 @@ int CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(CCD_Interface_Handle_T* handle,
 	}
 	(*minus_lv_adu) = retval;
 #if LOGGING > 0
-	CCD_Global_Log_Format(LOG_VERBOSITY_VERBOSE,
+	CCD_Global_Log_Format(class,source,LOG_VERBOSITY_VERBOSE,
 			      "CCD_Setup_Get_Minus_Low_Voltage_Analogue_ADU(handle=%p) returned %#x.",
 			      handle,(*minus_lv_adu));
 #endif
@@ -1349,15 +1377,17 @@ void CCD_Setup_Warning(void)
 /**
  * Routine to reset the SDSU controller. A CCD_DSP_Command_Reset command is issued, which returns
  * <a href="ccd_dsp.html#CCD_DSP_SYR">SYR</a> on success. This is non-standard.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if reset timing was successfully completed, 
  * 	FALSE if it failed in some way.
  * @see ccd_dsp.html#CCD_DSP_Command_Reset
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Reset_Controller(CCD_Interface_Handle_T* handle)
+static int Setup_Reset_Controller(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
-	if(CCD_DSP_Command_Reset(handle) != CCD_DSP_SYR)
+	if(CCD_DSP_Command_Reset(class,source,handle) != CCD_DSP_SYR)
 	{
 		Setup_Error_Number = 33;
 		sprintf(Setup_Error_String,"Reset Controller Failed.");
@@ -1370,6 +1400,8 @@ static int Setup_Reset_Controller(CCD_Interface_Handle_T* handle)
  * Internal routine that loads a PCI board DSP program into the SDSU CCD Controller. The
  * program can come from either ROM or a file on disc. This routine is called from
  * CCD_Setup_Startup.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param load_type Where to load the application from, one of<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
  *	CCD_SETUP_LOAD_ROM (do nothing, use default program loaded at startup), 
@@ -1382,7 +1414,8 @@ static int Setup_Reset_Controller(CCD_Interface_Handle_T* handle)
  * @see ccd_dsp_download.html#CCD_DSP_Download
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_PCI_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE load_type,char *filename)
+static int Setup_PCI_Board(char *class,char *source,CCD_Interface_Handle_T* handle,
+			   enum CCD_SETUP_LOAD_TYPE load_type,char *filename)
 {
 	if(!CCD_SETUP_IS_LOAD_TYPE(load_type))
 	{
@@ -1405,7 +1438,7 @@ static int Setup_PCI_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TY
 			sprintf(Setup_Error_String,"PCI Board:DSP Filename was NULL.");
 			return FALSE;
 		}
-		if(!CCD_DSP_Download(handle,CCD_DSP_INTERFACE_BOARD_ID,filename))
+		if(!CCD_DSP_Download(class,source,handle,CCD_DSP_INTERFACE_BOARD_ID,filename))
 		{
 			Setup_Error_Number = 40;
 			sprintf(Setup_Error_String,"PCI Board:Failed to download filename '%s'.",
@@ -1423,6 +1456,8 @@ static int Setup_PCI_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TY
  * If the CCD_SETUP_TIMING_DOWNLOAD_IDLE compile time directive has been set,
  * and if the timing board is in idle mode and load_type is
  * CCD_SETUP_LOAD_FILENAME, the timing board is stopped whilst the application is loaded.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param load_type Where to load the application from, one of<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
  *	CCD_SETUP_LOAD_ROM (do nothing, use default program loaded at startup), 
@@ -1441,8 +1476,8 @@ static int Setup_PCI_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TY
  * @see #SETUP_TIMING_IDLMODE
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE load_type,
-			      int load_application_number,char *filename)
+static int Setup_Timing_Board(char *class,char *source,CCD_Interface_Handle_T* handle,
+			      enum CCD_SETUP_LOAD_TYPE load_type,int load_application_number,char *filename)
 {
 #ifdef CCD_SETUP_TIMING_DOWNLOAD_IDLE
 	int value,bit_value;
@@ -1460,11 +1495,11 @@ static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD
 ** We do this whether it is an application or a filename load, as voodoo does. */
 #ifdef CCD_SETUP_TIMING_DOWNLOAD_IDLE
 /* if we are currently in IDL mode - come out of this mode */
-	value = CCD_DSP_Command_RDM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0);
+	value = CCD_DSP_Command_RDM(class,source,handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_X,0);
 	bit_value = value & SETUP_TIMING_IDLMODE;
 	if(bit_value > 0)
 	{
-		if(CCD_DSP_Command_STP(handle)!= CCD_DSP_DON)
+		if(CCD_DSP_Command_STP(class,source,handle)!= CCD_DSP_DON)
 		{
 			Setup_Error_Number = 7;
 			sprintf(Setup_Error_String,"Timing Board:Failed to load filename '%s':STP failed.",
@@ -1475,7 +1510,7 @@ static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD
 #endif
 	if(load_type == CCD_SETUP_LOAD_APPLICATION)
 	{
-		if(CCD_DSP_Command_LDA(handle,CCD_DSP_TIM_BOARD_ID,load_application_number)!=CCD_DSP_DON)
+		if(CCD_DSP_Command_LDA(class,source,handle,CCD_DSP_TIM_BOARD_ID,load_application_number)!=CCD_DSP_DON)
 		{
 			Setup_Error_Number = 6;
 			sprintf(Setup_Error_String,"Timing Board:Failed to load application %d.",
@@ -1492,7 +1527,7 @@ static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD
 			return FALSE;
 		}
 		/* download the program from the file */
-		if(!CCD_DSP_Download(handle,CCD_DSP_TIM_BOARD_ID,filename))
+		if(!CCD_DSP_Download(class,source,handle,CCD_DSP_TIM_BOARD_ID,filename))
 		{
 			Setup_Error_Number = 8;
 			sprintf(Setup_Error_String,"Timing Board:Failed to download filename '%s'.",
@@ -1504,7 +1539,7 @@ static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD
 /* if neccessary restart IDL mode. Note voodoo does not do this! */
 	if(bit_value > 0)
 	{
-		if(CCD_DSP_Command_IDL(handle)!=CCD_DSP_DON)
+		if(CCD_DSP_Command_IDL(class,source,handle)!=CCD_DSP_DON)
 		{
 			Setup_Error_Number = 9;
 			sprintf(Setup_Error_String,"Timing Board:Failed to load filename '%s':IDL failed.",
@@ -1520,6 +1555,8 @@ static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD
  * Internal routine that loads a utility board DSP application onto the SDSU CCD Controller. The
  * application can come from either (EEP)ROM or a file on disc. This routine is called from
  * CCD_Setup_Startup.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param load_type Where to load the application from, one of<a href="#CCD_SETUP_LOAD_TYPE">CCD_SETUP_LOAD_TYPE</a>:
  *	CCD_SETUP_LOAD_ROM (do nothing, use default program loaded at startup), 
@@ -1535,8 +1572,8 @@ static int Setup_Timing_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD
  * @see #CCD_Setup_Startup
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Utility_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOAD_TYPE load_type,
-			       int load_application_number,char *filename)
+static int Setup_Utility_Board(char *class,char *source,CCD_Interface_Handle_T* handle,
+			       enum CCD_SETUP_LOAD_TYPE load_type,int load_application_number,char *filename)
 {
 	if(!CCD_SETUP_IS_LOAD_TYPE(load_type))
 	{
@@ -1547,7 +1584,7 @@ static int Setup_Utility_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOA
 	}
 	if(load_type == CCD_SETUP_LOAD_APPLICATION)
 	{
-		if(CCD_DSP_Command_LDA(handle,CCD_DSP_UTIL_BOARD_ID,load_application_number)!=CCD_DSP_DON)
+		if(CCD_DSP_Command_LDA(class,source,handle,CCD_DSP_UTIL_BOARD_ID,load_application_number)!=CCD_DSP_DON)
 		{
 			Setup_Error_Number = 10;
 			sprintf(Setup_Error_String,"Utility Board:Failed to load application %d.",
@@ -1563,7 +1600,7 @@ static int Setup_Utility_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOA
 			sprintf(Setup_Error_String,"Utility Board:DSP Filename was NULL.");
 			return FALSE;
 		}
-		if(!CCD_DSP_Download(handle,CCD_DSP_UTIL_BOARD_ID,filename))
+		if(!CCD_DSP_Download(class,source,handle,CCD_DSP_UTIL_BOARD_ID,filename))
 		{
 			Setup_Error_Number = 11;
 			sprintf(Setup_Error_String,"Utility Board:Failed to download filename '%s'.",
@@ -1579,15 +1616,17 @@ static int Setup_Utility_Board(CCD_Interface_Handle_T* handle,enum CCD_SETUP_LOA
  * PON command. The command is sent to the utility board using the
  * <a href="ccd_dsp.html#CCD_DSP_Command_PON">CCD_DSP_Command_PON</a> routine.This routine is called from
  * CCD_Setup_Startup.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the operation succeeded, FALSE if it failed.
  * @see #CCD_Setup_Startup
  * @see ccd_dsp.html#CCD_DSP_Command_PON
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Power_On(CCD_Interface_Handle_T* handle)
+static int Setup_Power_On(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
-	if(CCD_DSP_Command_PON(handle)!=CCD_DSP_DON)
+	if(CCD_DSP_Command_PON(class,source,handle)!=CCD_DSP_DON)
 	{
 		Setup_Error_Number = 12;
 		sprintf(Setup_Error_String,"Power On failed");
@@ -1601,15 +1640,17 @@ static int Setup_Power_On(CCD_Interface_Handle_T* handle)
  * POF command. The command is sent to the utility board using the
  * <a href="ccd_dsp.html#CCD_DSP_Command_POF">CCD_DSP_Command_POF</a> routine.This routine is called from
  * CCD_Setup_Shutdown.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return Returns TRUE if the operation succeeded, FALSE if it failed.
  * @see #CCD_Setup_Shutdown
  * @see ccd_dsp.html#CCD_DSP_Command_POF
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Power_Off(CCD_Interface_Handle_T* handle)
+static int Setup_Power_Off(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
-	if(CCD_DSP_Command_POF(handle)!=CCD_DSP_DON)
+	if(CCD_DSP_Command_POF(class,source,handle)!=CCD_DSP_DON)
 	{
 		Setup_Error_Number = 3;
 		sprintf(Setup_Error_String,"Power Off failed");
@@ -1621,6 +1662,8 @@ static int Setup_Power_Off(CCD_Interface_Handle_T* handle)
 /**
  * Internal routine to setup the gain and speed of the SDSU CCD Controller. This routine is called from
  * CCD_Setup_Startup. The gain used is the one setup in Setup_Data.Gain (setup in CCD_Setup_Startup).
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param gain Specifies the gain to use for the CCD video processors. Acceptable values are
  * 	<a href="ccd_dsp.html#CCD_DSP_GAIN">CCD_DSP_GAIN</a>:
@@ -1632,7 +1675,7 @@ static int Setup_Power_Off(CCD_Interface_Handle_T* handle)
  * @see ccd_dsp.html#CCD_DSP_Command_SGN
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Gain(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed)
+static int Setup_Gain(char *class,char *source,CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int speed)
 {
 	int ret_val;
 
@@ -1649,7 +1692,7 @@ static int Setup_Gain(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int 
 		sprintf(Setup_Error_String,"Setup_Gain:Gain Speed %d  (gain = %d)  has illegal value.",speed,gain);
 		return FALSE;
 	}
-	ret_val = CCD_DSP_Command_SGN(handle,handle->Setup_Data.Gain,speed);
+	ret_val = CCD_DSP_Command_SGN(class,source,handle,handle->Setup_Data.Gain,speed);
 	if(ret_val!=CCD_DSP_DON)
 	{
 		Setup_Error_Number = 13;
@@ -1663,6 +1706,8 @@ static int Setup_Gain(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int 
  * idle when not executing commands, using the IDL or STP DSP commands. 
  * This routine is called from CCD_Setup_Startup. The Setup_Data's Idle property is changed to
  * reflect the current status of idling on the controller.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param idle TRUE if the timing board is to idle when not executing commands, FALSE if it isn't to idle.
  * @return returns TRUE if the operation succeeded, FALSE if it failed.
@@ -1672,7 +1717,7 @@ static int Setup_Gain(CCD_Interface_Handle_T* handle,enum CCD_DSP_GAIN gain,int 
  * @see ccd_dsp.html#CCD_DSP_Command_STP
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Idle(CCD_Interface_Handle_T* handle,int idle)
+static int Setup_Idle(char *class,char *source,CCD_Interface_Handle_T* handle,int idle)
 {
 	if(!CCD_GLOBAL_IS_BOOLEAN(idle))
 	{
@@ -1682,7 +1727,7 @@ static int Setup_Idle(CCD_Interface_Handle_T* handle,int idle)
 	}
 	if(idle)
 	{
-		if(CCD_DSP_Command_IDL(handle)!=CCD_DSP_DON)
+		if(CCD_DSP_Command_IDL(class,source,handle)!=CCD_DSP_DON)
 		{
 			Setup_Error_Number = 14;
 			sprintf(Setup_Error_String,"Setting Idle failed");
@@ -1692,7 +1737,7 @@ static int Setup_Idle(CCD_Interface_Handle_T* handle,int idle)
 	}
 	else
 	{
-		if(CCD_DSP_Command_STP(handle)!=CCD_DSP_DON)
+		if(CCD_DSP_Command_STP(class,source,handle)!=CCD_DSP_DON)
 		{
 			Setup_Error_Number = 15;
 			sprintf(Setup_Error_String,"Setting Stop Idle failed");
@@ -1708,6 +1753,8 @@ static int Setup_Idle(CCD_Interface_Handle_T* handle,int idle)
  * the binning values and saves them in Setup_Data, writes the
  * binning values to the controller boards, and re-calculates the stored columns and rows values to allow for
  * binning e.g. NCols = NCols/NSBin. This routine is called from CCD_Setup_Dimensions.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param nsbin The amount of binning applied to pixels in columns. This parameter will change internally ncols.
  * @param npbin The amount of binning applied to pixels in rows.This parameter will change internally nrows.
@@ -1719,7 +1766,7 @@ static int Setup_Idle(CCD_Interface_Handle_T* handle,int idle)
  * @see ccd_dsp.html#CCD_DSP_Command_WRM
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Binning(CCD_Interface_Handle_T* handle,int nsbin,int npbin)
+static int Setup_Binning(char *class,char *source,CCD_Interface_Handle_T* handle,int nsbin,int npbin)
 {
 	if(nsbin <= 0)
 	{
@@ -1739,14 +1786,14 @@ static int Setup_Binning(CCD_Interface_Handle_T* handle,int nsbin,int npbin)
 /* will be sending the FINAL image size to the boards, so calculate them now */
 	handle->Setup_Data.NCols = handle->Setup_Data.NCols/handle->Setup_Data.NSBin;
 	handle->Setup_Data.NRows = handle->Setup_Data.NRows/handle->Setup_Data.NPBin;
-	if(CCD_DSP_Command_WRM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_BIN_X,
+	if(CCD_DSP_Command_WRM(class,source,handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_BIN_X,
 		handle->Setup_Data.NSBin) != CCD_DSP_DON)
 	{
 		Setup_Error_Number = 16;
 		sprintf(Setup_Error_String,"Setting Column Binning failed(%d)",handle->Setup_Data.NSBin);
 		return FALSE;
 	}
-	if(CCD_DSP_Command_WRM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_BIN_Y,
+	if(CCD_DSP_Command_WRM(class,source,handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_BIN_Y,
 		handle->Setup_Data.NPBin)!= CCD_DSP_DON)
 	{
 		Setup_Error_Number = 17;
@@ -1763,6 +1810,8 @@ static int Setup_Binning(CCD_Interface_Handle_T* handle,int nsbin,int npbin)
  * changed. This routine is called from CCD_Setup_Dimensions.
  * The routine also sets which amplifier is used for image readout, which dictates the de-interlace settings.
  * Note you can currently choose a silly combination of amplifier and deinterlace_type at the moment.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param amplifier Which amplifier to use when reading out data from the CCD. Possible values come from
  * 	the CCD_DSP_AMPLIFIER enum.
@@ -1780,7 +1829,7 @@ static int Setup_Binning(CCD_Interface_Handle_T* handle,int nsbin,int npbin)
  * @see ccd_dsp.html#CCD_DSP_DEINTERLACE_TYPE
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_DeInterlace(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier,
+static int Setup_DeInterlace(char *class,char *source,CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFIER amplifier,
 			     enum CCD_DSP_DEINTERLACE_TYPE deinterlace_type)
 {
 	if(!CCD_DSP_IS_AMPLIFIER(amplifier))
@@ -1796,7 +1845,7 @@ static int Setup_DeInterlace(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFI
 		return FALSE;
 	}
 /* setup output amplifier */
-	if(CCD_DSP_Command_SOS(handle,amplifier)!=CCD_DSP_DON)
+	if(CCD_DSP_Command_SOS(class,source,handle,amplifier)!=CCD_DSP_DON)
 	{
 		Setup_Error_Number = 43;
 		sprintf(Setup_Error_String,"Setup_DeInterlace:Setting Amplifier to %d failed",amplifier);
@@ -1858,6 +1907,8 @@ static int Setup_DeInterlace(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFI
 /**
  * Internal routine to set up the CCD dimensions for the SDSU CCD Controller. This routines writes the
  * dimension values to the controller boards using WRM.  This routine is called from CCD_Setup_Dimensions.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param ncols The number of columns. This is usually Setup_Data.NCols, but will be different when
  *        windowing.
@@ -1871,17 +1922,17 @@ static int Setup_DeInterlace(CCD_Interface_Handle_T* handle,enum CCD_DSP_AMPLIFI
  * @see ccd_dsp.html#CCD_DSP_WRM
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows)
+static int Setup_Dimensions(char *class,char *source,CCD_Interface_Handle_T* handle,int ncols,int nrows)
 {
-	if(CCD_DSP_Command_WRM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_DIMENSION_COLS,
-		ncols) != CCD_DSP_DON)
+	if(CCD_DSP_Command_WRM(class,source,handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+			       SETUP_ADDRESS_DIMENSION_COLS,ncols) != CCD_DSP_DON)
 	{
 		Setup_Error_Number = 22;
 		sprintf(Setup_Error_String,"Setting Dimensions:Column Setup failed(%d)",ncols);
 		return FALSE;
 	}
-	if(CCD_DSP_Command_WRM(handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,SETUP_ADDRESS_DIMENSION_ROWS,
-		nrows) != CCD_DSP_DON)
+	if(CCD_DSP_Command_WRM(class,source,handle,CCD_DSP_TIM_BOARD_ID,CCD_DSP_MEM_SPACE_Y,
+			       SETUP_ADDRESS_DIMENSION_ROWS,nrows) != CCD_DSP_DON)
 	{
 		Setup_Error_Number = 23;
 		sprintf(Setup_Error_String,"Setting Dimensions:Row Setup failed(%d)",nrows);
@@ -1895,6 +1946,8 @@ static int Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows)
  * The windows are checked to ensure they don't overlap in the y (row) direction, and that sub-images are
  * all the same size. Only windows which are included in the window_flags parameter are checked.
  * If the windows are OK, Setup_Controller_Windows is called to write the windows to the SDSU controller.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @param window_flags Information on which of the sets of window positions supplied contain windows to be used.
  * @param window_list A list of CCD_Setup_Window_Structs defining the position of the windows. The list should
@@ -1906,7 +1959,7 @@ static int Setup_Dimensions(CCD_Interface_Handle_T* handle,int ncols,int nrows)
  * @see #Setup_Controller_Windows
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Window_List(CCD_Interface_Handle_T* handle,int window_flags,
+static int Setup_Window_List(char *class,char *source,CCD_Interface_Handle_T* handle,int window_flags,
 			     struct CCD_Setup_Window_Struct window_list[])
 {
 	int start_window_index,end_window_index,found;
@@ -1984,7 +2037,7 @@ static int Setup_Window_List(CCD_Interface_Handle_T* handle,int window_flags,
 		handle->Setup_Data.Window_List[3] = window_list[3];
 	handle->Setup_Data.Window_Flags = window_flags;
 /* write parameters to window table on timing board */
-	if(!Setup_Controller_Windows(handle))
+	if(!Setup_Controller_Windows(class,source,handle))
 		return FALSE;
 	return TRUE;
 }
@@ -1994,6 +2047,8 @@ static int Setup_Window_List(CCD_Interface_Handle_T* handle,int window_flags,
  * If no windowing is taking place, we use SSS to reset the window sizes to zero (turning them off in the DSP code).
  * We also call Setup_Dimensions to set NSR and NPR to an area equivalent to the total number of pixels
  * written back from the timing board to the PCI board.
+ * @param class The class parameter to use for any log messages associated with this operation.
+ * @param source The class parameter to use for any log messages associated with this operation.
  * @param handle The address of a CCD_Interface_Handle_T that holds the device connection specific information.
  * @return The routine returns TRUE on success, and FALSE if something fails.
  * @see #Setup_Dimensions
@@ -2002,7 +2057,7 @@ static int Setup_Window_List(CCD_Interface_Handle_T* handle,int window_flags,
  * @see #SETUP_WINDOW_BIAS_WIDTH
  * @see ccd_interface.html#CCD_Interface_Handle_T
  */
-static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
+static int Setup_Controller_Windows(char *class,char *source,CCD_Interface_Handle_T* handle)
 {
 	struct CCD_Setup_Window_Struct window_list[CCD_SETUP_WINDOW_COUNT];
 	int bias_width,box_width,box_height,window_count;
@@ -2011,7 +2066,7 @@ static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
 	/* if no windows - reset window sizes and return */
 	if(handle->Setup_Data.Window_Flags == 0)
 	{
-		if(CCD_DSP_Command_SSS(handle,0,0,0) != CCD_DSP_DON)
+		if(CCD_DSP_Command_SSS(class,source,handle,0,0,0) != CCD_DSP_DON)
 		{
 			Setup_Error_Number = 64;
 			sprintf(Setup_Error_String,"Reseting Subarray Sizes to zero failed.");
@@ -2033,7 +2088,7 @@ static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
 	bias_width = SETUP_WINDOW_BIAS_WIDTH;/* diddly - get this from parameters? */
 	box_width = window_list[0].X_End-window_list[0].X_Start;
 	box_height = window_list[0].Y_End-window_list[0].Y_Start;
-	if(CCD_DSP_Command_SSS(handle,bias_width,box_width,box_height) != CCD_DSP_DON)
+	if(CCD_DSP_Command_SSS(class,source,handle,bias_width,box_width,box_height) != CCD_DSP_DON)
 	{
 		Setup_Error_Number = 45;
 		sprintf(Setup_Error_String,"Setting Subarray Sizes failed:(%d,%d,%d).",bias_width,box_width,
@@ -2052,7 +2107,7 @@ static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
 		/* diddly 2048 + a bit
 	        ** Full Width(2154)-bias strip width (53) = 2101 : correct calculation for this value. */
 		bias_x_offset = 2101-window_list[i].X_End;
-		if(CCD_DSP_Command_SSP(handle,y_offset,x_offset,bias_x_offset) != CCD_DSP_DON)
+		if(CCD_DSP_Command_SSP(class,source,handle,y_offset,x_offset,bias_x_offset) != CCD_DSP_DON)
 		{
 			Setup_Error_Number = 60;
 			sprintf(Setup_Error_String,"Setting Subarray Position failed:(%d,%d,%d).",y_offset,
@@ -2068,13 +2123,16 @@ static int Setup_Controller_Windows(CCD_Interface_Handle_T* handle)
 	** For windowing, the total area of all the windows must be set as the CCD dimensions,
 	** as NSR and NPR are written back from the timing board to the PCI board as part of the
 	** RDA command, which tells the PCI board how many pixels is should expect from the timing board. */
-	if(Setup_Dimensions(handle,total_ncols,box_height) == FALSE)
+	if(Setup_Dimensions(class,source,handle,total_ncols,box_height) == FALSE)
 		return FALSE;
 	return TRUE;
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.33  2009/08/17 11:00:13  cjm
+** Extended SETUP_MEMORY_BUFFER_SIZE as it was too small in the x direction.
+**
 ** Revision 0.32  2009/04/30 14:21:30  cjm
 ** Changed calls to CCD_DSP_Get_Abort / CCD_DSP_Set_Abort, they now require a handle.
 ** CCD_Setup_Abort now has a handle parameter for the same reason.

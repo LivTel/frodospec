@@ -1,5 +1,5 @@
 /* test_abort.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_abort.c,v 1.4 2008-11-20 11:34:58 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_abort.c,v 1.5 2011-01-17 10:59:05 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +22,7 @@
  * 	-t[ext_print_level] &lt;commands|replies|values|all&gt; -help
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.4 $
+ * @version $Revision: 1.5 $
  */
 /* hash definitions */
 /**
@@ -44,7 +44,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_abort.c,v 1.4 2008-11-20 11:34:58 cjm Exp $";
+static char rcsid[] = "$Id: test_abort.c,v 1.5 2011-01-17 10:59:05 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
 			break;
 	}
-	retval = CCD_Interface_Open(Interface_Device,device_pathname,&handle);
+	retval = CCD_Interface_Open("test_sbort","-",Interface_Device,device_pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 	fflush(stdout);
 	/* get Host Status */
 	fprintf(stdout,"Getting HSTR.\n");
-	if(!CCD_DSP_Command_Get_HSTR(handle,&status))
+	if(!CCD_DSP_Command_Get_HSTR("test_sbort","-",handle,&status))
 	{
 		CCD_Global_Error();
 		return 1;
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 	{
 		/* abort a running exposure */
 		fprintf(stdout,"About to Abort Exposure.\n");
-		retval = CCD_DSP_Command_AEX(handle);
+		retval = CCD_DSP_Command_AEX("test_sbort","-",handle);
 		if(retval != CCD_DSP_DON)
 		{
 			CCD_Global_Error();
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
 	{
 		/* abort a readout */
 		fprintf(stdout,"About to Abort Readout.\n");
-		retval = CCD_DSP_Command_ABR(handle);
+		retval = CCD_DSP_Command_ABR("test_sbort","-",handle);
 		if(retval != CCD_DSP_DON)
 		{
 			CCD_Global_Error();
@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
 		fprintf(stdout,"Abort Readout Successfully Completed.\n");
 	}
 	fprintf(stdout,"CCD_Interface_Close\n");
-	CCD_Interface_Close(&handle);
+	CCD_Interface_Close("test_sbort","-",&handle);
 	fprintf(stdout,"CCD_Interface_Close completed.\n");
 	return retval;
 }
@@ -235,6 +235,9 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.4  2008/11/20 11:34:58  cjm
+** *** empty log message ***
+**
 ** Revision 1.3  2006/11/06 16:52:49  eng
 ** Added includes to fix implicit function declarations.
 **
