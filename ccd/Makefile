@@ -1,6 +1,7 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/ccd/Makefile,v 1.4 2008-11-20 11:35:39 cjm Exp $ 
+# $Header: /home/cjm/cvs/frodospec/ccd/Makefile,v 1.5 2011-01-17 11:10:19 cjm Exp $ 
 
+include ../../Makefile.common
 include ../Makefile.common
 
 DIRS = c test 
@@ -55,6 +56,9 @@ backup: checkin
 
 
 # $Log: not supported by cvs2svn $
+# Revision 1.4  2008/11/20 11:35:39  cjm
+# *** empty log message ***
+#
 # Revision 1.3  2007/01/09 14:36:45  cjm
 # Changed some 'cd's for $(MAKE) -C.
 #
