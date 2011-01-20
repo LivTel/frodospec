@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.10 2011-01-17 10:48:10 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.11 2011-01-20 14:58:11 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.10 $
+ * @version $Revision: 1.11 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.10 2011-01-17 10:48:10 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.11 2011-01-20 14:58:11 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -697,6 +697,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		hashTable.put("Plc.Fault.Status",new Integer(plcFaultStatus));
 		hashTable.put("Plc.Fault.Status.String",new String(Plc.printBits(plcFaultStatus)));
 		hashTable.put("Plc.Comms.Status",new String(plcCommsStatus));
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS","-",
+			      this.getClass().getName()+":Plc.Comms.Status:"+plcCommsStatus+".");
 		// mechanism status
 		try
 		{
@@ -824,6 +826,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			}
 			hashTable.put("Lamp.Controller.Status.Fault",new Boolean(lampControllerFaultStatus));
 			hashTable.put("Lamp.Controller.Plc.Comms.Status",new String(lampControllerPLCCommsStatus));
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS","-",
+				      this.getClass().getName()+":Lamp.Controller.Plc.Comms.Status:"+
+				      lampControllerPLCCommsStatus+".");
 		}// end if
 		else
 			lampControllerFaultStatus = true; // fake everything is OK	
@@ -894,6 +899,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
 			      GET_STATUS_DONE.KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS,
 			      armDetectorTemperatureInstrumentStatus[arm]);
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS",FrodoSpecConstants.ARM_STRING_LIST[arm],
+			      this.getClass().getName()+":"+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
+			      GET_STATUS_DONE.KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS+":"+
+			      armDetectorTemperatureInstrumentStatus[arm]+".");
 	}
 
 	/**
@@ -987,6 +996,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		{
 			hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
 				      KEYWORD_SDSU_COMMS_INSTRUMENT_STATUS,sdsuCommsInstrumentStatus[arm]);
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS",
+				      FrodoSpecConstants.ARM_STRING_LIST[arm],
+				      this.getClass().getName()+":"+FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
+				      KEYWORD_SDSU_COMMS_INSTRUMENT_STATUS+":"+sdsuCommsInstrumentStatus[arm]+".");
 		}
 		// no overall SDSU comms status at the moment - how would this be useful?
 		// set overall detectorTemperatureInstrumentStatus based on each arm
@@ -1004,6 +1017,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		// set overall detectorTemperatureInstrumentStatus  hashtable entry
 		hashTable.put(GET_STATUS_DONE.KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS,
 			      detectorTemperatureInstrumentStatus);
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS","-",this.getClass().getName()+":"+
+			      GET_STATUS_DONE.KEYWORD_DETECTOR_TEMPERATURE_INSTRUMENT_STATUS+":"+
+			      detectorTemperatureInstrumentStatus+".");
 		// plc per-arm status
 		for(int arm = FrodoSpecConfig.RED_ARM; arm <= FrodoSpecConfig.BLUE_ARM; arm++)
 		{
@@ -1021,6 +1037,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			// set per-arm status in hashtable
 			hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
 				      KEYWORD_PLC_INSTRUMENT_STATUS,plcArmInstrumentStatus[arm]);
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS",
+				      FrodoSpecConstants.ARM_STRING_LIST[arm],this.getClass().getName()+":"+
+				      FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
+				      KEYWORD_PLC_INSTRUMENT_STATUS+":"+plcArmInstrumentStatus[arm]+".");
 		}
 		// overall plc status
 		plcInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
@@ -1040,12 +1060,18 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		}
 		// over all PLC status (based on fault bits)
 		hashTable.put(KEYWORD_PLC_INSTRUMENT_STATUS,plcInstrumentStatus);
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS","-",this.getClass().getName()+":"+
+			      KEYWORD_PLC_INSTRUMENT_STATUS+":"+plcInstrumentStatus+".");
 		// per-arm focus stage
 		for(int arm = FrodoSpecConfig.RED_ARM; arm <= FrodoSpecConfig.BLUE_ARM; arm++)
 		{
 			// set per-arm status in hashtable
 			hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
 				      KEYWORD_FOCUS_STAGE_INSTRUMENT_STATUS,focusStageInstrumentStatusString[arm]);
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS",
+				      FrodoSpecConstants.ARM_STRING_LIST[arm],this.getClass().getName()+":"+
+				      FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+KEYWORD_FOCUS_STAGE_INSTRUMENT_STATUS
+				      +":"+focusStageInstrumentStatusString[arm]+".");
 		}
 		// overall focus stage
 		focusStageInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
@@ -1059,6 +1085,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 				focusStageInstrumentStatus = GET_STATUS_DONE.VALUE_STATUS_FAIL;
 		}
 		hashTable.put(KEYWORD_FOCUS_STAGE_INSTRUMENT_STATUS,focusStageInstrumentStatus);
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS","-",this.getClass().getName()+":"+
+			      KEYWORD_FOCUS_STAGE_INSTRUMENT_STATUS+":"+focusStageInstrumentStatus+".");
 		// set overall per-arm status
 		for(int arm = FrodoSpecConfig.RED_ARM; arm <= FrodoSpecConfig.BLUE_ARM; arm++)
 		{
@@ -1101,6 +1129,10 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			// set per-arm status in hashtable
 			hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
 				      GET_STATUS_DONE.KEYWORD_INSTRUMENT_STATUS,armInstrumentStatus);
+			frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS",
+				      FrodoSpecConstants.ARM_STRING_LIST[arm],this.getClass().getName()+":"+
+				      FrodoSpecConstants.ARM_STRING_LIST[arm]+"."+
+				      GET_STATUS_DONE.KEYWORD_INSTRUMENT_STATUS+":"+armInstrumentStatus+".");
 		}
 		// set overall default to OK
 		instrumentStatus = GET_STATUS_DONE.VALUE_STATUS_OK;
@@ -1140,6 +1172,8 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 		}
 		// set standard status in hashtable
 		hashTable.put(GET_STATUS_DONE.KEYWORD_INSTRUMENT_STATUS,instrumentStatus);
+		frodospec.log(Logger.VERBOSITY_INTERMEDIATE,"GET_STATUS","-",this.getClass().getName()+":"+
+			      GET_STATUS_DONE.KEYWORD_INSTRUMENT_STATUS+":"+instrumentStatus+".");
 	}
 
 	/**
@@ -1231,6 +1265,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.10  2011/01/17 10:48:10  cjm
+// CCD Library logging API changes.
+//
 // Revision 1.9  2011/01/12 11:50:03  cjm
 // Adding clazz and source logging to PLC/Lamp API.
 //
