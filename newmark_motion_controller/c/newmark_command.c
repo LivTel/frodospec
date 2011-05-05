@@ -1,11 +1,11 @@
 /* newmark_command.c
 ** Newmark Motion Controller library.
-** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.5 2011-03-23 14:26:11 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/c/newmark_command.c,v 1.6 2011-05-05 15:20:54 cjm Exp $
 */
 /**
  * Command routines for the Newmark Motion Controller.
  * @author Chris Mottram
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes.
@@ -61,6 +61,10 @@
  */
 #define COMMAND_READ_LOOP_TIMEOUT (100)
 /**
+ * Number of times we retry a command write + prompt read loop before we throw an error.
+ */
+#define COMMAND_RETRY_LOOP_COUNT  (10)
+/**
  * The default value for the position tolerance.
  * @see #Position_Tolerance
  */
@@ -70,7 +74,7 @@
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: newmark_command.c,v 1.5 2011-03-23 14:26:11 cjm Exp $";
+static char rcsid[] = "$Id: newmark_command.c,v 1.6 2011-05-05 15:20:54 cjm Exp $";
 /**
  * How close the reported position has to be to the requested position before the stage
  * is deemed to be at the requested position. In millimetres.
@@ -176,6 +180,7 @@ int Newmark_Command_Move(char *class,char *source,Arcom_ESS_Interface_Handle_T *
 #endif
 	return TRUE;
 }
+
 /**
  * Command used to home the Newmark encoder.
  * @param class The class parameter for logging.
@@ -269,6 +274,7 @@ int Newmark_Command_Home(char *class,char *source,Arcom_ESS_Interface_Handle_T *
  * @param position The address of a double to store the retrieved position of the slide.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
+ * @see #COMMAND_RETRY_LOOP_COUNT
  * @see #Command_Read_Flush
  * @see #Command_Read_Until_Prompt
  * @see #Newmark_Command_Fix_String
@@ -281,7 +287,7 @@ int Newmark_Command_Position_Get(char *class,char *source,Arcom_ESS_Interface_Ha
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
-	int retval;
+	int retval,retry_loop_index,done;
 
 	if(position == NULL)
 	{
@@ -299,34 +305,58 @@ int Newmark_Command_Position_Get(char *class,char *source,Arcom_ESS_Interface_Ha
 		sprintf(Newmark_Error_String,"Newmark_Command_Position_Get:Arcom_ESS_Interface_Mutex_Lock failed.");
 		return FALSE;	       
 	}
-	/* clear any unread data */
-	if(!Command_Read_Flush(class,source,handle))
+	/* start retry loop over (send command + read prompt). */
+	retry_loop_index = 0;
+	done = FALSE;
+	while(done == FALSE)
 	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
-	/* send PRINT POS */
-	sprintf(command_buff,"PRINT POS\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
-			   "Newmark_Command_Position_Get:Writing '%s' to handle.",
-			   Newmark_Command_Fix_String(command_buff));
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Position_Get:Command/Prompt Retry attempt %d.",retry_loop_index);
 #endif
-	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		Newmark_Error_Number = 115;
-		sprintf(Newmark_Error_String,"Newmark_Command_Position_Get:Arcom_ESS_Interface_Write failed.");
-		return FALSE;	       
-	}
-	/* read reply 
-	** If the loop timeout count is 100 (100*10 = 1000ms), this sometimes times out.
-	** Increased timeout to 1000*10 = 10000ms. */
-	if(!Command_Read_Until_Prompt(class,source,handle,1000,TRUE,&reply_string))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
+		/* clear any unread data */
+		if(!Command_Read_Flush(class,source,handle))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			return FALSE;
+		}
+		/* send PRINT POS */
+		sprintf(command_buff,"PRINT POS\r\n");
+#if LOGGING > 5
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Position_Get:Writing '%s' to handle.",
+				   Newmark_Command_Fix_String(command_buff));
+#endif
+		if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			Newmark_Error_Number = 115;
+			sprintf(Newmark_Error_String,"Newmark_Command_Position_Get:Arcom_ESS_Interface_Write failed.");
+			return FALSE;
+		}
+		/* read reply 
+		** If the loop timeout count is 100 (100*10 = 1000ms), this sometimes times out.
+		** Now we use a command reply retry loop. */
+		if(Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
+		{
+			done = TRUE;
+		}
+		else
+		{
+			if(reply_string != NULL)
+				free(reply_string);
+			reply_string = NULL;
+			retry_loop_index++;
+			if(retry_loop_index >= COMMAND_RETRY_LOOP_COUNT)
+			{
+				Arcom_ESS_Interface_Mutex_Unlock(handle);
+				Newmark_Error_Number = 148;
+				sprintf(Newmark_Error_String,"Newmark_Command_Position_Get:"
+				       "Command_Read_Until_Prompt failed to return prompt %d times.",retry_loop_index);
+				return FALSE;
+			}
+		}
+	}/* end while not done */
 #if LOGGING > 5
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 			   "Newmark_Command_Position_Get:Read '%s' from handle.",
@@ -371,6 +401,7 @@ int Newmark_Command_Position_Get(char *class,char *source,Arcom_ESS_Interface_Ha
  * @param position A double indicating the target position to move to.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
+ * @see #COMMAND_RETRY_LOOP_COUNT
  * @see #Command_Read_Flush
  * @see #Command_Read_Until_Prompt
  * @see #Newmark_Command_Position_Get
@@ -384,6 +415,7 @@ int Newmark_Command_Move_Absolute(char *class,char *source,Arcom_ESS_Interface_H
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
+	int retry_loop_index,done;
 
 #if LOGGING > 1
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Absolute(%.6f):Start.",
@@ -396,32 +428,56 @@ int Newmark_Command_Move_Absolute(char *class,char *source,Arcom_ESS_Interface_H
 		sprintf(Newmark_Error_String,"Newmark_Command_Move_Absolute:Arcom_ESS_Interface_Mutex_Lock failed.");
 		return FALSE;	       
 	}
-	/* clear any unread data */
-	if(!Command_Read_Flush(class,source,handle))
+	/* start retry loop over (send command + read prompt). */
+	retry_loop_index = 0;
+	done = FALSE;
+	while(done == FALSE)
 	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
-	/* send MOVA <position> */
-	sprintf(command_buff,"MOVA %.6f\r\n",position);
 #if LOGGING > 5
-	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
-			   "Newmark_Command_Move_Absolute:Writing '%s' to handle.",
-			   Newmark_Command_Fix_String(command_buff));
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Move_Absolute:Command/Prompt Retry attempt %d.",retry_loop_index);
 #endif
-	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		Newmark_Error_Number = 108;
-		sprintf(Newmark_Error_String,"Newmark_Command_Move_Absolute:Arcom_ESS_Interface_Write failed.");
-		return FALSE;	       
-	}
-	/* read reply */
-	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
+		/* clear any unread data */
+		if(!Command_Read_Flush(class,source,handle))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			return FALSE;
+		}
+		/* send MOVA <position> */
+		sprintf(command_buff,"MOVA %.6f\r\n",position);
+#if LOGGING > 5
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Move_Absolute:Writing '%s' to handle.",
+				   Newmark_Command_Fix_String(command_buff));
+#endif
+		if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			Newmark_Error_Number = 108;
+			sprintf(Newmark_Error_String,"Newmark_Command_Move_Absolute:Arcom_ESS_Interface_Write failed.");
+			return FALSE;	       
+		}
+		/* read reply */
+		if(Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
+		{
+			done = TRUE;
+		}
+		else
+		{
+			if(reply_string != NULL)
+				free(reply_string);
+			reply_string = NULL;
+			retry_loop_index++;
+			if(retry_loop_index >= COMMAND_RETRY_LOOP_COUNT)
+			{
+				Arcom_ESS_Interface_Mutex_Unlock(handle);
+				Newmark_Error_Number = 149;
+				sprintf(Newmark_Error_String,"Newmark_Command_Move_Absolute:"
+				       "Command_Read_Until_Prompt failed to return prompt %d times.",retry_loop_index);
+				return FALSE;
+			}
+		}
+	}/* end while not done */
 #if LOGGING > 5
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 			   "Newmark_Command_Move_Absolute:Read '%s' from handle.",
@@ -464,6 +520,7 @@ int Newmark_Command_Move_Absolute(char *class,char *source,Arcom_ESS_Interface_H
  * @param position A double indicating the relative position (offset) to move.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
+ * @see #COMMAND_RETRY_LOOP_COUNT
  * @see #Command_Read_Flush
  * @see #Command_Read_Until_Prompt
  * @see #Newmark_Command_Position_Get
@@ -477,6 +534,7 @@ int Newmark_Command_Move_Relative(char *class,char *source,Arcom_ESS_Interface_H
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
+	int retry_loop_index,done;
 
 #if LOGGING > 1
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Move_Relative(%.6f):Start.",
@@ -489,32 +547,57 @@ int Newmark_Command_Move_Relative(char *class,char *source,Arcom_ESS_Interface_H
 		sprintf(Newmark_Error_String,"Newmark_Command_Move_Relative:Arcom_ESS_Interface_Mutex_Lock failed.");
 		return FALSE;	       
 	}
-	/* clear any unread data */
-	if(!Command_Read_Flush(class,source,handle))
+	/* start retry loop over (send command + read prompt). */
+	retry_loop_index = 0;
+	done = FALSE;
+	while(done == FALSE)
 	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
-	/* send MOVR <position> */
-	sprintf(command_buff,"MOVR %.6f\r\n",position_offset);
 #if LOGGING > 5
-	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
-			   "Newmark_Command_Move_Relative:Writing '%s' to handle.",
-			   Newmark_Command_Fix_String(command_buff));
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Move_Relative:Command/Prompt Retry attempt %d.",retry_loop_index);
 #endif
-	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		Newmark_Error_Number = 119;
-		sprintf(Newmark_Error_String,"Newmark_Command_Move_Relative:Arcom_ESS_Interface_Write failed.");
-		return FALSE;	       
-	}
-	/* read reply */
-	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
+		/* clear any unread data */
+		if(!Command_Read_Flush(class,source,handle))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			return FALSE;
+		}
+		/* send MOVR <position> */
+		sprintf(command_buff,"MOVR %.6f\r\n",position_offset);
+#if LOGGING > 5
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Move_Relative:Writing '%s' to handle.",
+				   Newmark_Command_Fix_String(command_buff));
+#endif
+		if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			Newmark_Error_Number = 119;
+			sprintf(Newmark_Error_String,
+				"Newmark_Command_Move_Relative:Arcom_ESS_Interface_Write failed.");
+			return FALSE;
+		}
+		/* read reply */
+		if(Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
+		{
+			done = TRUE;
+		}
+		else
+		{
+			if(reply_string != NULL)
+				free(reply_string);
+			reply_string = NULL;
+			retry_loop_index++;
+			if(retry_loop_index >= COMMAND_RETRY_LOOP_COUNT)
+			{
+				Arcom_ESS_Interface_Mutex_Unlock(handle);
+				Newmark_Error_Number = 150;
+				sprintf(Newmark_Error_String,"Newmark_Command_Move_Relative:"
+				       "Command_Read_Until_Prompt failed to return prompt %d times.",retry_loop_index);
+				return FALSE;
+			}
+		}
+	}/* end while not done */
 	/* parse reply string */
 #if LOGGING > 5
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
@@ -619,6 +702,7 @@ int Newmark_Command_Abort_Move(char *class,char *source,Arcom_ESS_Interface_Hand
  * @param error_exists The address of an integer to store a boolean : FALSE (0) No error exists, TRUE (1) Error exists.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
+ * @see #COMMAND_RETRY_LOOP_COUNT
  * @see #Command_Read_Flush
  * @see #Command_Read_Until_Prompt
  * @see #Newmark_Command_Fix_String
@@ -632,7 +716,7 @@ int Newmark_Command_Err_Get(char *class,char *source,Arcom_ESS_Interface_Handle_
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char true_false_string[32];
 	char *reply_string = NULL;
-	int retval;
+	int retval,retry_loop_index,done;
 
 	if(error_exists == NULL)
 	{
@@ -650,33 +734,58 @@ int Newmark_Command_Err_Get(char *class,char *source,Arcom_ESS_Interface_Handle_
 		sprintf(Newmark_Error_String,"Newmark_Command_Err_Get:Arcom_ESS_Interface_Mutex_Lock failed.");
 		return FALSE;	       
 	}
-	/* clear any unread data */
-	if(!Command_Read_Flush(class,source,handle))
+	/* start retry loop over (send command + read prompt). */
+	retry_loop_index = 0;
+	done = FALSE;
+	while(done == FALSE)
 	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
-	/* send PRINT POS */
-	sprintf(command_buff,"PRINT ERR\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Writing '%s' to handle.",
-			   Newmark_Command_Fix_String(command_buff));
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Err_Get:Command/Prompt Retry attempt %d.",retry_loop_index);
 #endif
-	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		Newmark_Error_Number = 135;
-		sprintf(Newmark_Error_String,"Newmark_Command_Err_Get:Arcom_ESS_Interface_Write failed.");
-		return FALSE;	       
-	}
-	/* read reply 
-	** If the loop timeout count is 100 (100*10 = 1000ms), this sometimes times out.
-	** Increased timeout to 1000*10 = 10000ms. */
-	if(!Command_Read_Until_Prompt(class,source,handle,1000,TRUE,&reply_string))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
+		/* clear any unread data */
+		if(!Command_Read_Flush(class,source,handle))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			return FALSE;
+		}
+		/* send PRINT POS */
+		sprintf(command_buff,"PRINT ERR\r\n");
+#if LOGGING > 5
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Err_Get:Writing '%s' to handle.",
+				   Newmark_Command_Fix_String(command_buff));
+#endif
+		if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			Newmark_Error_Number = 135;
+			sprintf(Newmark_Error_String,"Newmark_Command_Err_Get:Arcom_ESS_Interface_Write failed.");
+			return FALSE;
+		}
+		/* read reply 
+		** If the loop timeout count is 100 (100*10 = 1000ms), this sometimes times out.
+		** This handled by command/read prompt retry loop. */
+		if(Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
+		{
+			done = TRUE;
+		}
+		else
+		{
+			if(reply_string != NULL)
+				free(reply_string);
+			reply_string = NULL;
+			retry_loop_index++;
+			if(retry_loop_index >= COMMAND_RETRY_LOOP_COUNT)
+			{
+				Arcom_ESS_Interface_Mutex_Unlock(handle);
+				Newmark_Error_Number = 151;
+				sprintf(Newmark_Error_String,"Newmark_Command_Err_Get:"
+				       "Command_Read_Until_Prompt failed to return prompt %d times.",retry_loop_index);
+				return FALSE;
+			}
+		}
+	}/* end while not done */
 #if LOGGING > 5
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Err_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
@@ -730,6 +839,7 @@ int Newmark_Command_Err_Get(char *class,char *source,Arcom_ESS_Interface_Handle_
  * @param error_code The address of an integer to store the retrieved error code.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
+ * @see #COMMAND_RETRY_LOOP_COUNT
  * @see #Command_Read_Flush
  * @see #Command_Read_Until_Prompt
  * @see #Newmark_Command_Fix_String
@@ -742,7 +852,7 @@ int Newmark_Command_Error_Get(char *class,char *source,Arcom_ESS_Interface_Handl
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
-	int retval;
+	int retval,retry_loop_index,done;
 
 	if(error_code == NULL)
 	{
@@ -760,31 +870,57 @@ int Newmark_Command_Error_Get(char *class,char *source,Arcom_ESS_Interface_Handl
 		sprintf(Newmark_Error_String,"Newmark_Command_Error_Get:Arcom_ESS_Interface_Mutex_Lock failed.");
 		return FALSE;	       
 	}
-	/* clear any unread data */
-	if(!Command_Read_Flush(class,source,handle))
+	/* start retry loop over (send command + read prompt). */
+	retry_loop_index = 0;
+	done = FALSE;
+	while(done == FALSE)
 	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
-	/* send PRINT POS */
-	sprintf(command_buff,"PRINT ERROR\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Writing '%s' to handle.",
-			   Newmark_Command_Fix_String(command_buff));
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Error_Get:Command/Prompt Retry attempt %d.",retry_loop_index);
 #endif
-	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		Newmark_Error_Number = 127;
-		sprintf(Newmark_Error_String,"Newmark_Command_Error_Get:Arcom_ESS_Interface_Write failed.");
-		return FALSE;	       
-	}
-	/* read reply */
-	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
+		/* clear any unread data */
+		if(!Command_Read_Flush(class,source,handle))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			return FALSE;
+		}
+		/* send PRINT POS */
+		sprintf(command_buff,"PRINT ERROR\r\n");
+#if LOGGING > 5
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Error_Get:Writing '%s' to handle.",
+				   Newmark_Command_Fix_String(command_buff));
+#endif
+		if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			Newmark_Error_Number = 127;
+			sprintf(Newmark_Error_String,"Newmark_Command_Error_Get:Arcom_ESS_Interface_Write failed.");
+			return FALSE;
+		}
+		/* read reply */
+		if(Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
+		{
+			done = TRUE;
+		}
+		else
+		{
+			if(reply_string != NULL)
+				free(reply_string);
+			reply_string = NULL;
+			retry_loop_index++;
+			if(retry_loop_index >= COMMAND_RETRY_LOOP_COUNT)
+			{
+				Arcom_ESS_Interface_Mutex_Unlock(handle);
+				Newmark_Error_Number = 152;
+				sprintf(Newmark_Error_String,"Newmark_Command_Error_Get:"
+					"Command_Read_Until_Prompt failed to return prompt %d times.",
+					retry_loop_index);
+				return FALSE;
+			}
+		}
+	}/* end while not done */
 #if LOGGING > 5
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Get:Read '%s' from handle.",
 			   Newmark_Command_Fix_String(reply_string));
@@ -823,6 +959,7 @@ int Newmark_Command_Error_Get(char *class,char *source,Arcom_ESS_Interface_Handl
  * @param handle The interface handle to the newmark controller.
  * @return The routine returns TRUE on success and FALSE on failure.
  * @see #COMMAND_BUFF_LENGTH
+ * @see #COMMAND_RETRY_LOOP_COUNT
  * @see #Command_Read_Flush
  * @see #Command_Read_Until_Prompt
  * @see #Newmark_Command_Fix_String
@@ -835,7 +972,7 @@ int Newmark_Command_Error_Reset(char *class,char *source,Arcom_ESS_Interface_Han
 {
 	char command_buff[COMMAND_BUFF_LENGTH];
 	char *reply_string = NULL;
-	int retval,error_code;
+	int retval,error_code,retry_loop_index,done;
 
 #if LOGGING > 1
 	Newmark_Log(class,source,LOG_VERBOSITY_INTERMEDIATE,"Newmark_Command_Error_Reset:Start.");
@@ -847,32 +984,57 @@ int Newmark_Command_Error_Reset(char *class,char *source,Arcom_ESS_Interface_Han
 		sprintf(Newmark_Error_String,"Newmark_Command_Error_Reset:Arcom_ESS_Interface_Mutex_Lock failed.");
 		return FALSE;	       
 	}
-	/* clear any unread data */
-	if(!Command_Read_Flush(class,source,handle))
+	/* start retry loop over (send command + read prompt). */
+	retry_loop_index = 0;
+	done = FALSE;
+	while(done == FALSE)
 	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
-	/* send PRINT POS */
-	sprintf(command_buff,"ERROR = 0\r\n");
 #if LOGGING > 5
-	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
-			   "Newmark_Command_Error_Reset:Writing '%s' to handle.",
-			   Newmark_Command_Fix_String(command_buff));
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Error_Reset:Command/Prompt Retry attempt %d.",retry_loop_index);
 #endif
-	if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		Newmark_Error_Number = 140;
-		sprintf(Newmark_Error_String,"Newmark_Command_Error_Reset:Arcom_ESS_Interface_Write failed.");
-		return FALSE;	       
-	}
-	/* read reply */
-	if(!Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
-	{
-		Arcom_ESS_Interface_Mutex_Unlock(handle);
-		return FALSE;
-	}
+		/* clear any unread data */
+		if(!Command_Read_Flush(class,source,handle))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			return FALSE;
+		}
+		/* send PRINT POS */
+		sprintf(command_buff,"ERROR = 0\r\n");
+#if LOGGING > 5
+		Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
+				   "Newmark_Command_Error_Reset:Writing '%s' to handle.",
+				   Newmark_Command_Fix_String(command_buff));
+#endif
+		if(!Arcom_ESS_Interface_Write(class,source,handle,command_buff,strlen(command_buff)))
+		{
+			Arcom_ESS_Interface_Mutex_Unlock(handle);
+			Newmark_Error_Number = 140;
+			sprintf(Newmark_Error_String,"Newmark_Command_Error_Reset:Arcom_ESS_Interface_Write failed.");
+			return FALSE;
+		}
+		/* read reply */
+		if(Command_Read_Until_Prompt(class,source,handle,100,TRUE,&reply_string))
+		{
+			done = TRUE;
+		}
+		else
+		{
+			if(reply_string != NULL)
+				free(reply_string);
+			reply_string = NULL;
+			retry_loop_index++;
+			if(retry_loop_index >= COMMAND_RETRY_LOOP_COUNT)
+			{
+				Arcom_ESS_Interface_Mutex_Unlock(handle);
+				Newmark_Error_Number = 153;
+				sprintf(Newmark_Error_String,"Newmark_Command_Error_Reset:"
+					"Command_Read_Until_Prompt failed to return prompt %d times.",
+					retry_loop_index);
+				return FALSE;
+			}
+		}
+	}/* end while not done */
 #if LOGGING > 5
 	Newmark_Log_Format(class,source,LOG_VERBOSITY_INTERMEDIATE,
 			   "Newmark_Command_Error_Reset:Read '%s' from handle.",
@@ -1014,6 +1176,7 @@ static int Command_Read_Flush(char *class,char *source,Arcom_ESS_Interface_Handl
 #endif
 	return TRUE;
 }
+
 /**
  * Routine to read from the handle until the COMMAND_PROMPT is read.
  * @param class The class parameter for logging.
@@ -1205,6 +1368,10 @@ static char *Newmark_Command_Fix_String(char *string)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2011/03/23 14:26:11  cjm
+** Increased timeout passed to Command_Read_Until_Prompt in Newmark_Command_Position_Get to 1000 (10s),
+** as 'PRINT POS' sometimes times out with the default value 100 (1s).
+**
 ** Revision 1.4  2011/01/05 14:14:17  cjm
 ** API change so class and source are logged for each log message.
 **
