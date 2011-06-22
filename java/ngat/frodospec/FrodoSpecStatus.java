@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.6 2009-08-19 13:55:34 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.7 2011-06-22 13:32:35 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.6 $
+ * @version $Revision: 1.7 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.6 2009-08-19 13:55:34 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.7 2011-06-22 13:32:35 cjm Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -435,6 +435,12 @@ public class FrodoSpecStatus
 			FRODOSPEC_EXPOSE exposeCommand = null;
 			exposeCommand = (FRODOSPEC_EXPOSE)command;
 			arm = exposeCommand.getArm();
+		}
+		else if (command instanceof FRODOSPEC_SETUP)
+		{
+			FRODOSPEC_SETUP setupCommand = null;
+			setupCommand = (FRODOSPEC_SETUP)command;
+			arm = setupCommand.getArm();
 		}
 		else if (command instanceof CONFIG)
 		{
@@ -1124,6 +1130,11 @@ public class FrodoSpecStatus
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.6  2009/08/19 13:55:34  cjm
+// Simplified commandCanBeRun. This now allows an ARC on one arm and a MULTRUN on the other,
+// assuming the LampController calls internally to these implementations synchronise ARC light/
+// lack of arc light to the fibre front end.
+//
 // Revision 1.5  2009/08/06 13:38:47  cjm
 // Added foldLock and focusOffsetLock, used for synchronisation to stop the TCS
 // receiving two MOVE_FOLD or FOCUS_OFFSET commands at the same time, which causes a TCS error.
