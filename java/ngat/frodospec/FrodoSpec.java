@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.12 2011-01-17 10:48:10 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.13 2012-10-01 15:43:16 cjm Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.12 $
+ * @version $Revision: 1.13 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.12 2011-01-17 10:48:10 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.13 2012-10-01 15:43:16 cjm Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -387,6 +387,7 @@ public class FrodoSpec
 		initLogHandlers(logLogger);
 		logLogger.setLogLevel(status.getLogLevel());
 	// library logging loggers
+		copyLogHandlers(logLogger,LogManager.getLogger("ngat.fits.FitsHeader"),null,Logging.ALL);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.frodospec.ccd.CCDLibrary"),null,
 				Logging.ALL);
 		copyLogHandlers(logLogger,LogManager.getLogger("ngat.eip.EIPPLC"),null,Logging.ALL);
@@ -1981,6 +1982,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.12  2011/01/17 10:48:10  cjm
+// CCD Library logging API changes.
+//
 // Revision 1.11  2011/01/12 11:50:03  cjm
 // Add overloaded clazz,source log method.
 //
