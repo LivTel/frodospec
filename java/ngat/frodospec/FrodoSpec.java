@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.13 2012-10-01 15:43:16 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.14 2013-07-25 11:09:54 eng Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.13 $
+ * @version $Revision: 1.14 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.13 2012-10-01 15:43:16 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.14 2013-07-25 11:09:54 eng Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1101,6 +1101,35 @@ public class FrodoSpec
 	public void startupFocusStage() throws IllegalArgumentException, ArcomESSNativeException, 
 								NewmarkNativeException
 	{
+
+	    // obtain the values of the 2 internal box temperatures here 
+	    /*  float  tRed = plc.getTemperature(this.getClass().getName(),null,0);
+	     float  tBlue = plc.getTemperature(this.getClass().getName(),null,2);
+
+	    // get the equation values from status
+	    double frodoRedOffsetLow = status.getDoubleValue("frodospec.focus.red.low.equation.zeropoint");
+	    double frodoRedGradientLow = status.getDoubleValue("frodospec.focus.red.low.equation.gradient");
+	    double frodoBlueOffsetLow = status.getDoubleValue("frodospec.focus.blue.low.equation.zeropoint");
+	    double frodoBlueGradientLow = status.getDoubleValue("frodospec.focus.blue.low.equation.gradient");
+	    
+	    double frodoRedOffsetHigh = status.getDoubleValue("frodospec.focus.red.high.equation.zeropoint");
+	    double frodoRedGradientHigh = status.getDoubleValue("frodospec.focus.red.high.equation.gradient");
+	    double frodoBlueOffsetHigh = status.getDoubleValue("frodospec.focus.blue.high.equation.zeropoint");
+	    double frodoBlueGradientHigh = status.getDoubleValue("frodospec.focus.blue.high.equation.gradient");
+
+	     // calculate the new focus values
+	    double focusRedLow   = frodoRedOffsetLow + frodoRedGradientLow*tRed;
+	    double focusRedHigh  = frodoRedOffsetHigh + frodoRedGradientHigh*tRed;
+	    double focusBlueLow  = frodoBlueOffsetLow + frodoBlueGradientLow*tBlue;
+	    double focusBlueHigh = frodoBlueOffsetHigh + frodoBlueGradientHigh*tBlue;
+	    
+	    // and set them in the setup
+	    status.setProperty("frodospec.focus.red.low.value",   focusRedLow);
+	    status.setProperty("frodospec.focus.red.high.value",  focusRedHigh);
+	    status.setProperty("frodospec.focus.blue.low.value",  focusBlueLow);
+	    status.setProperty("frodospec.focus.blue.high.value", focusBlueHigh);
+	    */
+
 		for(int i = FrodoSpecConfig.RED_ARM; i <= FrodoSpecConfig.BLUE_ARM; i++)
 		{
 			focusStageList[i].init(this.getClass().getName(),status,i);
@@ -1982,6 +2011,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.13  2012/10/01 15:43:16  cjm
+// Added a copyLogHandler for ngat.fits.FitsHeader, which now logs to it's logger.
+//
 // Revision 1.12  2011/01/17 10:48:10  cjm
 // CCD Library logging API changes.
 //
