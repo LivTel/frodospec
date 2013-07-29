@@ -1,5 +1,5 @@
 /* test_data_link.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_data_link.c,v 1.5 2011-01-17 10:59:05 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_data_link.c,v 1.6 2013-07-29 13:08:55 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,10 +15,11 @@
  * This program tests the data link to a board in the SDSU controller.
  * <pre>
  * test_data_link -b[oard] &lt;interface|timing|utility&gt; -v[alue] &lt;test data value&gt;
- * 	-i[nterface_device] &lt;pci|text&gt; -t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
+ * 	-i[nterface_device] &lt;pci|text&gt; [-device_pathname </dev/astropciN>] 
+ *      -t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /* hash definitions */
 /**
@@ -30,7 +31,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_data_link.c,v 1.5 2011-01-17 10:59:05 cjm Exp $";
+static char rcsid[] = "$Id: test_data_link.c,v 1.6 2013-07-29 13:08:55 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -39,6 +40,10 @@ static enum CCD_TEXT_PRINT_LEVEL Text_Print_Level = CCD_TEXT_PRINT_LEVEL_ALL;
  * Which interface to communicate with the SDSU controller with.
  */
 static enum CCD_INTERFACE_DEVICE_ID Interface_Device = CCD_INTERFACE_DEVICE_PCI;
+/**
+ * The pathname of the device to contact.
+ */
+static char Device_Pathname[MAX_STRING_LENGTH] = "";
 /**
  * The board of the SDSU controller to query.
  */
@@ -59,13 +64,13 @@ static void Help(void);
  * @return This function returns 0 if the program succeeds, and a positive integer if it fails.
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #Board
  * @see #Value
  */
 int main(int argc, char *argv[])
 {
 	CCD_Interface_Handle_T *handle = NULL;
-	char device_pathname[256];
 	int retval;
 
 	fprintf(stdout,"Parsing Arguments.\n");
@@ -77,19 +82,22 @@ int main(int argc, char *argv[])
 
 	fprintf(stdout,"Opening SDSU device.\n");
 	fflush(stdout);
-	switch(Interface_Device)
+	if(strlen(Device_Pathname) == 0)
 	{
-		case CCD_INTERFACE_DEVICE_PCI:
-			strcpy(device_pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
-			break;
-		case CCD_INTERFACE_DEVICE_TEXT:
-			strcpy(device_pathname,"frodospec_ccd_test_data_link.txt");
-			break;
-		default:
-			fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
-			break;
+		switch(Interface_Device)
+		{
+			case CCD_INTERFACE_DEVICE_PCI:
+				strcpy(Device_Pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
+				break;
+			case CCD_INTERFACE_DEVICE_TEXT:
+				strcpy(Device_Pathname,"frodospec_ccd_test_data_link.txt");
+				break;
+			default:
+				fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
+				break;
+		}
 	}
-	retval = CCD_Interface_Open("test_data_link","-",Interface_Device,device_pathname,&handle);
+	retval = CCD_Interface_Open("test_data_link","-",Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -119,6 +127,7 @@ int main(int argc, char *argv[])
  * @see #Help
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #Board
  * @see #Value
  */
@@ -148,6 +157,19 @@ static int Parse_Arguments(int argc, char *argv[])
 			else
 			{
 				fprintf(stderr,"Parse_Arguments:Board [interface|timing|utility].\n");
+				return FALSE;
+			}
+		}
+		else if((strcmp(argv[i],"-device_pathname")==0))
+		{
+			if((i+1)<argc)
+			{
+				strncpy(Device_Pathname,argv[i+1],MAX_STRING_LENGTH-1);
+				i++;
+			}
+			else
+			{
+				fprintf(stderr,"Parse_Arguments:Device Pathname requires a device.\n");
 				return FALSE;
 			}
 		}
@@ -232,7 +254,7 @@ static void Help(void)
 {
 	fprintf(stdout,"Test Data Link:Help.\n");
 	fprintf(stdout,"This program tests the data link to a board in the SDSU controller.\n");
-	fprintf(stdout,"test_data_link [-i[nterface_device] <interface device>]\n");
+	fprintf(stdout,"test_data_link [-i[nterface_device] <interface device>][-device_pathname </dev/astropciN>]\n");
 	fprintf(stdout,"\t[-b[oard] <controller board>][-v[alue] <value>]\n");
 	fprintf(stdout,"\t[-t[ext_print_level] <commands|replies|values|all>][-h[elp]]\n");
 	fprintf(stdout,"\n");
@@ -246,6 +268,10 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2011/01/17 10:59:05  cjm
+** API change to allow class and source information to be passed into the
+** CCD library to enhance logging.
+**
 ** Revision 1.4  2008/11/20 11:34:58  cjm
 ** *** empty log message ***
 **
