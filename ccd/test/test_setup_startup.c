@@ -1,5 +1,5 @@
 /* test_setup_startup.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_startup.c,v 1.5 2011-01-17 10:59:05 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_setup_startup.c,v 1.6 2013-07-29 11:50:28 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +21,7 @@
  * 	-t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /* hash definitions */
 /**
@@ -33,7 +33,7 @@
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_setup_startup.c,v 1.5 2011-01-17 10:59:05 cjm Exp $";
+static char rcsid[] = "$Id: test_setup_startup.c,v 1.6 2013-07-29 11:50:28 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -42,6 +42,10 @@ static enum CCD_TEXT_PRINT_LEVEL Text_Print_Level = CCD_TEXT_PRINT_LEVEL_ALL;
  * Which interface to communicate with the SDSU controller with.
  */
 static enum CCD_INTERFACE_DEVICE_ID Interface_Device = CCD_INTERFACE_DEVICE_NONE;
+/**
+ * The pathname of the device to contact.
+ */
+static char Device_Pathname[MAX_STRING_LENGTH] = "";
 /**
  * What type of board initialisation to do for the PCI board.
  * Initialised to CCD_SETUP_LOAD_ROM, so will load PCI program from ROM by default.
@@ -88,6 +92,7 @@ static void Help(void);
  * @return This function returns 0 if the program succeeds, and a positive integer if it fails.
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #PCI_Load_Type
  * @see #PCI_Filename
  * @see #Timing_Load_Type
@@ -99,7 +104,6 @@ static void Help(void);
 int main(int argc, char *argv[])
 {
 	CCD_Interface_Handle_T *handle = NULL;
-	char device_pathname[256];
 	int retval;
 	int value,bit_value;
 
@@ -114,19 +118,22 @@ int main(int argc, char *argv[])
 	CCD_Global_Set_Log_Handler_Function(CCD_Global_Log_Handler_Stdout);
 /* open SDSU connection */
 	fprintf(stdout,"Opening SDSU device.\n");
-	switch(Interface_Device)
+	if(strlen(Device_Pathname) == 0)
 	{
-		case CCD_INTERFACE_DEVICE_PCI:
-			strcpy(device_pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
-			break;
-		case CCD_INTERFACE_DEVICE_TEXT:
-			strcpy(device_pathname,"frodospec_ccd_test_setup_startup.txt");
-			break;
-		default:
-			fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
-			break;
+		switch(Interface_Device)
+		{
+			case CCD_INTERFACE_DEVICE_PCI:
+				strcpy(Device_Pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
+				break;
+			case CCD_INTERFACE_DEVICE_TEXT:
+				strcpy(Device_Pathname,"frodospec_ccd_test_setup_startup.txt");
+				break;
+			default:
+				fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
+				break;
+		}
 	}
-	retval = CCD_Interface_Open("test_setup_startup",NULL,Interface_Device,device_pathname,&handle);
+	retval = CCD_Interface_Open("test_setup_startup",NULL,Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -170,6 +177,7 @@ int main(int argc, char *argv[])
  * @see #Help
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #PCI_Load_Type
  * @see #PCI_Filename
  * @see #Timing_Load_Type
@@ -184,7 +192,20 @@ static int Parse_Arguments(int argc, char *argv[])
 
 	for(i=1;i<argc;i++)
 	{
-		if((strcmp(argv[i],"-interface_device")==0)||(strcmp(argv[i],"-i")==0))
+		if((strcmp(argv[i],"-device_pathname")==0))
+		{
+			if((i+1)<argc)
+			{
+				strncpy(Device_Pathname,argv[i+1],MAX_STRING_LENGTH-1);
+				i++;
+			}
+			else
+			{
+				fprintf(stderr,"Parse_Arguments:Device Pathname requires a device.\n");
+				return FALSE;
+			}
+		}
+		else if((strcmp(argv[i],"-interface_device")==0)||(strcmp(argv[i],"-i")==0))
 		{
 			if((i+1)<argc)
 			{
@@ -313,7 +334,7 @@ static void Help(void)
 {
 	fprintf(stdout,"Test Setup Startup:Help.\n");
 	fprintf(stdout,"This program tests the CCD_Setup_Startup routine, which initialises the SDSU controller.\n");
-	fprintf(stdout,"test_setup_startup [-i[nterface_device] <interface device>]\n");
+	fprintf(stdout,"test_setup_startup [-i[nterface_device] <interface device>][-device_pathname </dev/astropciN>]\n");
 	fprintf(stdout,"\t[-pci_filename <filename>][-timing_filename <filename>][-utility_filename <filename>]\n");
 	fprintf(stdout,"\t[-temperature <temperature>]\n");
 	fprintf(stdout,"\t[-t[ext_print_level] <commands|replies|values|all>][-h[elp]]\n");
@@ -328,6 +349,10 @@ static void Help(void)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2011/01/17 10:59:05  cjm
+** API change to allow class and source information to be passed into the
+** CCD library to enhance logging.
+**
 ** Revision 1.4  2008/11/20 11:34:58  cjm
 ** *** empty log message ***
 **
