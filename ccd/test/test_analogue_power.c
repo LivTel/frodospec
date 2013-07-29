@@ -1,5 +1,5 @@
 /* test_analogue_power.c
- * $Header: /home/cjm/cvs/frodospec/ccd/test/test_analogue_power.c,v 1.5 2011-01-17 10:59:05 cjm Exp $
+ * $Header: /home/cjm/cvs/frodospec/ccd/test/test_analogue_power.c,v 1.6 2013-07-29 09:29:02 cjm Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,11 +16,11 @@
 /**
  * This program allows the user to turn on and off the SDSU analogue power supply.
  * <pre>
- * test_analogue_power -i[nterface_device] &lt;pci|text&gt; -o[n] -off|-f 
+ * test_analogue_power -i[nterface_device] &lt;pci|text&gt; [-device_pathname &lt;path&gt;] -o[n] -off|-f 
  * 	-t[ext_print_level] &lt;commands|replies|values|all&gt; -h[elp]
  * </pre>
  * @author $Author: cjm $
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /* hash definitions */
 /**
@@ -46,7 +46,7 @@ enum COMMAND_ID
 /**
  * Revision control system identifier.
  */
-static char rcsid[] = "$Id: test_analogue_power.c,v 1.5 2011-01-17 10:59:05 cjm Exp $";
+static char rcsid[] = "$Id: test_analogue_power.c,v 1.6 2013-07-29 09:29:02 cjm Exp $";
 /**
  * How much information to print out when using the text interface.
  */
@@ -55,6 +55,10 @@ static enum CCD_TEXT_PRINT_LEVEL Text_Print_Level = CCD_TEXT_PRINT_LEVEL_ALL;
  * Which interface to communicate with the SDSU controller with.
  */
 static enum CCD_INTERFACE_DEVICE_ID Interface_Device = CCD_INTERFACE_DEVICE_NONE;
+/**
+ * The pathname of the device to contact.
+ */
+static char Device_Pathname[MAX_STRING_LENGTH] = "";
 /**
  * Which SDSU command to call.
  * @see #COMMAND_ID
@@ -72,12 +76,12 @@ static void Help(void);
  * @return This function returns 0 if the program succeeds, and a positive integer if it fails.
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #Command
  */
 int main(int argc, char *argv[])
 {
 	CCD_Interface_Handle_T *handle = NULL;
-	char device_pathname[256];
 	int retval;
 
 	fprintf(stdout,"Parsing Arguments.\n");
@@ -88,19 +92,23 @@ int main(int argc, char *argv[])
 	CCD_Global_Initialise();
 	CCD_Global_Set_Log_Handler_Function(CCD_Global_Log_Handler_Stdout);
 	fprintf(stdout,"Opening SDSU device.\n");
-	switch(Interface_Device)
+	if(strlen(Device_Pathname) == 0)
 	{
-		case CCD_INTERFACE_DEVICE_PCI:
-			strcpy(device_pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
-			break;
-		case CCD_INTERFACE_DEVICE_TEXT:
-			strcpy(device_pathname,"frodospec_ccd_test_analogue_power.txt");
-			break;
-		default:
-			fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
-			break;
+		fprintf(stdout,"Selecting default device path for device 0.\n");
+		switch(Interface_Device)
+		{
+			case CCD_INTERFACE_DEVICE_PCI:
+				strcpy(Device_Pathname,CCD_PCI_DEFAULT_DEVICE_ZERO);
+				break;
+			case CCD_INTERFACE_DEVICE_TEXT:
+				strcpy(Device_Pathname,"frodospec_ccd_test_analogue_power.txt");
+				break;
+			default:
+				fprintf(stderr,"Illegal interface device %d.\n",Interface_Device);
+				break;
+		}
 	}
-	retval = CCD_Interface_Open("test_analogue_power","-",Interface_Device,device_pathname,&handle);
+	retval = CCD_Interface_Open("test_analogue_power","-",Interface_Device,Device_Pathname,&handle);
 	if(retval == FALSE)
 	{
 		CCD_Global_Error();
@@ -141,6 +149,7 @@ int main(int argc, char *argv[])
  * @see #Help
  * @see #Text_Print_Level
  * @see #Interface_Device
+ * @see #Device_Pathname
  * @see #Command
  * @see #COMMAND_ID
  */
@@ -150,7 +159,20 @@ static int Parse_Arguments(int argc, char *argv[])
 
 	for(i=1;i<argc;i++)
 	{
-		if((strcmp(argv[i],"-interface_device")==0)||(strcmp(argv[i],"-i")==0))
+		if((strcmp(argv[i],"-device_pathname")==0))
+		{
+			if((i+1)<argc)
+			{
+				strncpy(Device_Pathname,argv[i+1],MAX_STRING_LENGTH-1);
+				i++;
+			}
+			else
+			{
+				fprintf(stderr,"Parse_Arguments:Device Pathname requires a device.\n");
+				return FALSE;
+			}
+		}
+		else if((strcmp(argv[i],"-interface_device")==0)||(strcmp(argv[i],"-i")==0))
 		{
 			if((i+1)<argc)
 			{
@@ -225,16 +247,21 @@ static void Help(void)
 {
 	fprintf(stdout,"Test Analogue Power control:Help.\n");
 	fprintf(stdout,"This program allows the user to turn on and off the SDSU analogue power supply.\n");
-	fprintf(stdout,"test_analogue_power [-i[nterface_device] <pci|text>]\n");
+	fprintf(stdout,"test_analogue_power [-i[nterface_device] <pci|text>] [-device_pathname </dev/astropciN>]\n");
 	fprintf(stdout,"\t[-o[n][-off|-f]]\n");
 	fprintf(stdout,"\t[-t[ext_print_level] <commands|replies|values|all>][-h[elp]]\n");
 	fprintf(stdout,"\n");
 	fprintf(stdout,"\t-interface_device selects the device to communicate with the SDSU controller.\n");
+	fprintf(stdout,"\t-device_pathname selects which astropci device driver to talk to.\n");
 	fprintf(stdout,"\t-help prints out this message and stops the program.\n");
 }
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2011/01/17 10:59:05  cjm
+** API change to allow class and source information to be passed into the
+** CCD library to enhance logging.
+**
 ** Revision 1.4  2008/11/20 11:34:58  cjm
 ** *** empty log message ***
 **
