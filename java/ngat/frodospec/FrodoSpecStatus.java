@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.8 2013-08-01 11:22:40 eng Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.9 2013-08-01 11:24:29 eng Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.8 $
+ * @version $Revision: 1.9 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.8 2013-08-01 11:22:40 eng Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.9 2013-08-01 11:24:29 eng Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -1138,9 +1138,13 @@ public class FrodoSpecStatus
 			configId[arm] = new PersistentUniqueInteger(fileName);
 		}
 	}
+
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.8  2013/08/01 11:22:40  eng
+// *** empty log message ***
+//
 // Revision 1.7  2011/06/22 13:32:35  cjm
 // Added FRODOSPEC_SETUP processing to getArmFromCommand, so LAMPFOCUS commands
 // end up setting currentCommand correctly.
