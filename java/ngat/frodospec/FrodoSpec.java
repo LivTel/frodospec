@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.14 2013-07-25 11:09:54 eng Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.15 2013-08-01 11:25:00 eng Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.14 $
+ * @version $Revision: 1.15 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.14 2013-07-25 11:09:54 eng Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.15 2013-08-01 11:25:00 eng Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1102,38 +1102,87 @@ public class FrodoSpec
 								NewmarkNativeException
 	{
 
-	    // obtain the values of the 2 internal box temperatures here 
-	    /*  float  tRed = plc.getTemperature(this.getClass().getName(),null,0);
-	     float  tBlue = plc.getTemperature(this.getClass().getName(),null,2);
 
-	    // get the equation values from status
-	    double frodoRedOffsetLow = status.getDoubleValue("frodospec.focus.red.low.equation.zeropoint");
-	    double frodoRedGradientLow = status.getDoubleValue("frodospec.focus.red.low.equation.gradient");
-	    double frodoBlueOffsetLow = status.getDoubleValue("frodospec.focus.blue.low.equation.zeropoint");
-	    double frodoBlueGradientLow = status.getDoubleValue("frodospec.focus.blue.low.equation.gradient");
+	    // If we fail to get the temperatures or the calculation doesnt work
+	    // we should fallback on the configured values
+
+	    try {
+
+		// obtain the values of the 2 internal box temperatures here
+		
+		float  tRed = plc.getTemperature(this.getClass().getName(),null,0);
+		float  tBlue = plc.getTemperature(this.getClass().getName(),null,2);
+
+		// get the equation values from status
+		double frodoRedOffsetLow    = status.getPropertyDouble("frodospec.focus.red.low.equation.zeropoint");
+		double frodoRedGradientLow  = status.getPropertyDouble("frodospec.focus.red.low.equation.gradient");
+		double frodoBlueOffsetLow   = status.getPropertyDouble("frodospec.focus.blue.low.equation.zeropoint");
+		double frodoBlueGradientLow = status.getPropertyDouble("frodospec.focus.blue.low.equation.gradient");
+		
+		double frodoRedOffsetHigh    = status.getPropertyDouble("frodospec.focus.red.high.equation.zeropoint");
+		double frodoRedGradientHigh  = status.getPropertyDouble("frodospec.focus.red.high.equation.gradient");
+		double frodoBlueOffsetHigh   = status.getPropertyDouble("frodospec.focus.blue.high.equation.zeropoint");
+		double frodoBlueGradientHigh = status.getPropertyDouble("frodospec.focus.blue.high.equation.gradient");
+		
+		// calculate the new focus values
+		double focusRedLow   = frodoRedOffsetLow + frodoRedGradientLow*tRed;
+		double focusRedHigh  = frodoRedOffsetHigh + frodoRedGradientHigh*tRed;
+		double focusBlueLow  = frodoBlueOffsetLow + frodoBlueGradientLow*tBlue;
+		double focusBlueHigh = frodoBlueOffsetHigh + frodoBlueGradientHigh*tBlue;
+		
+		// maybe do a sanity check here to see how the values compare to the pre-configured ones...
+		double frodoRedLowDefault   = status.getPropertyDouble("frodospec.focus.red.low.value");
+                double frodoRedHighDefault  = status.getPropertyDouble("frodospec.focus.red.high.value");
+                double frodoBlueLowDefault  = status.getPropertyDouble("frodospec.focus.blue.low.value");
+                double frodoBlueHighDefault = status.getPropertyDouble("frodospec.focus.blue.high.value");
+
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages:default value: Focus.red.low:   "+frodoRedLowDefault);
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages:default value: Focus.red.high:  "+frodoRedHighDefault);
+	       	log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages:default value: Focus.blue.low:  "+frodoBlueLowDefault);
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages:default value: Focus.blue.high: "+frodoBlueHighDefault);
+
+		/*if (Math.abs(frodoRedLowDefault - focusRedLow) > XXX);
+		if (Math.abs(frodoRedHighDefault - focusRedHigh) > XXX);
+		if (Math.abs(frodoBlueLowDefault - focusBlueLow) > XXX);
+		if (Math.abs(frodoBlueHighDefault - focusBlueHigh) > XXX);*/
+
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.red.low   = "+focusRedLow+" Diff: "+(focusRedLow-frodoRedLowDefault));
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.red.high  = "+focusRedLow+" Diff: "+(focusRedHigh-frodoRedHighDefault));
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.blue.low  = "+focusRedLow+" Diff: "+(focusBlueLow-frodoBlueLowDefault));
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.blue.high = "+focusRedLow+" Diff: "+(focusBlueHigh-frodoBlueHighDefault));
+
+		NumberFormat nf = new DecimalFormat();
+		nf.setMaximumFractionDigits(3);
+		nf.setMinimumFractionDigits(3);
+		
+		// and set them in the status (config) object
+		status.setProperty("frodospec.focus.red.low.value",   nf.format(focusRedLow));
+		status.setProperty("frodospec.focus.red.high.value",  nf.format(focusRedHigh));
+		status.setProperty("frodospec.focus.blue.low.value",  nf.format(focusBlueLow));
+		status.setProperty("frodospec.focus.blue.high.value", nf.format(focusBlueHigh));
+		
+		// here we might record the time and temperatures we found which were used to calculate the
+		// focus values - they can then be put into fits headers when we take an image
+		// e.g.
+		// FOCTMPB, FOCTMPR, FOCTMPTM, FOCTMPOK (we used the eqn rather than configured values)
+		// FOCSTAGE - the actual focus value used to be decided when we know the actual config in 
+		// use on the arm selected in prev config...
+ 
+	    } catch (Exception e) {
+		// failed so will just fallback to configured values
+		error(this.getClass().getName()+":startupFocusStage::Fallback to configured default focus values",e);
+	
+	    }
 	    
-	    double frodoRedOffsetHigh = status.getDoubleValue("frodospec.focus.red.high.equation.zeropoint");
-	    double frodoRedGradientHigh = status.getDoubleValue("frodospec.focus.red.high.equation.gradient");
-	    double frodoBlueOffsetHigh = status.getDoubleValue("frodospec.focus.blue.high.equation.zeropoint");
-	    double frodoBlueGradientHigh = status.getDoubleValue("frodospec.focus.blue.high.equation.gradient");
-
-	     // calculate the new focus values
-	    double focusRedLow   = frodoRedOffsetLow + frodoRedGradientLow*tRed;
-	    double focusRedHigh  = frodoRedOffsetHigh + frodoRedGradientHigh*tRed;
-	    double focusBlueLow  = frodoBlueOffsetLow + frodoBlueGradientLow*tBlue;
-	    double focusBlueHigh = frodoBlueOffsetHigh + frodoBlueGradientHigh*tBlue;
-	    
-	    // and set them in the setup
-	    status.setProperty("frodospec.focus.red.low.value",   focusRedLow);
-	    status.setProperty("frodospec.focus.red.high.value",  focusRedHigh);
-	    status.setProperty("frodospec.focus.blue.low.value",  focusBlueLow);
-	    status.setProperty("frodospec.focus.blue.high.value", focusBlueHigh);
-	    */
-
-		for(int i = FrodoSpecConfig.RED_ARM; i <= FrodoSpecConfig.BLUE_ARM; i++)
+	    // now configure the focus stages using these handy values
+	    for(int i = FrodoSpecConfig.RED_ARM; i <= FrodoSpecConfig.BLUE_ARM; i++)
 		{
-			focusStageList[i].init(this.getClass().getName(),status,i);
+		    focusStageList[i].init(this.getClass().getName(),status,i);
 		}
+	
+	    log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages:Finished.");
+
+
 	}
 
 	/**
@@ -2011,6 +2060,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.14  2013/07/25 11:09:54  eng
+// added code for focus stage calculation based on box temperatures, commented out
+//
 // Revision 1.13  2012/10/01 15:43:16  cjm
 // Added a copyLogHandler for ngat.fits.FitsHeader, which now logs to it's logger.
 //
