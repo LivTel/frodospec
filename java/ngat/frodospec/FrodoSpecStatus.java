@@ -1,5 +1,5 @@
 // FrodoSpecStatus.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.7 2011-06-22 13:32:35 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpecStatus.java,v 1.8 2013-08-01 11:22:40 eng Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -15,14 +15,14 @@ import ngat.util.logging.FileLogHandler;
 /**
  * This class holds status information for the FrodoSpec program.
  * @author Chris Mottram
- * @version $Revision: 1.7 $
+ * @version $Revision: 1.8 $
  */
 public class FrodoSpecStatus
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.7 2011-06-22 13:32:35 cjm Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpecStatus.java,v 1.8 2013-08-01 11:22:40 eng Exp $");
 	/**
 	 * Default filename containing network properties for frodospec.
 	 */
@@ -826,6 +826,17 @@ public class FrodoSpecStatus
 		return returnValue.doubleValue();
 	}
 
+    /** Set a property.
+     * @param key The keyword to set.
+     * @param value The value to set.
+     */
+    public void setProperty(String key, String value) {
+	
+	properties.put(key, value);
+
+    }
+
+
 	/**
 	 * Routine to get a properties value, given a key. The value must be a valid float, else a 
 	 * NumberFormatException is thrown.
@@ -1130,6 +1141,10 @@ public class FrodoSpecStatus
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.7  2011/06/22 13:32:35  cjm
+// Added FRODOSPEC_SETUP processing to getArmFromCommand, so LAMPFOCUS commands
+// end up setting currentCommand correctly.
+//
 // Revision 1.6  2009/08/19 13:55:34  cjm
 // Simplified commandCanBeRun. This now allows an ARC on one arm and a MULTRUN on the other,
 // assuming the LampController calls internally to these implementations synchronise ARC light/
