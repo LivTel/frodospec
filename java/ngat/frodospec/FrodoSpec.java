@@ -1,5 +1,5 @@
 // FrodoSpec.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.15 2013-08-01 11:25:00 eng Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/FrodoSpec.java,v 1.16 2013-08-05 11:27:29 eng Exp $
 package ngat.frodospec;
 
 
@@ -28,14 +28,14 @@ import ngat.phase2.*;
 /**
  * This class is the start point for the FrodoSpec Control System.
  * @author Chris Mottram
- * @version $Revision: 1.15 $
+ * @version $Revision: 1.16 $
  */
 public class FrodoSpec
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.15 2013-08-01 11:25:00 eng Exp $");
+	public final static String RCSID = new String("$Id: FrodoSpec.java,v 1.16 2013-08-05 11:27:29 eng Exp $");
 	/**
 	 * Logger channel id.
 	 */
@@ -1147,9 +1147,9 @@ public class FrodoSpec
 		if (Math.abs(frodoBlueHighDefault - focusBlueHigh) > XXX);*/
 
 		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.red.low   = "+focusRedLow+" Diff: "+(focusRedLow-frodoRedLowDefault));
-		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.red.high  = "+focusRedLow+" Diff: "+(focusRedHigh-frodoRedHighDefault));
-		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.blue.low  = "+focusRedLow+" Diff: "+(focusBlueLow-frodoBlueLowDefault));
-		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.blue.high = "+focusRedLow+" Diff: "+(focusBlueHigh-frodoBlueHighDefault));
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.red.high  = "+focusRedHigh+" Diff: "+(focusRedHigh-frodoRedHighDefault));
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.blue.low  = "+focusBlueLow+" Diff: "+(focusBlueLow-frodoBlueLowDefault));
+		log(Logger.VERBOSITY_VERY_TERSE,":startupFocusStages: Calculated value: Focus.blue.high = "+focusBlueHigh+" Diff: "+(focusBlueHigh-frodoBlueHighDefault));
 
 		NumberFormat nf = new DecimalFormat();
 		nf.setMaximumFractionDigits(3);
@@ -2060,6 +2060,9 @@ public class FrodoSpec
 }
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.15  2013/08/01 11:25:00  eng
+// Added code to allow focus values to be calculated based on box temperatures.
+//
 // Revision 1.14  2013/07/25 11:09:54  eng
 // added code for focus stage calculation based on box temperatures, commented out
 //
