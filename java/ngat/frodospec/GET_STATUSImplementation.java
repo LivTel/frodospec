@@ -1,5 +1,5 @@
 // GET_STATUSImplementation.java
-// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.11 2011-01-20 14:58:11 cjm Exp $
+// $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/GET_STATUSImplementation.java,v 1.12 2013-10-31 15:56:31 cjm Exp $
 package ngat.frodospec;
 
 import java.lang.*;
@@ -20,14 +20,14 @@ import ngat.util.logging.*;
  * This class provides the implementation for the GET_STATUS command sent to a server using the
  * Java Message System.
  * @author Chris Mottram
- * @version $Revision: 1.11 $
+ * @version $Revision: 1.12 $
  */
 public class GET_STATUSImplementation extends INTERRUPTImplementation implements JMSCommandImplementation
 {
 	/**
 	 * Revision Control System id string, showing the version of the Class.
 	 */
-	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.11 2011-01-20 14:58:11 cjm Exp $");
+	public final static String RCSID = new String("$Id: GET_STATUSImplementation.java,v 1.12 2013-10-31 15:56:31 cjm Exp $");
 	/**
 	 * Internal constant used when converting temperatures in centigrade (from the CCD controller) to Kelvin 
 	 * returned in GET_STATUS.
@@ -234,10 +234,21 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 			// current command
 			currentCommand = status.getCurrentCommand(arm);
 			if(currentCommand == null)
+			{
 				hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+".currentCommand","");
+				frodospec.log(Logger.VERBOSITY_VERY_VERBOSE,"GET_STATUS",null,
+					      this.getClass().getName()+":processCommand:"+
+					      FrodoSpecConstants.ARM_STRING_LIST[arm]+":Current command is NONE.");
+			}
 			else
+			{
 				hashTable.put(FrodoSpecConstants.ARM_STRING_LIST[arm]+".currentCommand",
 					      currentCommand.getClass().getName());
+				frodospec.log(Logger.VERBOSITY_VERY_VERBOSE,"GET_STATUS",null,
+					      this.getClass().getName()+":processCommand:"+
+					      FrodoSpecConstants.ARM_STRING_LIST[arm]+":Current command is:"+
+					      currentCommand.getClass().getName()+".");
+			}
 			// Currently, we query libccd setup stored settings, not hardware.
 			frodospec.log(Logger.VERBOSITY_VERY_VERBOSE,"GET_STATUS",null,
 				      this.getClass().getName()+":processCommand:Getting dimension settings for "+
@@ -1265,6 +1276,9 @@ public class GET_STATUSImplementation extends INTERRUPTImplementation implements
 
 //
 // $Log: not supported by cvs2svn $
+// Revision 1.11  2011/01/20 14:58:11  cjm
+// Extra logging of health and wellbeing status sent back to the RCS.
+//
 // Revision 1.10  2011/01/17 10:48:10  cjm
 // CCD Library logging API changes.
 //
