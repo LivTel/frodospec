@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/Makefile,v 1.2 2009-03-05 16:18:22 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/ccd/Makefile,v 1.3 2014-08-28 17:01:44 cjm Exp $
 include ../../../../../Makefile.common
 include	../../../../Makefile.common
 
@@ -21,7 +21,7 @@ top: $(OBJS)
 	done;
 
 $(BINDIR)/%.class:%.java
-	$(JAVAC) -sourcepath .:/home/dev/src:/home/dev/src/frodospec/java \
+	$(JAVAC) -source 1.4 -target 1.4 -sourcepath .:/home/dev/src:/home/dev/src/frodospec/java \
 		-classpath $(FRODOSPEC_BIN_HOME)/java:$(CLASSPATH) $(JAVAC_OPTIONS) -d $(FRODOSPEC_BIN_HOME)/java $<
 
 checkout:
@@ -59,6 +59,9 @@ backup: tidy
 	done;
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.2  2009/03/05 16:18:22  cjm
+# Added test dir.
+#
 # Revision 1.1  2008/11/20 11:34:34  cjm
 # Initial revision
 #

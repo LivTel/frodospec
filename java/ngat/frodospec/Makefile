@@ -1,5 +1,5 @@
 # Makefile
-# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.5 2009-05-07 16:04:17 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/java/ngat/frodospec/Makefile,v 1.6 2014-08-28 17:03:03 cjm Exp $
 include ../../../Makefile.common
 include ../../../../Makefile.common
 
@@ -40,7 +40,7 @@ top: $(OBJS) config
 	done;
 
 $(BINDIR)/%.class:%.java
-	$(JAVAC) -sourcepath .:/home/dev/src/frodospec/java -classpath \
+	$(JAVAC) -source 1.4 -target 1.4 -sourcepath .:/home/dev/src/frodospec/java -classpath \
 		$(FRODOSPEC_BIN_HOME)/java:$(CLASSPATH) $(JAVAC_OPTIONS) -d $(FRODOSPEC_BIN_HOME)/java $<
 #-sourcepath .:/home/dev/src:/home/dev/src/frodospec/java
 
@@ -88,6 +88,9 @@ backup: tidy checkin
 
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.5  2009/05/07 16:04:17  cjm
+# Added LAMPFOCUSImplementation.java.
+#
 # Revision 1.4  2009/04/30 09:48:21  cjm
 # Added ABORTImplementation.java.
 #
