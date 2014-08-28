@@ -1,13 +1,13 @@
 /* ccd_exposure.c
 ** low level ccd library
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.40 2011-01-17 10:57:54 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ccd_exposure.c,v 0.41 2014-08-28 17:03:19 cjm Exp $
 */
 /**
  * ccd_exposure.c contains routines for performing an exposure with the SDSU CCD Controller. There is a
  * routine that does the whole job in one go, or several routines can be called to do parts of an exposure.
  * An exposure can be paused and resumed, or it can be stopped or aborted.
  * @author SDSU, Chris Mottram
- * @version $Revision: 0.40 $
+ * @version $Revision: 0.41 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -19,6 +19,7 @@
  * for time.
  */
 #define _POSIX_C_SOURCE 199309L
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +49,9 @@
 #include "ngat_astro.h"
 #include "ngat_astro_mjd.h"
 #endif /* NGATASTRO */
+/*#include "ngat_fits.h"  diddly we are not sure whether this mutex is needed yet, or wether
+**  CFITSIO compiled reentrant is sufficient. */
+/* FITS Mutex support */
 
 /* hash definitions */
 /**
@@ -111,7 +115,7 @@ struct Exposure_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ccd_exposure.c,v 0.40 2011-01-17 10:57:54 cjm Exp $";
+static char rcsid[] = "$Id: ccd_exposure.c,v 0.41 2014-08-28 17:03:19 cjm Exp $";
 
 /**
  * Variable holding error code of last operation performed by ccd_exposure.
@@ -167,6 +171,10 @@ static int fexist(char *filename);
 /**
  * This routine sets up ccd_exposure internal variables.
  * It should be called at startup.
+ * It now passes the FITS_Mutex address to the ngat.fits library,
+ * so CFITSIO calls are mutex locked across libraries:- CFITSIO is currently crashing
+ * due to multi-threading issues.
+ * @see ../../../ngatfits/cdocs/ngat_fits.html#NGAT_Fits_Set_FITS_Mutex
  */
 void CCD_Exposure_Initialise(void)
 {
@@ -182,6 +190,16 @@ void CCD_Exposure_Initialise(void)
 	fprintf(stdout,"CCD_Exposure_Initialise:Using CFITSIO.\n");
 #else
 	fprintf(stdout,"CCD_Exposure_Initialise:NOT Using CFITSIO.\n");
+#endif
+#ifdef CCD_CFITSIO_MUTEXED
+	/* Send the address of FITS_Mutex to the ngat.fits library, so CFITSIO
+	** routines accessed from the Java layer to write FITS headers, are protected from 
+	** being called at the same time as the other arm is saving an image */
+	/*
+diddly we are not sure whether this mutex is needed yet, or wether
+ CFITSIO compiled reentrant is sufficient.
+	NGAT_Fits_Set_FITS_Mutex(&(Exposure_Data.FITS_Mutex));
+	*/
 #endif
 }
 
@@ -2222,6 +2240,10 @@ static int fexist(char *filename)
 
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 0.40  2011/01/17 10:57:54  cjm
+** API change to allow class and source information to be passed into the
+** CCD library to enhance logging.
+**
 ** Revision 0.39  2009/09/14 15:08:33  cjm
 ** Exposure Save now uses Exposure_FITS_Mutex_Lock / Exposure_FITS_Mutex_UnLock
 ** around CFITSIO calls. This should reduce multi-threaded problems with the
