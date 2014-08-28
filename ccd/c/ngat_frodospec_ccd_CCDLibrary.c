@@ -1,6 +1,6 @@
 /* ngat_frodospec_ccd_CCDLibrary.c
 ** implementation of Java Class ngat.frodospec.ccd.CCDLibrary native interfaces
-** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.5 2011-01-17 10:57:54 cjm Exp $
+** $Header: /home/cjm/cvs/frodospec/ccd/c/ngat_frodospec_ccd_CCDLibrary.c,v 1.6 2014-08-28 17:03:19 cjm Exp $
 */
 /**
  * ngat_frodospec_ccd_CCDLibrary.c is the 'glue' between libfrodospec_ccd, 
@@ -8,7 +8,7 @@
  * a Java Class to drive the controller. CCDLibrary specifically
  * contains all the native C routines corresponding to native methods in Java.
  * @author Chris Mottram LJMU
- * @version $Revision: 1.5 $
+ * @version $Revision: 1.6 $
  */
 /**
  * This hash define is needed before including source files give us POSIX.4/IEEE1003.1b-1993 prototypes
@@ -25,6 +25,7 @@
 #include <string.h>
 #include <jni.h>
 #include <time.h>
+#include "log_udp.h" /* CCD_Setup_Startup debug only */
 #include "ccd_dsp.h"
 #include "ccd_exposure.h"
 #include "ccd_global.h"
@@ -134,7 +135,7 @@ struct Handle_Map_Struct
 /**
  * Revision Control System identifier.
  */
-static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.5 2011-01-17 10:57:54 cjm Exp $";
+static char rcsid[] = "$Id: ngat_frodospec_ccd_CCDLibrary.c,v 1.6 2014-08-28 17:03:19 cjm Exp $";
 
 /**
  * Copy of the java virtual machine pointer, used for logging back up to the Java layer from C.
@@ -805,9 +806,19 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
 	jmethodID get_x_start_method_id,get_y_start_method_id,get_x_end_method_id,get_y_end_method_id;
 	jsize window_count;
 
+#if LOGGING > 9
+	fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions started.");
+#endif
+#if LOGGING > 9
+	fprintf(stderr,
+		"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions:Calling CCDLibrary_Handle_Map_Find.");
+#endif
 	/* get interface handle from CCDLibrary instance map */
 	if(!CCDLibrary_Handle_Map_Find(env,obj,&handle))
 		return; /* CCDLibrary_Handle_Map_Find throws an exception on failure */
+#if LOGGING > 9
+	fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions:Converting Java to C Strings.");
+#endif
 	/* Change the java strings to a c null terminated string
 	** If the java String is null the C string should be null as well */
 	if(class_jstring != NULL)
@@ -815,8 +826,17 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
 	if(source_jstring != NULL)
 		source = (*env)->GetStringUTFChars(env,source_jstring,0);
 /* convert window_object_list to window_list */
+#if LOGGING > 9
+	CCD_Global_Log_Format((char*)class,(char*)source,LOG_VERBOSITY_VERBOSE,
+		      "Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions:Converting Java to C Window List.");
+#endif
 	/* check size of array */
 	window_count = (*env)->GetArrayLength(env,(jarray)window_object_list);
+	if(((*env)->ExceptionCheck(env)))
+	{
+		fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions: GetArrayLength caused exception.\n");
+		return;
+	}
 	if(window_count != CCD_SETUP_WINDOW_COUNT)
 	{
 		/* N.B. This error occured in the JNI interface, not the libfrodospec_ccd - no error string set */
@@ -827,10 +847,18 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
 	}
 /* get the class of CCDLibrarySetupWindow */
 	cls = (*env)->FindClass(env,"ngat/frodospec/ccd/CCDLibrarySetupWindow");
+	if(((*env)->ExceptionCheck(env)))
+	{
+		fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions: FindClass caused exception.\n");
+		return;
+	}
 	/* if the class is null, one of the following exceptions occured:
 	** ClassFormatError,ClassCircularityError,NoClassDefFoundError,OutOfMemoryError */
 	if(cls == NULL)
+	{
+		fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions: FindClass caused exception.\n");
 		return;
+	}
 /* get relevant method ids to call */
 /* getXStart */
 	get_x_start_method_id = (*env)->GetMethodID(env,cls,"getXStart","()I");
@@ -871,24 +899,54 @@ JNIEXPORT void JNICALL Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions
 		** throws ArrayIndexOutOfBoundsException: if index does not specify a valid index in the array. 
 		** However, this should never occur, we have checked the size of the array earlier. */
 		window_object = (*env)->GetObjectArrayElement(env,window_object_list,i);
-
-		/* call the get method and put it into the list of window structures. */
-		window_list[i].X_Start = (int)((*env)->CallIntMethod(env,window_object,get_x_start_method_id));
-		window_list[i].Y_Start = (int)((*env)->CallIntMethod(env,window_object,get_y_start_method_id));
-		window_list[i].X_End = (int)((*env)->CallIntMethod(env,window_object,get_x_end_method_id));
-		window_list[i].Y_End = (int)((*env)->CallIntMethod(env,window_object,get_y_end_method_id));
+		if(((*env)->ExceptionCheck(env)))
+		{
+			fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions: GetObjectArrayElement(i=%d) caused exception.\n",i);
+			return;
+		}
+		if(window_object != NULL)
+		{
+			/* call the get method and put it into the list of window structures. */
+			window_list[i].X_Start = (int)((*env)->CallIntMethod(env,window_object,get_x_start_method_id));
+			window_list[i].Y_Start = (int)((*env)->CallIntMethod(env,window_object,get_y_start_method_id));
+			window_list[i].X_End = (int)((*env)->CallIntMethod(env,window_object,get_x_end_method_id));
+			window_list[i].Y_End = (int)((*env)->CallIntMethod(env,window_object,get_y_end_method_id));
+		}/* end if window_object != NULL */
+	}/* end for */
+	if(((*env)->ExceptionCheck(env)))
+	{
+		fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions: An exception has occured before calling CCD_Setup_Dimensions.\n");
+		return;
 	}
 /* call dimension setup routine */
+#if LOGGING > 9
+	CCD_Global_Log_Format((char*)class,(char*)source,LOG_VERBOSITY_VERBOSE,
+		      "Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions:Calling CCD_Setup_Dimensions.");
+#endif
 	retval = CCD_Setup_Dimensions((char*)class,(char*)source,handle,ncols,nrows,nsbin,npbin,amplifier,
 				      deinterlace_setting,window_flags,window_list);
 	/* If we created the C strings we need to free the memory it uses */
+#if LOGGING > 9
+	CCD_Global_Log_Format((char*)class,(char*)source,LOG_VERBOSITY_VERBOSE,
+		      "Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions:Freeing class_jstring.");
+#endif
 	if(class_jstring != NULL)
 		(*env)->ReleaseStringUTFChars(env,class_jstring,class);
+#if LOGGING > 9
+	fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions:Freeing source_jstring.");
+#endif
 	if(source_jstring != NULL)
 		(*env)->ReleaseStringUTFChars(env,source_jstring,source);
 	/* if an error occured throw an exception. */
+#if LOGGING > 9
+	fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions:"
+		"Potentially throwing exception (retval = %d).",retval);
+#endif
 	if(retval == FALSE)
 		CCDLibrary_Throw_Exception(env,obj,"CCD_Setup_Dimensions");
+#if LOGGING > 9
+	fprintf(stderr,"Java_ngat_frodospec_ccd_CCDLibrary_CCD_1Setup_1Dimensions finished.");
+#endif
 }
 
 /**
@@ -1969,6 +2027,10 @@ static int CCDLibrary_Handle_Map_Find(JNIEnv *env,jobject instance,CCD_Interface
 }
 /*
 ** $Log: not supported by cvs2svn $
+** Revision 1.5  2011/01/17 10:57:54  cjm
+** API change to allow class and source information to be passed into the
+** CCD library to enhance logging.
+**
 ** Revision 1.4  2009/05/01 14:23:56  cjm
 ** Removed diddly.
 **
