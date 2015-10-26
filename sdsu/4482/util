@@ -1,5 +1,5 @@
 #!/bin/sh
-#
+# $Header: /home/cjm/cvs/frodospec/sdsu/4482/util,v 1.2 2015-10-26 15:39:54 cjm Exp $
 # This is a script for generating DSP code from the utilboot.asm and 
 #   utilappl.asm files for the utility board
 # 
@@ -71,4 +71,10 @@ if [ "$DOWNLOAD" = "ROM" ] ; then
 	srec -mw util.lod
 	rm util.lod
 fi
+echo "Copying to ~dev/bin/frodospec/dsp/util.lod:"
+cp -i ~dev/src/sdsu/frodospec/util.lod ~dev/bin/frodospec/dsp/util.lod
+
 exit 0
+#
+# $Log: not supported by cvs2svn $
+#

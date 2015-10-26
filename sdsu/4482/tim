@@ -1,5 +1,5 @@
 #!/bin/sh
-#
+# $Header: /home/cjm/cvs/frodospec/sdsu/4482/tim,v 1.2 2015-10-26 15:39:29 cjm Exp $
 	echo ""
 	echo "Assembling DSP code for a E2V 2k x 4k CCD44-82 CCD"
 	echo ""
@@ -22,3 +22,8 @@ rm tim.cln ; rm tim.cld
 	echo ""
 	echo "Created file 'tim.lod' for downloading over optical fiber"
 	echo ""
+echo "Copying to ~dev/bin/frodospec/dsp/tim.lod:"
+cp -i ~dev/src/sdsu/frodospec/tim.lod ~dev/bin/frodospec/dsp/tim.lod
+#
+# $Log: not supported by cvs2svn $
+#
