@@ -1,17 +1,10 @@
 #!/bin/sh
-# $Header: /home/cjm/cvs/frodospec/sdsu/4482/timwine,v 1.1 2015-10-26 15:36:29 cjm Exp $
-	echo ""
-	echo "Assembling DSP code for a E2V 2k x 4k CCD44-82 CCD"
-	echo ""
+# $Header: /home/cjm/cvs/frodospec/sdsu/4482/timwine,v 1.2 2015-10-26 16:01:43 cjm Exp $
 #
 # DOWNLOAD selects application code to be loaded from EEPROM or 
 #   downloaded from the host over the fiber optic link
 #
 # DOWNLOAD = HOST or ROM
-
-DOWNLOAD=HOST
-WAVEFORM_FILE=E2V4482.waveforms
-DST_FILE=tim
 
 #alias asm56300='wine --winver nt40 --debugmsg fixme-all -- /home/dev/sdsu/astro-cam/DSP/CLAS563/BIN/ASM56300.EXE'
 #alias dsplnk='wine --winver nt40 --debugmsg fixme-all -- /home/dev/sdsu/astro-cam/DSP/CLAS563/BIN/DSPLNK.EXE'
@@ -19,17 +12,36 @@ DST_FILE=tim
 alias asm56300='wine /home/dev/sdsu/astro-cam/DSP/CLAS563/BIN/ASM56300.EXE'
 alias dsplnk='wine /home/dev/sdsu/astro-cam/DSP/CLAS563/BIN/DSPLNK.EXE'
 alias cldlod='wine /home/dev/sdsu/astro-cam/DSP/CLAS563/BIN/CLDLOD.EXE'
-asm56300 -b -ltim.ls -d DOWNLOAD $DOWNLOAD -d WAVEFORM_FILE "$WAVEFORM_FILE" tim.asm
-dsplnk -btim.cld -v tim.cln 
-rm -f "$DST_FILE".lod
-cldlod tim.cld > "$DST_FILE".lod
-rm tim.cln ; rm tim.cld
 
-	echo ""
-	echo "Created file 'tim.lod' for downloading over optical fiber"
-	echo ""
-echo "Copying to ~dev/bin/frodospec/dsp/tim.lod:"
-cp -i tim.lod ~dev/bin/frodospec/dsp/tim.lod
+DOWNLOAD=HOST
+
+for arm in "red" "blue"; do
+    WAVEFORM_FILE=E2V4482-${arm}.waveforms
+    DST_FILE=tim${arm}
+    echo ""
+    echo "Assembling DSP code for a E2V 2k x 4k CCD44-82 CCD for the ${arm} arm using waveform file ${WAVEFORM_FILE}."
+    echo ""
+
+    asm56300 -b -ltim.ls -d DOWNLOAD $DOWNLOAD -d WAVEFORM_FILE "$WAVEFORM_FILE" tim.asm
+    dsplnk -btim.cld -v tim.cln 
+    rm -f "$DST_FILE".lod
+    cldlod tim.cld > "$DST_FILE".lod
+    if [ ! -r ${DST_FILE}.lod ]; then
+	echo "Failed to create ${DST_FILE}.lod for arm ${arm}."
+	exit 1
+    fi
+    rm tim.cln ; rm tim.cld
+    echo ""
+    echo "Created file '${DST_FILE}.lod' for downloading over optical fiber"
+    echo ""
+    if [ -d  /home/dev/bin/frodospec/dsp ]; then
+	echo "Copying to /home/dev/bin/frodospec/dsp:"
+	cp -i ${DST_FILE}.lod /home/dev/bin/frodospec/dsp
+    fi
+done
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2015/10/26 15:36:29  cjm
+# Initial revision
+#
 #
