@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.7 2015-10-26 16:26:05 cjm Exp $
-# Version: $Revision: 1.7 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.8 2015-10-26 16:27:25 cjm Exp $
+# Version: $Revision: 1.8 $
 # By $Author: cjm $
 # Make a deployment tar file.
 # This contains:
@@ -297,7 +297,7 @@ endif
 # DSP code
 #
 echo "Copying DSP code files..."
-set file_list = "frodospec/dsp/tim.lod frodospec/dsp/util.lod"
+set file_list = "frodospec/dsp/timred.lod frodospec/dsp/timblue.lod frodospec/dsp/util.lod"
 set file_count = 0
 cd ${dev_bin_dir}
 foreach file ( ${file_list} )
@@ -368,6 +368,9 @@ echo "Download ${deployment_tar}.gz frodospec_tar_install icc_cshrc icc_cshrc_ed
 echo "Deployment ready."
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.7  2015/10/26 16:26:05  cjm
+# Changes relating to multiple instrument machine installations.
+#
 # Revision 1.6  2010/11/25 10:36:39  cjm
 # Added science_fold script.
 #
