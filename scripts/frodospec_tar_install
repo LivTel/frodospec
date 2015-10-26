@@ -1,18 +1,31 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_tar_install,v 1.1 2008-12-01 10:39:30 cjm Exp $
-# Version: $Revision: 1.1 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_tar_install,v 1.2 2015-10-26 16:20:52 cjm Exp $
+# Version: $Revision: 1.2 $
 # By $Author: cjm $
 # Install a deployment tar created by frodospec_make_deployment, not on a floppy
 # Usage:
-#	frodospec_tar_install <machine>
-if ( ${#argv} != 1 ) then
-	echo "Please specify a deployment machine."
-	echo "$0 <machine>"
-	exit 1
-endif
-set machine_name = "$1"
-if ( "${machine_name}" == "-help") then
-	echo "$0 <machine>"
+#	frodospec_tar_install [-help] [-nodelbin] <machine>
+set delbin = 1
+set machine_name = ""
+foreach arg ( $argv )
+	switch ( $arg )
+		case "-nodelbin":
+		    set delbin = 0
+	     	    breaksw
+		case "-help":
+		    echo "$0 [-help] [-nodelbin] <machine>"
+		    echo "\t -nodelbin does not delete the binary directory before installation,"
+		    echo "\t\tfor multiple instrument installations."
+	     	    breaksw
+		default:
+		    set machine_name = $arg
+		    breaksw
+	endsw	   
+end
+if ( "${machine_name}" == "") then
+	echo "$0 [-help] [-nodelbin] <machine>"
+	echo "\t-nodelbin does not delete the binary directory before installation, "
+	echo "\t\tfor multiple instrument installations."
 	exit 0
 endif
 set current_dir         = `pwd`
@@ -41,12 +54,12 @@ end
 # Kill any running processes
 #
 if ( -x /icc/bin/scripts/killhup.csh ) then
-    echo "Trying to kill AutoBooter."
-    /icc/bin/scripts/killhup.csh AutoBooter
+    echo "Trying to kill FrodospecAutoBooter."
+    /icc/bin/scripts/killhup.csh FrodospecAutoBooter
     echo "Trying to kill FrodoSpec."
     /icc/bin/scripts/killhup.csh FrodoSpec
-    echo "Trying to kill DpRt."
-    /icc/bin/scripts/killhup.csh DpRt
+    echo "Trying to kill FrodospecDpRt."
+    /icc/bin/scripts/killhup.csh FrodospecDpRt
     echo "Trying to kill icsd_inet."
     /icc/bin/scripts/killhup.csh icsd_inet
 else
@@ -66,10 +79,14 @@ else
 endif
 #
 # Delete old installation
+# DON'T delete the log directory.
+# Only delete old binaries if delbin set.
 #
-if( -d /${icc}/bin ) then
-    echo "Deleting /${icc}/bin directory."
-    rm -rf /${icc}/bin/*
+if( ${delbin} == 1 ) then
+    if( -d /${icc}/bin ) then
+	echo "Deleting /${icc}/bin directory."
+	rm -rf /${icc}/bin/*
+    endif
 endif
 #
 # Create new top level directory (if it does not already exist
@@ -102,25 +119,25 @@ rm -f ${deployment_tar}
 #
 # Init script setup
 #
-# Init script already copied as /etc/init.d/autobooter
-echo "Setting up autobooter initialisation script."
+# Init script already copied as /etc/init.d/frodospec.autobooter
+echo "Setting up frodospec.autobooter initialisation script."
 set dir_list = "/etc/rc0.d /etc/rc1.d /etc/rc2.d /etc/rc4.d /etc/rc6.d"
 foreach dir ( ${dir_list} )
     cd ${dir}
-    if( ! -e K01autobooter ) then
-	ln -s ../init.d/autobooter K01autobooter
+    if( ! -e K01frodospec.autobooter ) then
+	ln -s ../init.d/frodospec.autobooter K01frodospec.autobooter
     endif
 end
 set dir_list = "/etc/rc3.d /etc/rc5.d"
 foreach dir ( ${dir_list} )
     cd ${dir}
-    if( ! -e S99autobooter ) then
-	ln -s ../init.d/autobooter S99autobooter
+    if( ! -e S99frodospec.autobooter ) then
+	ln -s ../init.d/frodospec.autobooter S99frodospec.autobooter
     endif
 end
-echo "Setting up autobooter script."
-chmod u+x /etc/init.d/autobooter
-chown root:sys /etc/init.d/autobooter
+echo "Setting up frodospec.autobooter script."
+chmod u+x /etc/init.d/frodospec.autobooter
+chown root:sys /etc/init.d/frodospec.autobooter
 #
 # Reseting / ownership (to stop /var/log/messages "pam_timestamp_check: pam_timestamp: `/' owner UID != 0"
 # and "pam_timestamp_check: pam_timestamp: `/' permissions are lax"
@@ -144,3 +161,6 @@ rm -f ~eng/.cshrc.tmp
 # Finished
 #
 echo "Installation completed, please 'reboot'."
+#
+# $Log: not supported by cvs2svn $
+#
