@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.6 2010-11-25 10:36:39 cjm Exp $
-# Version: $Revision: 1.6 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.7 2015-10-26 16:26:05 cjm Exp $
+# Version: $Revision: 1.7 $
 # By $Author: cjm $
 # Make a deployment tar file.
 # This contains:
@@ -109,10 +109,10 @@ foreach jar ( ${jar_list} )
 	foreach class ( `cat ${deployment_tmp_dir}/class_list.txt` )
 		( ident ${class} > ${deployment_tmp_dir}/ident.txt ) >& ${deployment_tmp_dir}/ident_error.txt
 		set ident_string = `cat ${deployment_tmp_dir}/ident.txt`
-		echo "${ident_string}" >>! ${deployment_tmp_dir}/ident_list.txt
+		echo "${ident_string}" >>! ${deployment_tmp_dir}/frodospec_ident_list.txt
 	end
-	if ( -r ${deployment_tmp_dir}/ident_list.txt) then
-		cat ${deployment_tmp_dir}/ident_list.txt >>! ${deployment_icc_dir}/ident_list.txt 
+	if ( -r ${deployment_tmp_dir}/frodospec_ident_list.txt) then
+		cat ${deployment_tmp_dir}/frodospec_ident_list.txt >>! ${deployment_icc_dir}/frodospec_ident_list.txt 
 	endif
 # keep track of number of jars processed
 	@ jar_count ++
@@ -143,10 +143,10 @@ foreach java_class_dir ( ${java_class_dir_list} )
 	foreach class ( `cat ${deployment_tmp_dir}/class_list.txt` )
 		( ident ${class} > ${deployment_tmp_dir}/ident.txt ) >& ${deployment_tmp_dir}/ident_error.txt
 		set ident_string = `cat ${deployment_tmp_dir}/ident.txt`
-		echo "${ident_string}" >>! ${deployment_tmp_dir}/ident_list.txt
+		echo "${ident_string}" >>! ${deployment_tmp_dir}/frodospec_ident_list.txt
 	end
-	if ( -r ${deployment_tmp_dir}/ident_list.txt) then
-		cat ${deployment_tmp_dir}/ident_list.txt >>! ${deployment_icc_dir}/ident_list.txt 
+	if ( -r ${deployment_tmp_dir}/frodospec_ident_list.txt) then
+		cat ${deployment_tmp_dir}/frodospec_ident_list.txt >>! ${deployment_icc_dir}/frodospec_ident_list.txt 
 	endif
 # keep track of number of java_class_dirs processed
 	@ java_class_dir_count ++
@@ -174,9 +174,9 @@ foreach clib ( ${clib_list} )
 	cd ${deployment_bin_dir}
 	( ident lib/${HOSTTYPE}/${clib} > ${deployment_tmp_dir}/ident.txt ) >& ${deployment_tmp_dir}/ident_error.txt
 	set ident_string = `cat ${deployment_tmp_dir}/ident.txt`
-	echo "${ident_string}" >>! ${deployment_tmp_dir}/ident_list.txt
-	if ( -r ${deployment_tmp_dir}/ident_list.txt) then
-		cat ${deployment_tmp_dir}/ident_list.txt >>! ${deployment_icc_dir}/ident_list.txt 
+	echo "${ident_string}" >>! ${deployment_tmp_dir}/frodospec_ident_list.txt
+	if ( -r ${deployment_tmp_dir}/frodospec_ident_list.txt) then
+		cat ${deployment_tmp_dir}/frodospec_ident_list.txt >>! ${deployment_icc_dir}/frodospec_ident_list.txt 
 	endif
 # keep track of number of clibs processed
 	@ clib_count ++
@@ -215,7 +215,7 @@ foreach dir ( ${dir_list} )
 # ident file and add to list
 			( ident ${dir}/${file:t} > ${deployment_tmp_dir}/ident.txt ) >& ${deployment_tmp_dir}/ident_error.txt
 			set ident_string = `cat ${deployment_tmp_dir}/ident.txt`
-			echo "${ident_string}" >>! ${deployment_tmp_dir}/ident_list.txt
+			echo "${ident_string}" >>! ${deployment_tmp_dir}/frodospec_ident_list.txt
 			@ file_count ++
 		else
 			echo "NOT Deploying ${file}."
@@ -225,8 +225,8 @@ foreach dir ( ${dir_list} )
 # keep track of number of dirs processed
 	@ dir_count ++
 end
-if ( -r ${deployment_tmp_dir}/ident_list.txt) then
-	cat ${deployment_tmp_dir}/ident_list.txt >>! ${deployment_icc_dir}/ident_list.txt 
+if ( -r ${deployment_tmp_dir}/frodospec_ident_list.txt) then
+	cat ${deployment_tmp_dir}/frodospec_ident_list.txt >>! ${deployment_icc_dir}/frodospec_ident_list.txt 
 endif
 cd ${deployment_dir}
 rm -rf ${deployment_tmp_dir}
@@ -235,7 +235,7 @@ echo "${dir_count} C test program directories copied, containg ${file_count} C t
 # Scripts
 #
 echo "Copying scripts..."
-set file_list = "frodospec/scripts/frodospec_get_status_cron frodospec/scripts/get_temperature frodospec/scripts/simple_image frodospec/scripts/arc_lamp frodospec/scripts/frodospec_single_config_multrun frodospec/scripts/frodospec_exercise_arm frodospec/scripts/frodospec_arm_flexer frodospec/scripts/frodospec_engineering_mode frodospec/scripts/ifbitset frodospec/scripts/frodospec_plc_fault_reset frodospec/scripts/frodospec_plc_fault_status frodospec/scripts/frodospec_plc_power_arcom_ethernet_serial frodospec/scripts/frodospec_plc_power_blue_focus_stage frodospec/scripts/frodospec_plc_power_blue_sdsu frodospec/scripts/frodospec_plc_power_maint_lights frodospec/scripts/frodospec_plc_power_red_focus_stage frodospec/scripts/frodospec_plc_power_red_sdsu scripts/killhup.csh scripts/fuser_check scripts/science_fold ccs_gui/java/icsgui"
+set file_list = "frodospec/scripts/frodospec_get_status_cron frodospec/scripts/get_temperature frodospec/scripts/simple_image frodospec/scripts/arc_lamp frodospec/scripts/frodospec_single_config_multrun frodospec/scripts/frodospec_exercise_arm frodospec/scripts/frodospec_arm_flexer frodospec/scripts/frodospec_engineering_mode frodospec/scripts/ifbitset frodospec/scripts/frodospec_plc_fault_reset frodospec/scripts/frodospec_plc_fault_status frodospec/scripts/frodospec_plc_power_arcom_ethernet_serial frodospec/scripts/frodospec_plc_power_blue_focus_stage frodospec/scripts/frodospec_plc_power_blue_sdsu frodospec/scripts/frodospec_plc_power_maint_lights frodospec/scripts/frodospec_plc_power_red_focus_stage frodospec/scripts/frodospec_plc_power_red_sdsu scripts/killhup.csh scripts/fuser_check scripts/science_fold ccs_gui/java/frodospecgui"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -254,7 +254,7 @@ echo "${file_count} scripts copied."
 #
 # in bin sub-directories
 echo "Copying machine configuration files..."
-set file_list = "frodospec/java/${machine_name}.fits.properties frodospec/java/${machine_name}.frodospec.net.properties frodospec/java/${machine_name}.frodospec.properties frodospec/java/test_ccd_redatum.properties ccs_gui/java/${machine_name}.ccs_gui.properties ccs_gui/java/${machine_name}.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties dprt/java/${machine_name}.dprt.properties autobooter/java/${machine_name}.autobooter.properties frodospec/java/lamp.properties"
+set file_list = "frodospec/java/${machine_name}.fits.properties frodospec/java/${machine_name}.frodospec.net.properties frodospec/java/${machine_name}.frodospec.properties frodospec/java/test_ccd_redatum.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui_config.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui.fits.properties dprt/java/${machine_name}.frodospec.dprt.properties autobooter/java/${machine_name}.frodospec.autobooter.properties frodospec/java/lamp.properties"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -285,8 +285,8 @@ echo "${file_count} machine configuration files copied."
 # /etc init scripts
 #
 echo "Copying Autobooter initialisation script."
-set from_file = "${dev_bin_dir}/autobooter/java/${machine_name}.autobooter"
-set to_file = "${deployment_dir}${init_d_dir}/autobooter"
+set from_file = "${dev_bin_dir}/autobooter/java/${machine_name}.frodospec.autobooter"
+set to_file = "${deployment_dir}${init_d_dir}/frodospec.autobooter"
 cp  ${from_file} ${to_file}
 set cp_status = $status
 if( ${cp_status} != 0 ) then
@@ -368,6 +368,9 @@ echo "Download ${deployment_tar}.gz frodospec_tar_install icc_cshrc icc_cshrc_ed
 echo "Deployment ready."
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.6  2010/11/25 10:36:39  cjm
+# Added science_fold script.
+#
 # Revision 1.5  2009/09/18 15:15:16  cjm
 # Added per-arm day_calibrate state property filenames.
 #
