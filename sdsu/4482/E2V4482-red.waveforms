@@ -18,16 +18,16 @@ NP_CLR	EQU	4800	; Parallel clocks to clear
 SH_DEL	EQU	1000	; Shutter delay in milliseconds
 
 ; CCD clock voltages
-RG_HI	EQU	 3.0	; Reset Gate High
-RG_LO	EQU     -9.0	; Reset Gate Low
-R_HI	EQU	 2.0	; Serial Well High
-R_LO	EQU	-8.0	; Serial Low
-SW_HI	EQU	 2.0	; Summing Well High
-SW_LO	EQU	-8.0	; Summing Well Low
-DG_HI	EQU      1.0	; Dump Gate High 
-DG_LO	EQU    -10.0	; Dump Gate Low
-P_HI	EQU	+3.0	; Parallel High
-P_LO	EQU     -8.0	; Parallel Low
+RG_HI	EQU	 11.5	; Reset Gate High
+RG_LO	EQU      0.0	; Reset Gate Low
+R_HI	EQU	 11.0	; Serial Well High
+R_LO	EQU	 1.0	; Serial Low
+SW_HI	EQU	 11.0	; Summing Well High
+SW_LO	EQU	 1.0	; Summing Well Low
+DG_HI	EQU      11.5	; Dump Gate High 
+DG_LO	EQU      0.0	; Dump Gate Low
+P_HI	EQU	 10.0	; Parallel High
+P_LO	EQU      0.0	; Parallel Low
 ZERO	EQU	 0.0	; Unused pins
 Vmax	EQU    +11.8	; Clock driver board rails
 
@@ -37,15 +37,15 @@ OFFSET0	EQU	OFFSET
 OFFSET1	EQU	OFFSET
 
 ; DC Bias voltages
-VODL	EQU	24.0		; Output Drain Left
-VODR	EQU	24.0		; Output Drain Right
-VRDL	EQU	12.0		; Reset Drain Left
-VRDR	EQU	12.0		; Reset Drain Right			
-VOG1L	EQU     -3.0		; Output Gate #1 Left
-VOG1R	EQU     -3.0		; Output Gate #1 Right
+VODL	EQU	29.0		; Output Drain Left
+VODR	EQU	29.0		; Output Drain Right
+VRDL	EQU	17.0		; Reset Drain Left
+VRDR	EQU	17.0		; Reset Drain Right			
+VOG1L	EQU     3.0		; Output Gate #1 Left
+VOG1R	EQU     3.0		; Output Gate #1 Right
 VOG2L	EQU	VOG1L+1		; Output Gate #2 Left
 VOG2R	EQU	VOG1R+1		; Output Gate #2 Right
-VDD	EQU	18.0		; Dump Drain
+VDD	EQU	24.0		; Dump Drain
 
 ; Switch state bit definitions for the CCD clocks for the EEV 42-40
 ; Bit definitions for bottom half of clock driver board, CLK2
