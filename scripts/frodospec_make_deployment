@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.8 2015-10-26 16:27:25 cjm Exp $
-# Version: $Revision: 1.8 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_make_deployment,v 1.9 2015-10-27 10:19:58 cjm Exp $
+# Version: $Revision: 1.9 $
 # By $Author: cjm $
 # Make a deployment tar file.
 # This contains:
@@ -254,7 +254,7 @@ echo "${file_count} scripts copied."
 #
 # in bin sub-directories
 echo "Copying machine configuration files..."
-set file_list = "frodospec/java/${machine_name}.fits.properties frodospec/java/${machine_name}.frodospec.net.properties frodospec/java/${machine_name}.frodospec.properties frodospec/java/test_ccd_redatum.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui_config.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui.fits.properties dprt/java/${machine_name}.frodospec.dprt.properties autobooter/java/${machine_name}.frodospec.autobooter.properties frodospec/java/lamp.properties"
+set file_list = "frodospec/java/${machine_name}.fits.properties frodospec/java/${machine_name}.frodospec.net.properties frodospec/java/${machine_name}.frodospec.properties frodospec/java/test_ccd_redatum.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui.properties ccs_gui/java/${machine_name}.frodospec.ccs_gui_config.properties ccs_gui/java/${machine_name}.ccs_gui.fits.properties dprt/java/${machine_name}.frodospec.dprt.properties autobooter/java/${machine_name}.frodospec.autobooter.properties frodospec/java/lamp.properties"
 set file_count = 0
 cd ${dev_dir}
 foreach file ( ${file_list} )
@@ -368,6 +368,10 @@ echo "Download ${deployment_tar}.gz frodospec_tar_install icc_cshrc icc_cshrc_ed
 echo "Deployment ready."
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.8  2015/10/26 16:27:25  cjm
+# Replaced frodospec/dsp/tim.lod with frodospec/dsp/timred.lod and frodospec/dsp/timblue.lod, as each arm
+# now has it's own DSP code as we optimise the red waveforms for the red science DD chip.
+#
 # Revision 1.7  2015/10/26 16:26:05  cjm
 # Changes relating to multiple instrument machine installations.
 #
