@@ -1,5 +1,5 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/science_fold,v 1.1 2010-09-29 13:08:13 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/scripts/science_fold,v 1.2 2021-07-15 09:50:44 cjm Exp $
 # Stow or inline the science fold
 # science_fold <stow | inline>
 # From ias's second email:
@@ -22,14 +22,27 @@ else
 	echo "science_fold <stow|deploy>"
 	exit 1
 endif
+# setup environment
+set hostname = `/bin/hostname --short`
+switch ( "${hostname}" )
+    case "occ":
+	setenv LD_LIBRARY_PATH .:/occ/common/lib/
+	breaksw
+    default:
+	breaksw
+endsw
 if( -x /icc/bin/eip/test/i386-linux/eip_test_write_boolean ) then
 	alias write_boolean '/icc/bin/eip/test/i386-linux/eip_test_write_boolean'
+else if( -x /home/eng/scripts/eip_test_write_boolean ) then
+	alias write_boolean '/home/eng/scripts/eip_test_write_boolean'
 else
 	echo "Failed to find eip_test_write_boolean."
 	exit 1
 endif
 if( -x /icc/bin/eip/test/i386-linux/eip_test_read_boolean ) then
 	alias read_boolean '/icc/bin/eip/test/i386-linux/eip_test_read_boolean'
+else if( -x /home/eng/scripts/eip_test_read_boolean ) then
+	alias read_boolean '/home/eng/scripts/eip_test_read_boolean'
 else
 	echo "Failed to find eip_test_read_boolean."
 	exit 1
@@ -65,4 +78,7 @@ while ( "${done}" == "0" )
 end
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2010/09/29 13:08:13  cjm
+# Initial revision
+#
 #
