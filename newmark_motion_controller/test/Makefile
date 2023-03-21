@@ -40,11 +40,5 @@ tidy:
 backup: tidy
 	$(RM) $(RM_OPTIONS) $(OBJS)
 
-checkin:
-	-$(CI) $(CI_OPTIONS) $(SRCS)
-
-checkout:
-	-$(CO) $(CO_OPTIONS) $(SRCS)
-
 # DO NOT DELETE
 

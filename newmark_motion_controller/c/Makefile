@@ -5,6 +5,7 @@ include			../../Makefile.common
 include			../Makefile.common
 
 INCDIR = $(NEWMARK_SRC_HOME)/include
+BINDIR	= $(NEWMARK_BIN_HOME)/c/$(HOSTTYPE)
 DOCSDIR = $(NEWMARK_DOC_HOME)/cdocs
 
 # Do we want to enable logging?
@@ -18,16 +19,16 @@ LOGGINGCFLAGS = -DLOGGING=10
 #MUTEXCFLAGS = 
 
 CFLAGS = -g $(CCHECKFLAG) -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR) -I$(ARCOM_ESS_INCDIR) -L$(LT_LIB_HOME) \
-	$(MUTEXCFLAGS) $(LOGGINGCFLAGS) $(LOG_UDP_CFLAGS)
+	$(MUTEXCFLAGS) $(LOGGINGCFLAGS) $(LOG_UDP_CFLAGS) $(SHARED_LIB_CFLAGS) 
 
 LINTFLAGS 	= -I$(INCDIR) -I$(JNIINCDIR) -I$(JNIMDINCDIR)
 DOCFLAGS 	= -static
 SRCS 		= 	newmark_general.c newmark_command.c
 HEADERS		=	$(SRCS:%.c=%.h)
-OBJS		=	$(SRCS:%.c=%.o)
+OBJS		=	$(SRCS:%.c=$(BINDIR)/%.o)
 DOCS 		= 	$(SRCS:%.c=$(DOCSDIR)/%.html)
 JAVASRCS 	= 	$(SRCS) ngat_frodospec_newmark_Newmark.c
-JAVAOBJS	=	$(JAVASRCS:%.c=%.o)
+JAVAOBJS	=	$(JAVASRCS:%.c=$(BINDIR)/%.o)
 JAVADOCS 	= 	$(JAVASRCS:%.c=$(DOCSDIR)/%.html)
 LIBNAME		=	lib$(NEWMARK_LIBNAME)
 
@@ -37,6 +38,9 @@ shared: $(LT_LIB_HOME)/$(LIBNAME).so
 
 $(LT_LIB_HOME)/$(LIBNAME).so: $(JAVAOBJS)
 	cc $(CCSHAREDFLAG) $(CFLAGS) $(JAVAOBJS) -o $@ -l$(ARCOM_ESS_LIBNAME) $(TIMELIB) 
+
+$(BINDIR)/%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o $@  
 
 static: $(LT_LIB_HOME)/$(LIBNAME).a
 
@@ -57,14 +61,6 @@ $(JAVADOCS): $(JAVASRCS)
 	-$(CDOC) -d $(DOCSDIR) -h $(INCDIR) $(DOCFLAGS) $(JAVASRCS)
 
 $(JAVADOCS) : $(JAVASRCS)
-
-checkout:
-	-$(CO) $(CO_OPTIONS) $(JAVASRCS)
-	-(cd $(INCDIR); $(CO) $(CO_OPTIONS) $(HEADERS);)
-
-checkin:
-	-$(CI) $(CI_OPTIONS) $(JAVASRCS)
-	-(cd $(INCDIR); $(CI) $(CI_OPTIONS) $(HEADERS);)
 
 staticdepend:
 	makedepend $(MAKEDEPENDFLAGS) -- $(CFLAGS) -- $(SRCS)
