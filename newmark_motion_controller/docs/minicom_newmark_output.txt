@@ -1,0 +1,78 @@
+Use HOME, followed by MOVA/MOVR/PRINT POS
+Units are mm, can move 0.01mm (10 micron) increments alledgedly - definately 0.1mm increments do something.
+ESC quits motion.
+After homing, slide appears to run from -29.15100  to 176.93699 
+Ctrl-C causes reboot?
+
+Program Copyright. 1996-2004 by:                                             
+Intelligent Motion Systems, Inc.                                             
+Marlborough, CT 06447                                                        
+VER  = 1.552  SER  = 015077828     A                                         
+                                                                             
+>                                                                         
+>                                                                         
+>                                                                         
+>MOVA 0                                                                   
+>MOVA 1000                                                                
+>MOVA 0                                                                   
+>SLEW 1                                                                   
+>#                                                                        
+>SLEW -1                                                                  
+>#                                                                              
+>SLEW -1                                                                        
+>#                                                                              
+>MOVA 0                                                                         
+>HOME                                                                           
+Homing Complete
+>MOVEA 0                                                                        
+?MOVA 0                                                                         
+>MOVA 10                                                                        
+>MOVR 10                                                                        
+>MOVA 100                                                                       
+>MOVA 15                                                                        
+>MOVA 150                                                                       
+>MOVA 170                                                                       
+>MOVA 180                                                                       
+>PRINT POS                                                                      
+176.93699                                                                       
+                                                                                
+>MOVA 100                                                                       
+>PRINT POS                                                                      
+100.00000                                                                       
+                                                                                
+>MOVA -10                                                                       
+>MOVA -50                                                                       
+>PRINT POS                                                                      
+-29.15100                                                                       
+
+>HOME                                                                           
+Homing Complete                                                                 
+                                                                                
+>PRINT POS                                                                      
+0.00000                                                                         
+                                                                                
+>MOVA 0.1                                                                       
+>PRINT POS                                                                      
+0.10000                                                                         
+                                                                                
+>MOVA 0.2                                                                       
+>PRINT POS                                                                      
+0.19900                                                                         
+                                                                                
+>#                                                                              
+>PRINT POS                                                                      
+0.19900                                                                         
+      
+>PRINT POS                                                                      
+0.19900                                                                         
+                                                                                
+>MOVA 0.2                                                                       
+>PRINT POS                                                                      
+0.20000                                                                         
+                                                                                
+>MOVA 0.21                                                                      
+>PRINT POS                                                                      
+0.21000                                                                         
+                                                                                
+>
+

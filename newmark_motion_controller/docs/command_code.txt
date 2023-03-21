@@ -1,0 +1,44 @@
+Taken from newmark_command.c
+----------------------------
+2011/06/07
+----------
+Newmark_Command_Home
+--------------------
+
+Arcom_ESS_Interface_Mutex_Lock
+Command_Read_Flush
+	while (done == FALSE)
+	{
+		nanosleep(COMMAND_READ_LOOP_SLEEP_MS) (10ms)
+		Arcom_ESS_Interface_Read
+		if(bytes_read > 0)
+			      stuff
+		else
+			done = TRUE
+	}
+Arcom_ESS_Interface_Write
+Command_Read_Until_Prompt (6000) x 10ms = 60s
+	while(done == FALSE)
+	{
+		Arcom_ESS_Interface_Read
+		if(bytes_read > 0)
+		{
+			if(command_buff contains COMMAND_PROMPT
+			{
+				done = TRUE;
+			}
+		}
+		else
+			timeout_index++
+		if(timeout_index >= loop_timeout_count)
+		{
+			if(timeout_is_error)
+			{
+				return error
+			}
+			else
+				done = TRUE;
+		}
+		nanosleep 10ms
+	}			  
+Arcom_ESS_Interface_Mutex_Unlock

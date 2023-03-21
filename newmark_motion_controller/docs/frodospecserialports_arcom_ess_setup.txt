@@ -1,0 +1,24 @@
+ARCOM CONTROL SYSTEMS  Ethernet Serial Server Ver 4.7.7  OCT 22, 2008 10:59:59
+                                MAIN MENU
+ETHERNET      ADDRESS        192.168.001.049
+              NETMASK        255.255.255.000
+              GATEWAY        192.168.001.254
+
+PPP           ADDRESS        000.000.000.000
+              NETMASK        000.000.000.000
+                                                              BYTES     BYTES
+COM   BAUD PAR BIT STP WARMUP WARMDN PORT  TYPE               SENT      RCVD
+ 0   19200  N   8   1    -1     -1       0  CON                1083         0
+ 1    9600  N   8   1    -1     -1    3040   TS                  22        46
+ 2    9600  N   8   1    -1     -1    3050   TS                  33        59
+ 3   19200  N   8   1    -1     -1    3060   TS                   0         0
+
+OPTIONS:
+    1. CHANGE CONFIGURATION            6. SET CLOCK
+    2. STORE CONFIGURATION             7. DIAGNOSTIC MENU
+    3. RESET TO FACTORY DEFAULTS       8. SET PASSWORD
+    4. RESET STATISTICS                9. ADVANCED CONFIG
+    5. RESTART UNIT
+
+
+Newmark seems to require B9600, 8N1.

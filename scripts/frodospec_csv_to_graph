@@ -1,0 +1,27 @@
+#!/bin/csh
+if ( $#argv != 1 ) then
+	echo "frodospec_csv_to_graph <csv file>"
+	exit 1
+endif
+set csv_filename = "$1"
+echo "csv filename: ${csv_filename}"
+alias csv2gnuplot `dirname $0`"/csv2gnuplot.sh"
+set output_image_format = "png"
+set output_filename = "${csv_filename:r}.${output_image_format}"
+echo "output filename:${output_filename}"
+set tmp_filename = "${csv_filename:r}.tmp"
+#cat frodospec_red_ccd_temperature.csv | awk -F',' ' { split($1,datetime," ") ; split(datetime[1],date,"-") ; split(datetime[3],time,":") ; secs = time[3] + (time[2]*60) + (time[1]*3660) + (date[3] * 86400) + (date[2] * 2592000) ; print secs" "$2" dt1:"datetime[1]" dt2:"datetime[2]" dt3:"datetime[3]" d1:"date[1]" d2:"date[2]" d3:"date[3]" t1:"time[1]" t2:"time[2]" t3:"time[3] }'
+# seconds 
+# awk -F',' ' { split($1,datetime," ") ; split(datetime[1],date,"-") ; split(datetime[3],time,":") ; secs = time[3] + (time[2]*60) + (time[1]*3660) + (date[3] * 86400) + (date[2] * 2592000) ; print secs" "$2 }'
+# days 
+# awk -F',' ' { split($1,datetime," ") ; split(datetime[1],date,"-") ; split(datetime[3],time,":") ; secs = time[3] + (time[2]*60) + (time[1]*3660) ; days = date[3] + (date[2] * 30) + (secs  / 86400) ; print secs" "$2 }'
+#cat ${csv_filename} | awk -F',' ' { split($1,datetime," ") ; split(datetime[1],date,"-") ; split(datetime[3],time,":") ; secs = time[3] + (time[2]*60) + (time[1]*3660) + (date[3] * 86400) + (date[2] * 2592000) ; print secs" "$2 }' > ${tmp_filename}
+cat ${csv_filename} | awk -F',' ' { split($1,datetime," ") ; split(datetime[1],date,"-") ; split(datetime[3],time,":") ; secs = time[3] + (time[2]*60) + (time[1]*3660) ; days = date[3] + (date[2] * 30) + (secs  / 86400) ; print days" "$2 }' > ${tmp_filename}
+#csv2gnuplot -i ${tmp_filename} -o ${csv_filename:r}_gnuplot.dat -g ${csv_filename:r}_gnuplot.scr -W 800 -H 600 -O ${output_filename} -e
+set gnuplot_file = "${csv_filename:r}.gnuplot"
+echo plot \"${tmp_filename}\" using 1:2 > ${gnuplot_file}
+echo "set term png" >> ${gnuplot_file}
+echo set output \"${output_filename}\" >> ${gnuplot_file}
+echo "replot " >> ${gnuplot_file}
+gnuplot ${gnuplot_file}
+

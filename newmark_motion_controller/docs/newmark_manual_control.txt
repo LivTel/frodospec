@@ -1,0 +1,11 @@
+ssh eng@frodospec1
+(password)
+cd /icc/bin/frodospec/newmark_motion_controller/test/i386-linux/
+Home the controller:
+./newmark_test_home  -socket_device frodospecserialports 3040
+Move to a specified position (10.0mm in this case):
+./newmark_test_move_absolute  -socket_device frodospecserialports 3040 -position 10.0
+What is the current position:
+./newmark_test_position_get -socket_device frodospecserialports 3040
+
+This all for the red arm newmark (port 3040), for the blue arm use port 3050.

@@ -1,0 +1,16 @@
+# $Header: /home/cjm/cvs/frodospec/newmark_motion_controller/Makefile.common,v 1.1 2023-03-21 14:58:19 cjm Exp $
+
+NEWMARK_HOME			=	newmark_motion_controller
+NEWMARK_SRC_HOME		= 	$(LT_SRC_HOME)/$(FRODOSPEC_HOME)/$(NEWMARK_HOME)
+NEWMARK_BIN_HOME		= 	$(LT_BIN_HOME)/$(FRODOSPEC_HOME)/$(NEWMARK_HOME)
+NEWMARK_DOC_HOME		= 	$(LT_DOC_HOME)/$(FRODOSPEC_HOME)/$(NEWMARK_HOME)
+
+NEWMARK_LIBNAME			= 	$(FRODOSPEC_HOME)_newmark
+
+# We use the arcom_ess library to handle the serial interface to the newmark motion controller 
+ARCOM_ESS_INCDIR = $(LT_SRC_HOME)/arcom_ess/include
+ARCOM_ESS_LIBNAME = arcom_ess
+
+#
+# $Log: not supported by cvs2svn $
+#
