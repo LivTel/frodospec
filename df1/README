@@ -1,0 +1,13 @@
+Micrologix 1100 compatible df1 C library.
+
+Talks to a Micrologix 1100 over a serial link (or over Ethernet via an Ethernet<->Serial converter).
+df1 is the protocol used, select "DCOMM Cfg Enable" to configure the Micrologix 
+(Esc->Advance Set->OK->DCOMM Cfg->OK->Enable)
+
+Default Micrologix 1100 serial setup: 19200 baud, 8N1 (no parity, 1 stop bit), no handskake (flow control).
+DF1 Full duplex.
+
+Based on the df1 daemon (~dev/src/frodospec/micrologix/df1) / http://www.tuxplc.net/index.php?page=df1linux.
+Also looking at the SupIRCam filter wheel and temperature controllers for Arcom ESS hints.
+
+Now obsoleted for FrodoSpec use, which uses libeip / ngat.eip.EIPPLC, based on libtuxeip.

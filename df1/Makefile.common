@@ -1,0 +1,10 @@
+# $Header: /home/cjm/cvs/frodospec/df1/Makefile.common,v 1.1 2023-03-21 14:33:32 cjm Exp $
+
+FRODOSPEC_DF1_HOME		=	df1
+FRODOSPEC_DF1_SRC_HOME		= 	$(FRODOSPEC_SRC_HOME)/$(FRODOSPEC_DF1_HOME)
+FRODOSPEC_DF1_BIN_HOME		= 	$(FRODOSPEC_BIN_HOME)/$(FRODOSPEC_DF1_HOME)
+FRODOSPEC_DF1_DOC_HOME		= 	$(FRODOSPEC_DOC_HOME)/$(FRODOSPEC_DF1_HOME)
+
+#
+# $Log: not supported by cvs2svn $
+#

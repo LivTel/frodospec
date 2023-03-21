@@ -1,0 +1,52 @@
+#!/bin/tcsh
+# test temperature control algorithm
+# monitor temperature, heater adu's etc.
+# designed to be used from a cron job
+# output in output_file
+if ( ${?LT_HOME} == 0 ) then
+    setenv LT_HOME /icc
+endif
+if ( ${?LT_BIN_HOME} == 0 ) then
+    setenv LT_BIN_HOME ${LT_HOME}/bin
+endif
+if ( ${?LT_LIB_HOME} == 0 ) then
+    setenv HOSTTYPE sun4
+    setenv LT_LIB_HOME ${LT_BIN_HOME}/lib/${HOSTTYPE}
+endif
+if ( ${?LD_LIBRARY_PATH} ) then
+   setenv LD_LIBRARY_PATH ${LD_LIBRARY_PATH}":"$LT_LIB_HOME
+else
+   setenv LD_LIBRARY_PATH $LT_LIB_HOME
+endif
+if ( ${?JAVA_HOME} == 0 ) then
+    setenv JAVA_HOME /usr/java1.2
+endif
+set classpath_string = "/opt/voodoo/Voodoo/classes:/opt/voodoo/packages:.:${LT_BIN_HOME}/javalib/ngat_ccd.jar:${LT_BIN_HOME}/javalib/ngat_ccd_test.jar:${LT_BIN_HOME}/javalib/ngat_fits.jar:${LT_BIN_HOME}/javalib/ngat_math.jar:${LT_BIN_HOME}/javalib/ngat_math_test.jar:${LT_BIN_HOME}/javalib/ngat_message_base.jar:${LT_BIN_HOME}/javalib/ngat_message_inst_dp.jar:${LT_BIN_HOME}/javalib/ngat_message_iss_inst.jar:${LT_BIN_HOME}/javalib/ngat_net.jar:${LT_BIN_HOME}/javalib/ngat_phase2.jar:${LT_BIN_HOME}/javalib/ngat_swing.jar:${LT_BIN_HOME}/javalib/ngat_util.jar:${LT_BIN_HOME}/javalib/ngat_util_logging.jar"
+if ( ${?CLASSPATH} == 0 ) then
+   setenv CLASSPATH ${classpath_string}
+endif
+if ( ${?HOST} == 0 ) then
+    setenv HOST ltccd3
+endif
+set interface = pci
+set tmp_file = /tmp/test_temperature_control_tmp.txt
+set output_file = ${LT_HOME}/log/test_temperature_control.txt
+alias test_temperature /icc/bin/ccd/test/test_temperature
+alias ccd_read_memory /icc/bin/ccd/test/ccd_read_memory
+alias sun4_date_seconds /icc/bin/scripts/sun4_date_seconds
+if ( ! -e ${output_file} ) then
+	echo "Date (secs since 1970),Date,Proportionality constant,CCD temp(centigrade),heater ADUs" >>! ${output_file}
+endif
+set start_date = `/icc/bin/scripts/sun4_date_seconds`
+@ end_date = ${start_date} + 59
+while ( `/icc/bin/scripts/sun4_date_seconds` < ${end_date} )
+	set date_string = `date`
+	set date2_string = `date +"%Y-%m-%dT%H:%M:%S"`
+	set date_seconds = `/icc/bin/scripts/sun4_date_seconds`
+	set prop_constant = `ccd_read_memory -i pci -b utility -s y -a 0x1D | grep "Result = " | sed "s/Result = \(.*\)/\1/"`
+	set ccd_temperature = `test_temperature -i pci -g | grep "The current temperature is" | sed "s/The current temperature is \(.*\)f degrees centigrade./\1/g"`
+	set heater_adus = `test_temperature -i pci -heater | grep "The current heater ADUS are" | sed "s/The current heater ADUS are:\(.*\)./\1/g"`
+	echo "${date_seconds},${date2_string},${prop_constant},${ccd_temperature},${heater_adus}" >> ${output_file}
+# wait a bit
+	sleep 5
+end
