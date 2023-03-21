@@ -1,0 +1,58 @@
+Spectral FITS headers meeting
+-----------------------------
+
+Nuview -> Meaburn
+
+- Blue/red ends of wavelength range
+
+- Units Angstroms
+   - Dispersion Angstroms/pixel
+   - Resolution Angstroms
+
+FrodoSpec - per arm
+
+WAVRESOL  Resolution - fixed number
+WAVDISP   Derived from central wavelength
+WAVSHORT  dispersion x no of pixels
+WAVLONG   dispersion x no of pixexls
+WAVCENT   from config
+
+FILTER1   CLEAR
+FILTERI1  Clear  (Same as RATCAM clear)
+
+CCDWMODE = T
+CCDWXOFF
+CCDWYOFF
+CCDWXSIZ
+CCDWYSIZ
+
+IFUID     MEABURN1
+COLID     MEABURN1
+DICHROID  NONE
+
+COLFOC    mm?
+CAMFOC    mm?
+
+GRATID    random name
+GRATANG   deg
+
+RCS/ISS
+-------
+ACQIMAGE  FITS filename
+
+Acquisition have same TAG/User/Prop
+
+RCS/ISS
+-------
+ACQXPIX   Target not actual pixel
+ACQYPIX   Target not actual pixel
+
+LAMP1     LAMP1FLX  (flux)
+LAMPI1     "
+LAMP2
+LAMPI2
+LAMP1CUR
+LAMP2CUR
+x 3
+
+Temperature monitor - if instrument is too warm it sets a flag in GET_STATUS.

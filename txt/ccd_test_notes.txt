@@ -1,0 +1,4 @@
+
+/icc/bin/frodospec/ccd/test/i386-linux/test_exposure -i pci -timing_filename /icc/bin/frodospec/dsp/tim.lod -utility_filename /icc/bin/frodospec/dsp/util.lod -xs 2148 -ys 4096 -xb 1 -yb 1 -a both -e 1000 -f ~/tmp/test`date +"%Y-%m-%dT%H:%M:%S"`.fits
+
+/icc/bin/frodospec/ccd/test/i386-linux/test_temperature -i pci -g

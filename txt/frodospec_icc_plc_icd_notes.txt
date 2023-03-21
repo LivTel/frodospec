@@ -1,0 +1,15 @@
+ICC Pseudocode
+--------------
+Using the Red VPH to position as an example:
+
+- Set N10:0/0=1 (Red VPH to position)
+- Enter loop
+  - Read N20:7/0 (Red VPH/Grating in transit)
+    - If true set red arm resolution status "in transit"
+  - Read N20:7/2 (Red VPH in position)
+    - If true red arm resolution status "high", exit loop (success)
+  - Read N20:8 (Fault status)
+    - If bit 3 is set exit loop propogating error
+
+We may need to reset faults, either before the sequence starts or on an error, or on
+a reboot/startup sequence , by setting N10:0/15=1

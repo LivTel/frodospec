@@ -1,0 +1,25 @@
+You have to setup the Arcom ESS up using a serial link to COM0.
+
+Use a crossover serial cable - Stus Allen Bradley RS232 cable works
+(1747-CP3 Ser A)
+
+Use "minicom"
+
+As root, "minicom -s"
+As eng, minicom
+Serial Port Setup
+Serial Device : /dev/ttyS0
+
+See ESS - Ethernet Serial Server :  Startup Manual:
+Default setup - 19200 baud, 8N1
+Hardware Flow Control: No
+Software Flow Control : No
+Save
+
+- Restart Arcom ESS
+- Press a key to go to main menu
+Follow Startup Instructions to change IP address
+
+
+NB when telneting into the MMI, you have to press return after each option select as telnet is in LINEMODE
+Type <ctrl-]>mode character<return> to go into char mode.

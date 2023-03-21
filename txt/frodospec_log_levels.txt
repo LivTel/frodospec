@@ -1,0 +1,89 @@
+Java layer
+----------
+~dev/src/frodospec/java/ngat/frodospec/FrodoSpecConstants.java
+public final static int FRODOSPEC_LOG_LEVEL_COMMANDS 			= (1<<0);
+public final static int FRODOSPEC_LOG_LEVEL_REPLIES 			= (1<<1);
+public final static int FRODOSPEC_LOG_LEVEL_TELFOCUS 			= (1<<2);
+public final static int FRODOSPEC_LOG_LEVEL_DAY_CALIBRATE 		= (1<<3);
+public final static int FRODOSPEC_LOG_LEVEL_TWILIGHT_CALIBRATE 		= (1<<4);
+public final static int FRODOSPEC_LOG_LEVEL_MULTRUN 		        = (1<<5);
+public final static int FRODOSPEC_LOG_LEVEL_RUNAT 		        = (1<<6);
+public final static int FRODOSPEC_LOG_LEVEL_MISC 		        = (1<<7);
+public final static int FRODOSPEC_LOG_LEVEL_PLC         = (1<<8);
+
+NB bit 8 overlaps with CCD library.
+
+~/cjm/c/misc/bitstoint 0 1 2 3 4 5 6 7 8
+= 511
+
+CCD library
+-----------
+
+~dev/src/frodospec/ccd/include/ccd_global.h
+
+#define CCD_GLOBAL_LOG_BIT_SETUP	(1<<8)
+#define CCD_GLOBAL_LOG_BIT_EXPOSURE	(1<<9)
+#define CCD_GLOBAL_LOG_BIT_FILTER_WHEEL	(1<<10)
+#define CCD_GLOBAL_LOG_BIT_TEMPERATURE	(1<<11)
+#define CCD_GLOBAL_LOG_BIT_DSP		(1<<12)
+#define CCD_GLOBAL_LOG_BIT_INTERFACE	(1<<13)
+#define CCD_GLOBAL_LOG_BIT_GLOBAL	(1<<14)
+
+~/cjm/c/misc/bitstoint 8 9 10 11 12 13 14
+= 32512
+
+Newmark library (grating slider motion controller)
+---------------
+~dev/src/frodospec/newmark_motion_controller/include/newmark_general.h
+#define NEWMARK_LOG_BIT_COMMAND	(1<<29)
+
+~/cjm/c/misc/bitstoint 29
+= 536870912
+
+ArcomESS
+--------
+/home/dev/src/arcom_ess/include/arcom_ess_general.h
+
+#define ARCOM_ESS_LOG_BIT_SERIAL	(1<<20)
+#define ARCOM_ESS_LOG_BIT_SOCKET	(1<<21)
+
+~dev/src/ngat/serial/arcomess/ArcomESS.java
+public final static int LOG_BIT_SERIAL       = (1<<20);
+public final static int LOG_BIT_SOCKET       = (1<<21);
+
+~/cjm/c/misc/bitstoint 20 21
+= 3145728
+
+Arc lamps
+---------
+~dev/src/ngat/lamp/LTAGLampUnit.java
+public final static int LOG_LEVEL_UNIT_BASIC = 1;
+
+/home/dev/src/ngat/lamp/LTLamp.java
+public final static int LOG_LEVEL_LAMP_BASIC = 1;
+
+/home/dev/src/ngat/lamp/PLCConnection.java
+public final static int LOG_LEVEL_CONNECTION_BASIC = 1;
+
+Ethernet/IP PLC comms library (libeip)
+--------------------------------------
+~dev/src/ngat/eip/EIPPLC.java:
+
+public final static int LOG_BIT_SESSION          = (1<<16);
+public final static int LOG_BIT_READ             = (1<<17);
+public final static int LOG_BIT_WRITE            = (1<<18);
+public final static int LOG_BIT_ADDRESS          = (1<<19);
+
+~/cjm/c/misc/bitstoint 16 17 18 19
+983040
+
+All bits:
+~/cjm/c/misc/bitstoint 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 16 17 18 19 20 21 29
+= 541032447
+
+Not used anymore:
+DF1 library
+-----------
+
+#define DF1_LOG_BIT_DF1	         (1<<18)
+#define DF1_LOG_BIT_DF1_READ_WRITE (1<<19)

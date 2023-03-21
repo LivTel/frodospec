@@ -1,0 +1,61 @@
+- Set eng user to 1012:1000
+- Add ltdev group 1000
+- Set eng shell /bin/csh
+- /etc/hosts from backup
+- /etc/fstab Add nfs mountpoint
+- /etc/ntp.conf Setup by MDT
+- /etc/grub.conf
+    - old conf mem=476M memap=36M$476M
+    - Need 4296x2154x2(bytes per pixel) x 2 (buffers) = 37014336 bytes
+                                                      = 35.299 Meg
+    - In default kernel config, /proc/meminfo returns:
+      MemTotal = 515496bK
+               = 503.4Mb
+      Due to crashes potentially caused by running out of memap space change grub.conf to:
+      mem=460M memap=40M$460M
+
+Installed backup of:
+	  /home/eng/.emacs
+	  /home/eng/.cshrc (merged with new install, JAVA_HOME updated).
+	  /home/eng/.login
+Note starlink install (and .cshrc/.login) will need to be done again?
+
+Installed eng's crontab from backup.
+
+astropci device driver:
+installed astropci_fedora4_single_major_multi_minor.tar.gz.
+Compiles OK under Centos 5.2.
+Required rpms:
+- kernel-headers
+- kernel-devel
+- gcc (glibc-devel(glibc-headers), libgomp)
+- /sbin/depmod -a
+- cp astropci_load /etc/init.d
+- Add /etc/init.d/astropci_load to /etc/rc.local.
+
+- Installed JDK 1.6
+  - setup JAVA_HOME (/usr/java/jdk1.6.0_16) in eng's .cshrc
+  - setup PATH in /etc/init.d/autobooter, also ltdevsrv:/home/dev/src/autobooter/java/frodospec1.autobooter
+
+Note Java 1.6 failed, during CONFIG NULLPointerException occured (after CCD_Setup_Dimensions JNI call, befire PCI
+code to set grating?).
+Removed and installed JDK 1.5.0 u19 ( /usr/java/jdk1.5.0_19).
+
+Installed latest build of Frodospec robotic software.
+
+/sbin/chkconfig nfs --levels 35 on
+/sbin/chkconfig --del sendmail
+/sbin/chkconfig --del cups
+
+
+Installed /home/eng/scripts/instrument_archive_logs
+
+hostname --short does not work (instrument_archive_logs)
+
+Changed /etc/sysconfig/network:
+HOSTNAME=frodospec.lt.com
+to
+HOSTNAME=frodospec1.lt.com
+to match /etc/hosts / instrument_archive_logs
+
+
