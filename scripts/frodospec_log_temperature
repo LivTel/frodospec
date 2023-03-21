@@ -1,7 +1,7 @@
 #!/bin/csh
 # frodospec_log_temperature <logfile> [<log file>...]
 # Get frodospec temperatures and heater ADUs from frodospec log files
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_log_temperature,v 1.1 2023-03-02 10:23:00 cjm Exp $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_log_temperature,v 1.2 2023-03-21 15:05:51 cjm Exp $
 if( $#argv < 1 ) then
     echo "autoguider_temperature_to_csv <logfile> [<log file>...]"
     echo "Extract temperature data from autoguider log files and write to CSV files."
@@ -13,36 +13,36 @@ echo "Output files to:${out_dir}"
 #
 # ccd temperature
 #
-set tmp_log_file = ${out_dir}/frodospec_ccd_temperature.txt
-echo "Generating ${tmp_log_file}."
-rm -f ${tmp_log_file}
-foreach file ( ${argv} )
-	echo "Greping ${file} for CCD_Temperature_Get."
-	grep 'CCD_Temperature_Get() returned' ${file} >> ${tmp_log_file}
-end
-foreach arm ( "red" "blue" )
-    	set csv_file = "${out_dir}/frodospec_${arm}_ccd_temperature.csv"
-    	echo "Extracting temperatures from ${tmp_log_file} for arm ${arm} to ${csv_file}..."
-    	cat "${tmp_log_file}" | grep ": GET_STATUS : ${arm} : CCD_Temperature_Get() returned " | sed "s/\(.*\) : GET_STATUS : ${arm} : CCD_Temperature_Get() returned \(.*\)./\1,\2/" > ${csv_file}
-end
-echo "Returned file in format date,temp(C)"
+#set tmp_log_file = ${out_dir}/frodospec_ccd_temperature.txt
+#echo "Generating ${tmp_log_file}."
+#rm -f ${tmp_log_file}
+#foreach file ( ${argv} )
+#	echo "Greping ${file} for CCD_Temperature_Get."
+#	grep 'CCD_Temperature_Get() returned' ${file} >> ${tmp_log_file}
+#end
+#foreach arm ( "red" "blue" )
+#    	set csv_file = "${out_dir}/frodospec_${arm}_ccd_temperature.csv"
+#    	echo "Extracting temperatures from ${tmp_log_file} for arm ${arm} to ${csv_file}..."
+#    	cat "${tmp_log_file}" | grep ": GET_STATUS : ${arm} : CCD_Temperature_Get() returned " | sed "s/\(.*\) : GET_STATUS : ${arm} : CCD_Temperature_Get() returned \(.*\)./\1,\2/" > ${csv_file}
+#end
+#echo "Returned file in format date,temp(C)"
 #rm -f ${tmp_log_file}
 #
 # heater ADU
 #
-set tmp_log_file = ${out_dir}/frodospec_ccd_heater_adu.txt
-echo "Generating ${tmp_log_file}."
-rm -f ${tmp_log_file}
-foreach file ( ${argv} )
-	echo "Greping ${file} for CCD_Temperature_Get_Heater_ADU."
-	grep 'CCD_Temperature_Get_Heater_ADU() returned' ${file} >> ${tmp_log_file}
-end
-foreach arm ( "red" "blue" )
-    	set csv_file = "${out_dir}/frodospec_${arm}_ccd_heater_adu.csv"
-    	echo "Extracting temperatures from ${tmp_log_file} for arm ${arm} to ${csv_file}..."
-    	cat "${tmp_log_file}" | grep ": GET_STATUS : ${arm} : CCD_Temperature_Get_Heater_ADU() returned " | sed "s/\(.*\) : GET_STATUS : ${arm} : CCD_Temperature_Get_Heater_ADU() returned \(.*\)./\1,\2/" | awk -F',' ' { print $1","strtonum($2) }' > ${csv_file}
-end
-echo "Returned file in format date,temp(C)"
+#set tmp_log_file = ${out_dir}/frodospec_ccd_heater_adu.txt
+#echo "Generating ${tmp_log_file}."
+#rm -f ${tmp_log_file}
+#foreach file ( ${argv} )
+#	echo "Greping ${file} for CCD_Temperature_Get_Heater_ADU."
+#	grep 'CCD_Temperature_Get_Heater_ADU() returned' ${file} >> ${tmp_log_file}
+#end
+#foreach arm ( "red" "blue" )
+#    	set csv_file = "${out_dir}/frodospec_${arm}_ccd_heater_adu.csv"
+#    	echo "Extracting temperatures from ${tmp_log_file} for arm ${arm} to ${csv_file}..."
+#    	cat "${tmp_log_file}" | grep ": GET_STATUS : ${arm} : CCD_Temperature_Get_Heater_ADU() returned " | sed "s/\(.*\) : GET_STATUS : ${arm} : CCD_Temperature_Get_Heater_ADU() returned \(.*\)./\1,\2/" | awk -F',' ' { print $1","strtonum($2) }' > ${csv_file}
+#end
+#echo "Returned file in format date,temp(C)"
 #rm -f ${tmp_log_file}
 #
 # enviromental temperatures
@@ -58,17 +58,20 @@ set env_temp_index = 0
 while ( ${env_temp_index} < 5 )
     	set csv_file = "${out_dir}/frodospec_env_temperature_${env_temp_index}.csv"
     	echo "Extracting temperatures from ${tmp_log_file} for sensor ${env_temp_index} to ${csv_file}..."
+	# Newer log files
     	cat "${tmp_log_file}" | grep ": ngat.frodospec.Plc:getTemperature(${env_temp_index}):Finished" | sed "s/\(.*\) : GET_STATUS : null : ngat.frodospec.Plc:getTemperature(${env_temp_index}):Finished with temperature:\(.*\)/\1,\2/" > ${csv_file}
+	# older log files (2010)
+#    	cat "${tmp_log_file}" | grep ": ngat.frodospec.Plc:getTemperature(${env_temp_index}):Finished" | sed "s/\(.*\) : - : - : ngat.frodospec.Plc:getTemperature(${env_temp_index}):Finished with temperature:\(.*\)/\1,\2/" > ${csv_file}
 	@ env_temp_index ++
 end
 #rm -f ${tmp_log_file}
 #
 # plot graphs
 #
-${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_red_ccd_temperature.csv
-${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_blue_ccd_temperature.csv
-${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_red_ccd_heater_adu.csv
-${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_blue_ccd_heater_adu.csv
+#${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_red_ccd_temperature.csv
+#${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_blue_ccd_temperature.csv
+#${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_red_ccd_heater_adu.csv
+#${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_blue_ccd_heater_adu.csv
 ${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_env_temperature_0.csv
 ${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_env_temperature_1.csv
 ${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_env_temperature_2.csv
@@ -76,5 +79,8 @@ ${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_env_temperature_3.csv
 ${script_dir}/frodospec_csv_to_graph ${out_dir}/frodospec_env_temperature_4.csv
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2023/03/02 10:23:00  cjm
+# Initial revision
+#
 #
 

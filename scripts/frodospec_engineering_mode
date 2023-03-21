@@ -1,6 +1,6 @@
 #!/bin/csh
-# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_engineering_mode,v 1.1 2008-10-22 10:39:51 cjm Exp $
-# Version: $Revision: 1.1 $
+# $Header: /home/cjm/cvs/frodospec/scripts/frodospec_engineering_mode,v 1.2 2023-03-21 15:05:51 cjm Exp $
+# Version: $Revision: 1.2 $
 # By $Author: cjm $
 # Change the icc into engineering mode - kill all robotic control processes
 # Usage:
@@ -12,12 +12,12 @@ echo "This will only succeed if you are root."
 # Kill any running processes
 #
 if ( -x /icc/bin/scripts/killhup.csh ) then
-    echo "Trying to kill AutoBooter."
-    /icc/bin/scripts/killhup.csh AutoBooter
-    echo "Trying to kill Scs."
+    echo "Trying to kill FrodospecAutoBooter."
+    /icc/bin/scripts/killhup.csh FrodospecAutoBooter
+    echo "Trying to kill Frodospec."
     /icc/bin/scripts/killhup.csh FrodoSpec
-    echo "Trying to kill DpRt."
-    /icc/bin/scripts/killhup.csh DpRt
+    echo "Trying to kill FrodospecDpRt."
+    /icc/bin/scripts/killhup.csh FrodospecDpRt
     echo "Trying to kill icsd_inet."
     /icc/bin/scripts/killhup.csh icsd_inet
 else
@@ -25,4 +25,7 @@ else
 endif
 #
 # $Log: not supported by cvs2svn $
+# Revision 1.1  2008/10/22 10:39:51  cjm
+# Initial revision
+#
 #
